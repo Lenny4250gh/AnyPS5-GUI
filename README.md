@@ -4,6 +4,8 @@ A graphical interface for [AnyPS5](https://github.com/boykopovar/AnyPS5): unwrap
 
 > **Unofficial.** Not affiliated with Sony or with the AnyPS5 project. This tool contains **no games, no firmware, no keys and no decryption**. Use it only on software you legitimately own (your own dumps or homebrew).
 
+> **Vibe-coded.** Made by a hobbyist with the help of AI (Claude). Not professionally audited, so use it with a bit of care and feel free to report bugs. More [below](#about-this-project).
+
 ## Download (no build needed)
 
 1. Open the [**Releases**](https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest) page.
@@ -92,6 +94,12 @@ python build.py 3             # same, no questions: 1 = Windows, 2 = macOS, 3 = 
 ```
 
 `build.py` embeds `index.html` into the executable and calls PyInstaller. PyInstaller cannot cross-compile: it always packages for the system it runs on, so build **on** the system you are targeting (or let GitHub Actions do it, see above). The result is in `dist/`.
+
+## About this project
+
+I'm not a professional developer. This GUI was built almost entirely with the help of an AI assistant (Claude by Anthropic): I described what I wanted, tested it, and iterated. It works for me (Windows), but it may contain bugs or code that a more experienced developer would write differently.
+
+If you find a problem or have suggestions, issues and pull requests are very welcome. Since the code is open, please review it yourself before trusting it.
 
 ## Support
 
