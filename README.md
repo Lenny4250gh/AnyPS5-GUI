@@ -120,6 +120,8 @@ This is an independent, third-party project. It is **not affiliated with, endors
 
 This GUI is essentially a launcher for [AnyPS5](https://github.com/boykopovar/AnyPS5). It does not include or redistribute the relinker, libraries or `unwrap_self.py`: it downloads them from the official AnyPS5 repository (or uses a local copy you provide). If that project becomes unavailable, this GUI will not be able to provide those files, and it will not work without them.
 
+By default the GUI points to the official AnyPS5 repository, but you can change the repository in the settings and use another one with the same structure (same release names and layout). Any other repository you enter is a third-party source: it is **not made, hosted, reviewed or endorsed by me**, and I am not responsible for its content. Only use sources you trust and that you are allowed to use, and review what they contain before running it.
+
 ## Disclaimer
 
 This project is intended for interoperability, research, preservation and compatibility purposes. It does not include, distribute or require copyrighted software, firmware, cryptographic keys or proprietary libraries. Users are responsible for ensuring that any binaries used with it are obtained and used in accordance with applicable laws and their respective license terms. Provided "as is", without warranty.
