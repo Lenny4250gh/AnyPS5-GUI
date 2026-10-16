@@ -29,16 +29,54 @@ All three files are built automatically by GitHub Actions on real Windows, macOS
 - **Windows** needs the Microsoft Edge WebView2 runtime (already present on up-to-date Windows 10/11).
 - **Linux** needs a WebKitGTK (or Qt) runtime for pywebview, see the [pywebview docs](https://pywebview.flowrl.com/guide/installation.html).
 
-## What it does
+## Features
 
-- **Unwrap:** already-decrypted SELF/fSELF → ELF, using the official `unwrap_self.py`.
+**Convert a game**
+- **Unwrap:** already-decrypted SELF/fSELF → ELF, using the official `unwrap_self.py` (the original files are backed up, with a *Restore backup* button).
 - **Relink:** builds the `<GAME>-<system>` package (app0 + libs + executable) for Windows, Linux or macOS.
-- **Options:** all relinker options, each marked with the systems it applies to.
-- **Runtime:** language, GPU, present mode, fonts, tracing, and more; can create a shortcut that starts the game with the right variables.
-- **Input:** editor for `anyps5-input.ini` with validity check.
+- **Requirements check:** shows what is missing before you start, and downloads the tools for you when needed.
+- **Options:** all relinker options, each marked with the systems it applies to. Options that do not fit the selected target are disabled automatically.
 - **Audit:** runs `import_audit.py` (if present) after the relink.
 
+**Play a game**
+- **Launch** a converted game with your current settings, or **create a shortcut** that starts it with the right variables.
+
+**Runtime**
+- Language, GPU, present mode, fonts, tracing and more, passed to the game as environment variables.
+
+**Input**
+- Visual controller editor: click a button, then press a key, mouse button or wheel direction. Alternate inputs supported.
+- Stick deadzones and mouse-as-stick settings (sensitivity, curve, smoothing, decay).
+- Import / export your settings, or edit `anyps5-input.ini` directly in text view (with validity check).
+
+**Appearance**
+- Choose the main color (presets or custom hex) and the animated background (soft grid, orbs or none). It stops automatically if your system asks for reduced motion.
+
 The relinker, libs and `unwrap_self.py` can come from the AnyPS5 GitHub releases, from a local clone built from source (needs git, CMake and a C/C++ compiler), or from files you put in `Utilities/`.
+
+<details>
+<summary><b>Screenshots: settings</b></summary>
+
+<br>
+
+**Conversion options** (each marked with the systems it applies to)
+
+<img src="docs/screenshots/8.png" width="700" alt="Conversion settings">
+
+**Runtime** (language, GPU, tracing, fonts...)
+
+<img src="docs/screenshots/7.png" width="700" alt="Runtime settings">
+
+**Input editor** (controller view, deadzones and mouse settings)
+
+<img src="docs/screenshots/5.png" width="700" alt="Input mapping">
+<img src="docs/screenshots/6.png" width="700" alt="Input deadzones and mouse settings">
+
+**Appearance** (main color and animated background)
+
+<img src="docs/screenshots/1.png" width="700" alt="Appearance settings">
+
+</details>
 
 ## Build from source
 
