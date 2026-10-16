@@ -73,12 +73,6 @@ jobs:
           path: release
           merge-multiple: true
 
-      - name: SHA256SUMS
-        run: |
-          cd release
-          sha256sum * > SHA256SUMS.txt
-          cat SHA256SUMS.txt
-
       - uses: softprops/action-gh-release@v2
         with:
           files: release/*
