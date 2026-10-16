@@ -71,6 +71,7 @@ import stat
 import subprocess
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor
 import time
 import zipfile
 
@@ -133,6 +134,9 @@ SELF_MAGICS = (0x1D3D154F, 0xEEF51454)
 
 # True -> executable in "<GAME>-<system>" (next to app0); False -> inside app0
 OUTPUT_NEXT_TO_APP0 = True
+
+# threads used to copy the game into app0 (plain copy only; the move mode stays serial)
+COPY_WORKERS = 32
 
 TARGETS = {
   "windows": {"label": "Windows", "exe": "eboot.exe", "suffix": "windows"},
@@ -660,11 +664,33 @@ def format_duration(seconds):
   return f"{seconds}s"
 
 
-def cancellable_copy(cancel, log=None, total=0):
+def cancellable_copy(cancel, log=None, total=0, sync=True, workers=0):
   """copy function for shutil.copytree: checks the cancel flag every 8 MiB (a large game can be
   interrupted in the middle of a file) and reports the progress through log("percent", value)
-  and log("progress", text). The returned function has a .finish() to call at the end."""
+  and log("progress", text). The returned function has a .finish() to call at the end.
+  sync=True forces flush + fsync after every file (needed when the source is removed afterwards);
+  with sync=False (plain copy) it is skipped: fsync per file is very slow with many small files.
+  workers>0 copies the files in parallel on that many threads (the per-file latency of games with
+  tens of thousands of small files is hidden); the copy then finishes only in .finish(), which
+  waits for the pool and re-raises the first error. Needs sync=False (the move mode stays serial)."""
   state = {"done": 0, "t0": time.time(), "last": 0.0}
+  lock = threading.Lock()
+  local = threading.local()  # one reusable read buffer per thread (no 8 MiB allocation per file)
+  CHUNK = 4 * 1024 * 1024
+  # diagnostics: where does the time go? (files, open/create, read, write, copystat, fsync)
+  prof = {"files": 0, "open": 0.0, "read": 0.0, "write": 0.0, "stat": 0.0, "sync": 0.0,
+          "slow": [], "last_dump": time.time()}
+
+  def dump_profile(label):
+    if log is None or not prof["files"]:
+      return
+    elapsed = max(time.time() - state["t0"], 0.001)
+    log("detail", f"[diag] {label}: {prof['files']} files in {elapsed:.0f}s "
+                  f"({prof['files'] / elapsed:.1f} files/s) · open/create {prof['open']:.1f}s · "
+                  f"read {prof['read']:.1f}s · write {prof['write']:.1f}s · "
+                  f"copystat {prof['stat']:.1f}s · fsync {prof['sync']:.1f}s")
+    for t, name in sorted(prof["slow"], reverse=True)[:3]:
+      log("detail", f"[diag] slowest file: {t:.2f}s  {name}")
 
   def report(force=False):
     if log is None:
@@ -683,36 +709,110 @@ def cancellable_copy(cancel, log=None, total=0):
     log("percent", pct)
     log("progress", text)
 
-  def copy(src, dst):
-    with open(src, "rb") as fi, open(dst, "wb") as fo:
+  def copy_one(src, dst):
+    pc = time.perf_counter
+    t_file = pc()
+    buf = getattr(local, "buf", None)
+    if buf is None:
+      buf = local.buf = bytearray(CHUNK)
+    mv = memoryview(buf)
+    p_open = p_read = p_write = p_sync = 0.0
+    t = pc()
+    with open(src, "rb", buffering=0) as fi, open(dst, "wb") as fo:
+      p_open += pc() - t
+      st = os.fstat(fi.fileno())  # already-open handle: no extra stat of the source
       while True:
         check_cancel(cancel)
-        chunk = fi.read(8 * 1024 * 1024)
-        if not chunk:
+        t = pc()
+        n = fi.readinto(buf)
+        p_read += pc() - t
+        if not n:
           break
-        fo.write(chunk)
-        state["done"] += len(chunk)
+        t = pc()
+        fo.write(mv[:n])
+        p_write += pc() - t
+        with lock:
+          state["done"] += n
         report()
-      fo.flush()
-      try:
-        os.fsync(fo.fileno())
-      except OSError:
-        pass
-    shutil.copystat(src, dst)
+      if sync:
+        t = pc()
+        fo.flush()
+        try:
+          os.fsync(fo.fileno())
+        except OSError:
+          pass
+        p_sync += pc() - t
+      t = pc()
+    p_write += pc() - t  # closing the file is where the antivirus usually scans it
+    t = pc()
+    try:  # only the timestamps (one call): copystat reopens the destination several times on Windows
+      os.utime(dst, ns=(st.st_atime_ns, st.st_mtime_ns))
+    except OSError:
+      pass
+    p_stat = pc() - t
+    with lock:
+      prof["open"] += p_open
+      prof["read"] += p_read
+      prof["write"] += p_write
+      prof["sync"] += p_sync
+      prof["stat"] += p_stat
+      prof["files"] += 1
+      prof["slow"].append((pc() - t_file, os.path.basename(src)))
+      if len(prof["slow"]) > 200:
+        prof["slow"] = sorted(prof["slow"], reverse=True)[:5]
+      dump = time.time() - prof["last_dump"] > 30
+      if dump:
+        prof["last_dump"] = time.time()
+    if dump:
+      dump_profile("progress")
     return dst
 
+  pool = ThreadPoolExecutor(max_workers=workers) if workers > 0 else None
+  pending = threading.BoundedSemaphore(workers * 64) if pool else None
+  failed = []  # first error raised by a worker
+
+  def worker(src, dst):
+    try:
+      if not failed:
+        copy_one(src, dst)
+    except BaseException as e:  # noqa: BLE001 - re-raised by the main thread
+      failed.append(e)
+    finally:
+      pending.release()
+
+  def copy(src, dst):
+    if pool is None:
+      return copy_one(src, dst)
+    if failed:
+      raise failed[0]
+    check_cancel(cancel)
+    pending.acquire()  # backpressure: at most workers*64 queued files
+    pool.submit(worker, src, dst)
+    return dst
+
+  def close(abort=True):
+    """abort=True drops the queued files (error/cancel); abort=False waits for all of them."""
+    if pool is not None:
+      pool.shutdown(wait=True, cancel_futures=abort)
+
   def add(n):
-    state["done"] += n
+    with lock:
+      state["done"] += n
     report()
 
   def finish():
+    close(abort=False)
+    if failed:
+      raise failed[0]
     if log is not None:
       state["done"] = max(state["done"], total)
       report(True)
+      dump_profile("total")
       log("percent", None)  # back to the indeterminate bar
 
   copy.finish = finish
   copy.add = add
+  copy.close = close
   return copy
 
 
@@ -3338,13 +3438,15 @@ def _do_relink(folder, cfg, log, cancel, holder, created, mover=None):
     copier = cancellable_move(mover, cancel, log, dir_size(folder))
   else:
     log("step", "[3] Copying the game into app0")
-    copier = cancellable_copy(cancel, log, dir_size(folder))
+    copier = cancellable_copy(cancel, log, dir_size(folder), sync=False, workers=COPY_WORKERS)
   try:
     shutil.copytree(folder, app0_dir, copy_function=copier)
     copier.finish()
   except Cancelled:
+    copier.close() if hasattr(copier, "close") else None
     raise
   except Exception as e:
+    copier.close() if hasattr(copier, "close") else None
     log("err", f"Copy failed: {e}")
     return False
   if mover is not None:
@@ -3532,7 +3634,7 @@ L = sys.modules[__name__]   # the logic lives in this same file
 HERE = SCRIPT_DIR
 
 # ---------- GUI update check ----------
-APP_VERSION = "1.0.0"   # must match the tag of the GitHub release without the "v"
+APP_VERSION = "1.0.1"   # must match the tag of the GitHub release without the "v"
 GUI_REPO_OWNER = "Lenny4250gh"
 GUI_REPO_NAME = "AnyPS5-GUI"
 GUI_RELEASES_URL = "https://github.com/%s/%s/releases/latest" % (GUI_REPO_OWNER, GUI_REPO_NAME)
@@ -3933,6 +4035,46 @@ class Api:
     self.cancel_ev = threading.Event()
     self.holder = {}
     self.game_proc = None
+    self.quitting = False      # True once the user confirmed closing during an operation
+    self._quit_asked = False   # a confirmation popup is already on screen
+
+  # ---------- closing the window ----------
+  def on_closing(self):
+    """Window close event. Idle (or already confirmed) -> close. Operation running -> the close is
+    vetoed and the in-app popup asks for confirmation."""
+    if self.quitting or not self.running:
+      return True
+    if not self._quit_asked:
+      self._quit_asked = True
+
+      def ask():  # evaluate_js from a separate thread: calling it inside the handler could deadlock
+        try:
+          webview.windows[0].evaluate_js("window.confirmQuit && window.confirmQuit()")
+        except Exception:
+          self._quit_asked = False
+      threading.Thread(target=ask, daemon=True).start()
+    return False
+
+  def quit_answered(self):
+    self._quit_asked = False
+    return True
+
+  def force_quit(self):
+    """The user confirmed: stop the operation, wait for its cleanup/rollback, then close the app."""
+    self.quitting = True
+    self._quit_asked = False
+    self.cancel()
+
+    def finish():
+      deadline = time.time() + 300  # rollback of a big move can take a while
+      while self.running and time.time() < deadline:
+        time.sleep(0.2)
+      try:
+        webview.windows[0].destroy()
+      except Exception:
+        os._exit(0)
+    threading.Thread(target=finish, daemon=True).start()
+    return True
 
   # ---------- state ----------
   def get_state(self):
@@ -4466,8 +4608,10 @@ def main():
   hide_own_console()
   _html = load_embedded_ui()
   _src = {"html": _html} if _html else {"url": find_ui()}
-  webview.create_window("AnyPS5 GUI - Unofficial | v" + APP_VERSION, js_api=Api(), width=1280, height=760,
-                        min_size=(900, 560), background_color="#111312", **_src)
+  api = Api()
+  window = webview.create_window("AnyPS5 GUI - Unofficial | v" + APP_VERSION, js_api=api, width=1280, height=760,
+                                 min_size=(900, 560), background_color="#111312", **_src)
+  window.events.closing += api.on_closing  # asks for confirmation if an operation is running
   # Windows (WinForms) needs a real .ico here: a PNG raises "picture must be an image usable as Icon"
   _icon = resource_path("icon.ico" if os.name == "nt" else "icon.png")
   try:

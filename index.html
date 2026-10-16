@@ -271,9 +271,14 @@ function combo(label,opts,get,set,k,o={}){const n=opts.length,i0=Math.max(0,opts
  w.append(lb,b,pop);if(o.hint)w.append(el("p","muted",o.hint));dis(b,o.off);return w}
 const hrow=(...k)=>{const d=el("div","hrow");d.append(...k.filter(Boolean));return d};
 const note=t=>el("p","muted",t);
-function ask(title,text){return new Promise(res=>{const m=el("div","modal"),b=el("div","cfm");b.setAttribute("role","dialog");b.append(el("h2","",title),el("p","",text));
- m.done=v=>{closeM(m);res(v)};const y=btn("Continue",()=>m.done(true),{pri:1,k:"y"}),n=btn("Cancel",()=>m.done(false),{k:"n"});
+function ask(title,text,yesL="Continue",noL="Cancel"){return new Promise(res=>{const m=el("div","modal"),b=el("div","cfm");b.setAttribute("role","dialog");b.append(el("h2","",title),el("p","",text));
+ m.done=v=>{closeM(m);res(v)};const y=btn(yesL,()=>m.done(true),{pri:1,k:"y"}),n=btn(noL,()=>m.done(false),{k:"n"});
  b.append(hrow(y,n));m.append(b);document.body.append(m);n.focus()})}
+// called by Python when the window is closed while an operation is running
+window.confirmQuit=async()=>{
+ const ok=await ask("Operation in progress","An operation is still running. If you close the app now it will be stopped and the work done so far will be undone (incomplete folders are removed, moved game files are put back). Close anyway?","Stop and close","Keep running");
+ await api("quit_answered");
+ if(ok){toast("Stopping the operation… the app will close when the cleanup is done.","warn");await api("force_quit")}};
 // ---------- main page (same layout as the Tk version) ----------
 function setMain(sec,key,val){cfg[sec][key]=val;api("set_cfg",{[sec]:{[key]:val}});renderCards();refresh()}
 function foldAnim(d,sm,wb,key){let an=null;const rm=()=>matchMedia("(prefers-reduced-motion:reduce)").matches;
