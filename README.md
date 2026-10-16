@@ -65,14 +65,14 @@ The relinker, libs and `unwrap_self.py` can come from the AnyPS5 GitHub releases
 
 <br>
 
-**Appearance settings**
-
-<img src="docs/screenshots/8.png" width="700" alt="Conversion settings">
-
 **Input editor** (controller view, deadzones and mouse settings)
 
 <img src="docs/screenshots/4.png" width="700" alt="Input mapping">
 <img src="docs/screenshots/5.png" width="700" alt="Input deadzones and mouse settings">
+
+**Appearance settings**
+
+<img src="docs/screenshots/8.png" width="700" alt="Conversion settings">
 
 **Conversion options** (each marked with the systems it applies to)
 
