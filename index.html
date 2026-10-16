@@ -141,6 +141,21 @@ textarea{width:100%;height:34vh;resize:none}
 .modal.out{animation:mOut .18s ease-in both;pointer-events:none}
 .modal .dlg,.modal .cfm{animation:dIn .3s var(--ease) both}
 .modal.out .dlg,.modal.out .cfm{animation:dOut .18s ease-in both}
+.updm{z-index:30}.updm .cfm{width:min(34em,90vw);align-items:center;text-align:center}
+.updm svg{width:min(17em,70%);height:auto;color:var(--accent,#fff);margin:.2em 0 .6em}
+.updm h2{font-size:1.5em}.updm .row{display:flex;gap:.7em;flex-wrap:wrap;justify-content:center;margin-top:.9em}
+.updm .ubar{width:100%;height:.4em;border-radius:1em;background:var(--line);overflow:hidden;margin:.2em 0 .6em}
+.updm .ubar i{display:block;height:100%;width:0;background:var(--accent,#fff);transition:width .3s}
+.updm .ubar.ind i{width:40%;animation:upInd 1.2s ease-in-out infinite}
+.updm .st{margin:0}.updm .st:empty{display:none}.updm .st.warn{color:var(--warn,#ffb454)}
+.updm .tiny{font-size:.8em;opacity:.75;margin:1.1em 0 0}
+.updm .bob{animation:upBob 1.8s ease-in-out infinite}
+.updm .pulse{transform-box:fill-box;transform-origin:center;animation:upPulse 2s ease-out infinite}
+@keyframes upBob{0%,100%{transform:translateY(-3px)}50%{transform:translateY(3px)}}
+@keyframes upPulse{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.55);opacity:0}}
+@keyframes upInd{0%{margin-left:-40%}100%{margin-left:100%}}
+@media (prefers-reduced-motion:reduce){.updm .bob,.updm .pulse,.updm .ubar.ind i{animation:none}}
+
 .dbody.tin{animation:tab .26s var(--ease) both}
 .cmb.open .cpop{animation:pop .16s var(--ease);transform-origin:top center}
 body.intro h1,body.intro .tagline,body.intro .card,body.intro #pb,body.intro #log{animation:up .5s var(--ease) both}
@@ -515,8 +530,30 @@ function nav(k,e){const a=document.activeElement,inp=a.tagName=="INPUT",ta=a.tag
 addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()=="a"&&document.activeElement.id=="log"){const r=document.createRange();r.selectNodeContents($("#log"));const g=getSelection();g.removeAllRanges();g.addRange(r);e.preventDefault();return}
  const m={ArrowUp:"Up",ArrowDown:"Down",ArrowLeft:"Left",ArrowRight:"Right",Enter:"Enter",Escape:"Escape"}[e.key];if(m)nav(m,e);
  else if(e.key==" "){const a=document.activeElement;if(a.dataset&&a.dataset.nav&&!["INPUT","TEXTAREA"].includes(a.tagName)&&a.id!="log"){a.click();e.preventDefault()}}});
-function checkUpdate(){api("check_update").then(u=>{if(!u)return;const d=el("div","upd");d.append(el("span","warn","New version "+u.version+" available (you have "+u.current+")."));
- d.append(btn("Download",()=>api("open_release_page"),{pri:1,k:"upd-go"}),btn("Later",()=>d.remove(),{k:"upd-no"}));$(".tagline").after(d)}).catch(()=>{})}
+const UPD_SVG='<svg viewBox="0 0 260 150" aria-hidden="true"><g fill="none" stroke="currentColor"><rect x="30" y="16" width="190" height="108" rx="14" stroke-opacity=".4" fill="currentColor" fill-opacity=".05" stroke-width="2"/><path d="M30 40h190" stroke-opacity=".25" stroke-width="2"/></g><g fill="currentColor"><circle cx="46" cy="28" r="3.2" fill-opacity=".5"/><circle cx="58" cy="28" r="3.2" fill-opacity=".35"/><circle cx="70" cy="28" r="3.2" fill-opacity=".25"/><rect x="50" y="56" width="74" height="7" rx="3.5" fill-opacity=".2"/><rect x="50" y="72" width="108" height="7" rx="3.5" fill-opacity=".14"/><rect x="50" y="88" width="62" height="7" rx="3.5" fill-opacity=".14"/><path d="M232 30v10M227 35h10M20 104v8M16 108h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" opacity=".5"/></g><circle class="pulse" cx="196" cy="100" r="30" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="196" cy="100" r="30" fill="#111312" stroke="currentColor" stroke-width="2.5"/><g class="bob" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M196 85v22M185 97l11 11 11-11"/></g><path d="M184 118h24" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg>';
+function checkUpdate(){api("check_update").then(u=>{if(!u)return;
+ const m=el("div","modal updm"),b=el("div","cfm");b.setAttribute("role","alertdialog");b.setAttribute("aria-modal","true");
+ m.done=()=>{};  // Esc and clicks outside do nothing: the update cannot be dismissed
+ const art=el("div","");art.innerHTML=UPD_SVG;
+ const h2=el("h2","","Update required"),
+  p=el("p","","Version "+u.version+" is available (you have "+u.current+"). To keep using AnyPS5 GUI you need to update."),
+  st=el("p","st"),bar=el("div","ubar"),fill=el("i"),row=el("div","row"),
+  tiny=el("p","muted tiny","The app downloads the new version, replaces the current one and restarts by itself. Settings and the Utilities folder are kept.");
+ bar.append(fill);bar.hidden=true;
+ const show=(txt,warn)=>{st.textContent=txt||"";st.className="st"+(warn?" warn":"")};
+ let go,page;
+ const busy=()=>{row.hidden=true;bar.hidden=false;tiny.hidden=true},
+  fail=t=>{bar.hidden=true;row.hidden=false;tiny.hidden=false;show(t,1);go.querySelector(".bt span").textContent="Try again";go.focus()},
+  start=()=>{busy();show("Starting…");fill.style.width="0";bar.classList.remove("ind");
+   api("start_update").then(r=>{if(r&&r.ok===false)return fail(r.error);
+    const t=setInterval(()=>api("update_status").then(s=>{if(!s)return;show(s.text||"");
+     if(s.pct==null||s.state=="installing"){bar.classList.add("ind")}else{bar.classList.remove("ind");fill.style.width=Math.max(0,Math.min(100,s.pct))+"%"}
+     if(s.state=="restarting"){bar.classList.remove("ind");fill.style.width="100%"}
+     if(s.state=="failed"){clearInterval(t);fail(s.text)}}).catch(()=>{}),400)}).catch(e=>fail("Update failed: "+e))};
+ go=btn("Update now",start,{pri:1,k:"upd-go"});page=btn("Open release page",()=>api("open_release_page"),{k:"upd-page"});
+ row.append(go,page);
+ if(u.packaged===false){row.append(btn("Continue anyway",()=>closeM(m),{k:"upd-skip"}));tiny.textContent="You are running from the Python script: the automatic update only works on the packaged app. Download the new version from the release page."}
+ b.append(art,h2,p,st,bar,row,tiny);m.append(b);document.body.append(m);go.focus()}).catch(()=>{})}
 document.getElementById("origin").onclick=e=>{e.preventDefault();api("open_origin_page")};
 // ---------- start ----------
 (async()=>{if(!window.pywebview)await new Promise(r=>addEventListener("pywebviewready",r,{once:true}));

@@ -3634,7 +3634,7 @@ L = sys.modules[__name__]   # the logic lives in this same file
 HERE = SCRIPT_DIR
 
 # ---------- GUI update check ----------
-APP_VERSION = "1.0.1"   # must match the tag of the GitHub release without the "v"
+APP_VERSION = "1.0.2"
 GUI_REPO_OWNER = "Lenny4250gh"
 GUI_REPO_NAME = "AnyPS5-GUI"
 GUI_RELEASES_URL = "https://github.com/%s/%s/releases/latest" % (GUI_REPO_OWNER, GUI_REPO_NAME)
@@ -3649,10 +3649,342 @@ def check_gui_update():
   try:
     tag = L.fetch_release_info(GUI_REPO_OWNER, GUI_REPO_NAME, "")["tag"]
     if _version_tuple(tag) > _version_tuple(APP_VERSION):
-      return {"version": tag, "current": APP_VERSION}
+      return {"version": tag, "current": APP_VERSION, "packaged": bool(getattr(sys, "frozen", False))}
   except Exception:
     pass  # offline, rate limit, no release yet: stay silent
   return None
+
+# ---------- GUI self-update (download the release asset, replace the app, restart) ----------
+_OS_TOKENS = {"windows": {"win", "windows", "win32", "win64"},
+              "macos": {"mac", "macos", "osx", "darwin", "macosx"},
+              "linux": {"linux", "appimage"}}
+_ARCH_ARM = {"arm64", "aarch64", "armv8"}
+_ARCH_X64 = {"x64", "x86_64", "amd64", "win64"}
+_SKIP_EXT = (".sha256", ".sha512", ".sig", ".asc", ".txt", ".md", ".json", ".blockmap", ".msi",
+             ".deb", ".rpm", ".yml", ".yaml", ".pem", ".sbom", ".spdx")
+_OK_EXT = {"windows": (".exe", ".zip"),
+           "macos": (".zip", ".dmg", ".tar.gz", ".tgz"),
+           "linux": (".appimage", ".zip", ".tar.gz", ".tgz", "")}
+
+
+class UpdateUnavailable(Exception):
+  """Automatic update not possible here: the GUI falls back to the release page."""
+
+
+def _host_arch():
+  import platform
+  m = platform.machine().lower()
+  return "arm" if (m in _ARCH_ARM or m.startswith("arm")) else "x64"
+
+
+def pick_gui_asset(assets, host=None, arch=None):
+  """Asset of the release built for this system (None if there is none)."""
+  host, arch = host or L.host_target(), arch or _host_arch()
+  best, best_score = None, -1
+  for a in assets:
+    n = a["name"].lower()
+    if n.endswith(_SKIP_EXT):
+      continue
+    if host == "windows" and re.search(r"setup|install", n):
+      continue  # a wizard cannot replace the exe silently
+    tokens = set(re.split(r"[^a-z0-9]+", n))
+    oses = {k for k, v in _OS_TOKENS.items() if tokens & v}
+    ext = next((e for e in (".tar.gz", ".tgz", ".appimage", ".exe", ".zip", ".dmg") if n.endswith(e)), "")
+    if not ext and "." in n.rsplit("-", 1)[-1]:
+      continue  # unknown extension
+    score = 0
+    if oses:
+      if host not in oses:
+        continue
+      score += 10
+    elif not ((host == "windows" and ext == ".exe") or (host == "linux" and ext == "")):
+      continue
+    if ext not in _OK_EXT[host]:
+      continue
+    a_arm, a_x64 = bool(tokens & _ARCH_ARM), bool(tokens & _ARCH_X64)
+    if a_arm or a_x64:
+      if (a_arm and arch == "arm") or (a_x64 and arch == "x64"):
+        score += 3
+      elif host != "macos":
+        continue  # wrong CPU (macOS x64 still runs through Rosetta: kept, lower score)
+    score += {".exe": 2, ".appimage": 2, ".zip": 1}.get(ext, 0)
+    if score > best_score:
+      best, best_score = a, score
+  return best
+
+
+def _safe_extract_zip(path, dest):
+  base = os.path.realpath(dest)
+  with zipfile.ZipFile(path) as z:
+    for info in z.infolist():
+      target = os.path.realpath(os.path.join(dest, info.filename))
+      if target != base and not target.startswith(base + os.sep):
+        raise OSError("unsafe path in the archive: " + info.filename)
+    z.extractall(dest)
+    for info in z.infolist():  # keep the executable bit
+      mode = (info.external_attr >> 16) & 0o777
+      if mode and not info.is_dir():
+        try:
+          os.chmod(os.path.join(dest, info.filename), mode | 0o600)
+        except OSError:
+          pass
+
+
+def _safe_extract_tar(path, dest):
+  import tarfile
+  base = os.path.realpath(dest)
+  with tarfile.open(path) as t:
+    for m in t.getmembers():
+      target = os.path.realpath(os.path.join(dest, m.name))
+      if target != base and not target.startswith(base + os.sep):
+        raise OSError("unsafe path in the archive: " + m.name)
+    t.extractall(dest)
+
+
+def _single_root(folder):
+  """Descends while a folder contains only one folder."""
+  while True:
+    items = [i for i in os.listdir(folder) if not i.startswith("__MACOSX") and i != ".DS_Store"]
+    if len(items) == 1 and os.path.isdir(os.path.join(folder, items[0])) and not items[0].endswith(".app"):
+      folder = os.path.join(folder, items[0])
+    else:
+      return folder
+
+
+def _find_main_exe(root, host, cur_name):
+  files = [f for f in os.listdir(root) if os.path.isfile(os.path.join(root, f))]
+  if host == "windows":
+    files = [f for f in files if f.lower().endswith(".exe")]
+  else:
+    files = [f for f in files if not f.lower().endswith((".txt", ".md", ".so", ".json", ".png", ".ini"))]
+  if not files:
+    return None
+  if cur_name in files:
+    return cur_name
+  return max(files, key=lambda f: os.path.getsize(os.path.join(root, f)))
+
+
+def _run_detached(cmd):
+  env = dict(os.environ)
+  env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"  # the new onefile exe must not reuse our temp folder
+  for k in ("_MEIPASS2", "_PYI_APPLICATION_HOME_DIR", "_PYI_ARCHIVE_FILE", "_PYI_PARENT_PROCESS_LEVEL"):
+    env.pop(k, None)
+  if os.name == "nt":
+    flags = 0x00000008 | 0x00000200 | 0x08000000  # DETACHED_PROCESS | NEW_PROCESS_GROUP | NO_WINDOW
+    subprocess.Popen(cmd, creationflags=flags, close_fds=True, env=env,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+  else:
+    subprocess.Popen(cmd, start_new_session=True, close_fds=True, env=env,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+_BAT = """@echo off
+chcp 65001 >nul
+set "MAIN={main}"
+set "DEST={dest}"
+set "APPDIR={appdir}"
+set "PAYLOAD={payload}"
+set "STAGE={stage}"
+set /a N=0
+:retry
+move /y "%MAIN%" "%DEST%" >nul 2>&1
+if not errorlevel 1 goto moved
+set /a N+=1
+if %N% GEQ 120 goto fail
+ping -n 2 127.0.0.1 >nul
+goto retry
+:moved
+if exist "%PAYLOAD%\\_internal" if exist "%APPDIR%\\_internal" rmdir /s /q "%APPDIR%\\_internal"
+xcopy "%PAYLOAD%\\*" "%APPDIR%\\" /e /y /i /q >nul 2>&1
+:fail
+rmdir /s /q "%STAGE%" >nul 2>&1
+set "PYINSTALLER_RESET_ENVIRONMENT=1"
+start "" "%DEST%"
+(goto) 2>nul & del "%~f0"
+"""
+
+_SH_LINUX = """#!/bin/sh
+MAIN="$1"; DEST="$2"; APPDIR="$3"; PAYLOAD="$4"; STAGE="$5"; shift 5
+i=0
+while [ $i -lt 90 ]; do
+  alive=0
+  for p in "$@"; do kill -0 "$p" 2>/dev/null && alive=1; done
+  [ $alive -eq 0 ] && break
+  sleep 1; i=$((i+1))
+done
+sleep 1
+if mv -f "$MAIN" "$DEST"; then
+  chmod +x "$DEST"
+  if [ -d "$PAYLOAD/_internal" ]; then rm -rf "$APPDIR/_internal"; fi
+  cp -a "$PAYLOAD/." "$APPDIR/" 2>/dev/null
+fi
+rm -rf "$STAGE"
+export PYINSTALLER_RESET_ENVIRONMENT=1
+setsid "$DEST" >/dev/null 2>&1 &
+rm -f "$0"
+"""
+
+_SH_MAC = """#!/bin/sh
+NEWAPP="$1"; OLDAPP="$2"; KEEP="$3"; STAGE="$4"; shift 4
+i=0
+while [ $i -lt 90 ]; do
+  alive=0
+  for p in "$@"; do kill -0 "$p" 2>/dev/null && alive=1; done
+  [ $alive -eq 0 ] && break
+  sleep 1; i=$((i+1))
+done
+sleep 1
+SAVE="$STAGE/keep"
+if [ -n "$KEEP" ] && [ -e "$OLDAPP/$KEEP" ]; then mkdir -p "$SAVE" && mv "$OLDAPP/$KEEP" "$SAVE/data"; fi
+BACKUP="$OLDAPP.old"
+rm -rf "$BACKUP"
+if mv "$OLDAPP" "$BACKUP"; then
+  if ditto "$NEWAPP" "$OLDAPP"; then
+    rm -rf "$BACKUP"
+  else
+    rm -rf "$OLDAPP"; mv "$BACKUP" "$OLDAPP"
+  fi
+fi
+if [ -n "$KEEP" ] && [ -e "$SAVE/data" ]; then rm -rf "$OLDAPP/$KEEP"; mv "$SAVE/data" "$OLDAPP/$KEEP"; fi
+xattr -dr com.apple.quarantine "$OLDAPP" 2>/dev/null
+rm -rf "$STAGE"
+export PYINSTALLER_RESET_ENVIRONMENT=1
+open -n "$OLDAPP"
+rm -f "$0"
+"""
+
+
+def _mac_bundle():
+  """Path of the running .app bundle, or None."""
+  p = os.path.realpath(sys.executable)
+  while p and p != os.path.dirname(p):
+    if p.endswith(".app"):
+      return p
+    p = os.path.dirname(p)
+  return None
+
+
+def _mac_extract_app(dl, stage):
+  """Unpacks zip / tar.gz / dmg into stage and returns the path of the .app inside."""
+  out = os.path.join(stage, "x")
+  os.makedirs(out, exist_ok=True)
+  n = dl.lower()
+  if n.endswith(".zip"):
+    subprocess.run(["ditto", "-x", "-k", dl, out], check=True)  # keeps symlinks and permissions
+  elif n.endswith((".tar.gz", ".tgz")):
+    _safe_extract_tar(dl, out)
+  elif n.endswith(".dmg"):
+    mnt = os.path.join(stage, "mnt")
+    os.makedirs(mnt, exist_ok=True)
+    subprocess.run(["hdiutil", "attach", "-nobrowse", "-readonly", "-noverify", "-mountpoint", mnt, dl],
+                   check=True, stdout=subprocess.DEVNULL)
+    try:
+      apps = [a for a in os.listdir(mnt) if a.endswith(".app")]
+      if not apps:
+        raise OSError("no .app inside the dmg")
+      subprocess.run(["ditto", os.path.join(mnt, apps[0]), os.path.join(out, apps[0])], check=True)
+    finally:
+      subprocess.run(["hdiutil", "detach", "-force", mnt], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+  else:
+    raise OSError("unsupported archive: " + dl)
+  for root, dirs, _ in os.walk(out):
+    for d in dirs:
+      if d.endswith(".app"):
+        return os.path.join(root, d)
+    if root.count(os.sep) - out.count(os.sep) >= 2:
+      dirs[:] = []
+  raise OSError("no .app found in the downloaded file")
+
+
+def prepare_and_launch_update(asset, status, cancel):
+  """Downloads `asset`, stages it and starts the external installer script. The caller must then
+  quit the app. Raises UpdateUnavailable when the update cannot be applied automatically."""
+  import tempfile
+  host = L.host_target()
+  if not getattr(sys, "frozen", False):
+    raise UpdateUnavailable("not running from a packaged executable")
+  pids = sorted({os.getpid(), os.getppid()} - {0, 1})
+
+  if host == "macos":
+    bundle = _mac_bundle()
+    if not bundle:
+      raise UpdateUnavailable("the app is not inside a .app bundle")
+    if not os.access(os.path.dirname(bundle), os.W_OK):
+      raise UpdateUnavailable("no write permission in " + os.path.dirname(bundle))
+    stage = tempfile.mkdtemp(prefix="anyps5-update-")
+  else:
+    dest = os.environ.get("APPIMAGE") if host == "linux" and os.environ.get("APPIMAGE") else sys.executable
+    dest = os.path.abspath(dest)
+    appdir = os.path.dirname(dest)
+    if not os.access(appdir, os.W_OK):
+      raise UpdateUnavailable("no write permission in " + appdir)
+    stage = os.path.join(L.UTILITIES_DIR, "update")
+    shutil.rmtree(stage, ignore_errors=True)
+    os.makedirs(stage, exist_ok=True)
+
+  errors = []
+
+  def log(kind, msg):
+    if kind == "percent":
+      status(pct=msg if msg is not None else 0)
+    elif kind == "progress" and msg:
+      status(text=msg)
+    elif kind == "err":
+      errors.append(msg)
+  dl = os.path.join(stage, "download-" + re.sub(r"[^\w.\-]", "_", asset["name"]))
+  status(state="downloading", pct=0, text="Downloading " + asset["name"] + "…")
+  if not L._download_file(asset["url"], dl, asset["size"], asset["sha256"], log, cancel, asset["name"]):
+    shutil.rmtree(stage, ignore_errors=True)
+    raise RuntimeError(errors[-1] if errors else "download failed")
+
+  status(state="installing", pct=None, text="Preparing the installation…")
+  if host == "macos":
+    newapp = _mac_extract_app(dl, stage)
+    keep = ""
+    ud = os.path.realpath(L.UTILITIES_DIR)
+    if ud.startswith(os.path.realpath(bundle) + os.sep):  # settings live inside the bundle: carry them over
+      keep = os.path.relpath(ud, os.path.realpath(bundle))
+    fd, script = tempfile.mkstemp(prefix="anyps5-upd-", suffix=".sh")
+    with os.fdopen(fd, "w") as f:
+      f.write(_SH_MAC)
+    os.chmod(script, 0o700)
+    _run_detached(["/bin/sh", script, newapp, bundle, keep, stage] + [str(p) for p in pids])
+    return
+
+  # Windows / Linux: single file, or an archive with the file (and maybe its folder)
+  low = dl.lower()
+  if low.endswith(".zip") or low.endswith((".tar.gz", ".tgz")):
+    ex = os.path.join(stage, "payload")
+    os.makedirs(ex, exist_ok=True)
+    (_safe_extract_zip if low.endswith(".zip") else _safe_extract_tar)(dl, ex)
+    payload = _single_root(ex)
+    shutil.rmtree(os.path.join(payload, L.UTILITIES_DIR_NAME), ignore_errors=True)  # never touch user data
+  else:
+    payload = os.path.join(stage, "payload")
+    os.makedirs(payload, exist_ok=True)
+    shutil.move(dl, os.path.join(payload, os.path.basename(dest)))
+  main = _find_main_exe(payload, host, os.path.basename(dest))
+  if not main:
+    shutil.rmtree(stage, ignore_errors=True)
+    raise RuntimeError("no executable found in the downloaded file")
+  if host == "linux":
+    os.chmod(os.path.join(payload, main), 0o755)
+  main_path = os.path.join(payload, main)
+
+  if host == "windows":
+    fd, script = tempfile.mkstemp(prefix="anyps5-upd-", suffix=".bat")
+    esc = lambda p: p.replace("%", "%%")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+      f.write(_BAT.format(main=esc(main_path), dest=esc(dest), appdir=esc(appdir),
+                          payload=esc(payload), stage=esc(stage)).replace("\n", "\r\n"))
+    _run_detached(["cmd.exe", "/c", script])
+  else:
+    fd, script = tempfile.mkstemp(prefix="anyps5-upd-", suffix=".sh")
+    with os.fdopen(fd, "w") as f:
+      f.write(_SH_LINUX)
+    os.chmod(script, 0o700)
+    _run_detached(["/bin/sh", script, main_path, dest, appdir, payload, stage] + [str(p) for p in pids])
+
 
 # Options schema (generated from the old SettingsDialog; if you add options, update it here)
 SCHEMA = {'Conversion': [{'type': 'flag',
@@ -4037,6 +4369,7 @@ class Api:
     self.game_proc = None
     self.quitting = False      # True once the user confirmed closing during an operation
     self._quit_asked = False   # a confirmation popup is already on screen
+    self._upd = {"state": "idle"}  # progress of the GUI self-update
 
   # ---------- closing the window ----------
   def on_closing(self):
@@ -4097,6 +4430,44 @@ class Api:
 
   def check_update(self):
     return clean(check_gui_update())
+
+  def start_update(self):
+    """Download the release asset for this system, replace the app and restart it."""
+    if self.running:
+      return {"ok": False, "error": "Finish or cancel the running operation first."}
+    if self._upd.get("state") in ("downloading", "installing"):
+      return {"ok": True}
+    self._upd = {"state": "downloading", "pct": 0, "text": "Looking for the release…"}
+    threading.Thread(target=self._update_worker, daemon=True).start()
+    return {"ok": True}
+
+  def update_status(self):
+    return clean(self._upd)
+
+  def _update_worker(self):
+    def status(**k):
+      self._upd.update(k)
+    try:
+      info = L.fetch_release_info(GUI_REPO_OWNER, GUI_REPO_NAME, "")
+      asset = pick_gui_asset(info["assets"])
+      if not asset:
+        raise UpdateUnavailable("the release has no file for this system")
+      prepare_and_launch_update(asset, status, threading.Event())
+    except UpdateUnavailable as e:
+      status(state="failed", fallback=True, text="Automatic update not available: %s." % e)
+      return
+    except Exception as e:
+      status(state="failed", fallback=True, text="Update failed: %s" % e)
+      return
+    status(state="restarting", pct=100, text="Restarting…")
+    self.quitting = True
+    time.sleep(0.8)
+    try:
+      webview.windows[0].destroy()
+    except Exception:
+      pass
+    time.sleep(1.5)
+    os._exit(0)
 
   def open_release_page(self):
     import webbrowser
