@@ -6,24 +6,26 @@ A graphical interface for [AnyPS5](https://github.com/boykopovar/AnyPS5): unwrap
 
 ## Download (no build needed)
 
-1. Open the [**Releases**](../../releases/latest) page.
+1. Open the [**Releases**](https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest) page.
 2. Download the file for your system:
 
-   | System  | File |
-   |---------|------|
-   | Windows | `AnyPS5_GUI-windows.exe` |
+   | System  | File                                                  |
+   | ------- | ----------------------------------------------------- |
+   | Windows | `AnyPS5_GUI-windows.exe`                              |
    | Linux   | `AnyPS5_GUI-linux` (then `chmod +x AnyPS5_GUI-linux`) |
-   | macOS   | `AnyPS5_GUI-macos.zip` |
+   | macOS   | `AnyPS5_GUI-macos.zip`                                |
 
 3. *(Optional but recommended)* verify the file against `SHA256SUMS.txt` from the same release:
    - Windows (PowerShell): `Get-FileHash .\AnyPS5_GUI-windows.exe -Algorithm SHA256`
    - Linux / macOS: `sha256sum AnyPS5_GUI-linux` (macOS: `shasum -a 256 <file>`)
 4. Run it. The first time it creates a `Utilities/` folder next to the program.
 
+All three files are built automatically by GitHub Actions on real Windows, macOS and Linux machines (see [`.github/workflows/build.yml`](.github/workflows/build.yml)), straight from the source in this repository.
+
 ### Warnings you may see
 
 - **Windows SmartScreen / antivirus:** the executables are not code-signed, and PyInstaller one-file programs are often flagged as false positives. If you don't trust the binary, read the source and [build it yourself](#build-from-source) (it takes a minute).
-- **macOS:** the app is not signed. Right-click the app → **Open** the first time.
+- **macOS:** the app is not signed. Right-click the app → **Open** the first time (or run `xattr -cr AnyPS5_GUI.app`).
 - **Windows** needs the Microsoft Edge WebView2 runtime (already present on up-to-date Windows 10/11).
 - **Linux** needs a WebKitGTK (or Qt) runtime for pywebview, see the [pywebview docs](https://pywebview.flowrl.com/guide/installation.html).
 
@@ -42,19 +44,20 @@ The relinker, libs and `unwrap_self.py` can come from the AnyPS5 GitHub releases
 
 Requires Python 3.9+.
 
-```sh
+```
 git clone https://github.com/Lenny4250gh/AnyPS5-GUI.git
 cd AnyPS5-GUI
 pip install -r requirements.txt
 python AnyPS5_GUI.py          # run directly
 python build.py               # or build the executable (asks for the target OS)
+python build.py 3             # same, no questions: 1 = Windows, 2 = macOS, 3 = Linux
 ```
 
-`build.py` embeds `index.html` into the executable and calls PyInstaller. PyInstaller cannot cross-compile: run it **on** the system you are building for. The result is in `dist/`.
+`build.py` embeds `index.html` into the executable and calls PyInstaller. PyInstaller cannot cross-compile: it always packages for the system it runs on, so build **on** the system you are targeting (or let GitHub Actions do it, see above). The result is in `dist/`.
 
 ## Support
 
-- Problems with **this GUI** (it doesn't open, a button does nothing, a wrong option): open an [issue](../../issues) in this repository.
+- Problems with **this GUI** (it doesn't open, a button does nothing, a wrong option): open an [issue](https://github.com/Lenny4250gh/AnyPS5-GUI/issues) in this repository.
 - Problems with **AnyPS5 itself** (a game doesn't start, crashes, missing library functions): this GUI cannot fix them. Ask in the official [AnyPS5 Discord](https://discord.gg/BHFztBPUe) or in the [Game bring-up discussions](https://github.com/boykopovar/AnyPS5/discussions/categories/game-bring-up), and read the [usage guide](https://github.com/boykopovar/AnyPS5/blob/main/docs/user/USAGE.md).
 
 ## License
@@ -62,8 +65,6 @@ python build.py               # or build the executable (asks for the target OS)
 GPL-2.0-only, see [LICENSE](LICENSE). The GUI loads the official `unwrap_self.py` from the AnyPS5 project (GPL v2 only) and does not contain a copy of it. If you redistribute it together with the GUI, include its license and sources.
 
 ## Credits
-
-Originally part of [Lenny4250gh/AnyPS5-GUI](https://github.com/Lenny4250gh/AnyPS5-GUI).
 
 [AnyPS5](https://github.com/boykopovar/AnyPS5) by its authors, which does the real work (relinker, system libraries, `unwrap_self.py`). This GUI only makes it easier to use.
 
