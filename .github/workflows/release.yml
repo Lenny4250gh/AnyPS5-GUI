@@ -12,7 +12,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Trova il build già pronto per questo commit
+      - name: Find the finished build for this commit
         id: find
         env:
           GH_TOKEN: ${{ github.token }}
@@ -21,7 +21,7 @@ jobs:
             --commit "$GITHUB_SHA" --status success --limit 1 \
             --json databaseId --jq '.[0].databaseId')
           if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
-            echo "Nessun build riuscito per il commit $GITHUB_SHA. Fai prima il push su main e aspetta il build."
+            echo "No successful build found for commit $GITHUB_SHA. Run the Build workflow on this commit first, then push the tag again."
             exit 1
           fi
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
