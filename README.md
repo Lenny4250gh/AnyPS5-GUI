@@ -97,7 +97,7 @@ python build.py 3             # same, no questions: 1 = Windows, 2 = macOS, 3 = 
 
 ## About this project
 
-I'm not a professional developer. This GUI was built almost entirely with the help of an AI assistant (Claude by Anthropic): I described what I wanted, tested it, and iterated. It works for me (Windows), but it may contain bugs or code that a more experienced developer would write differently.
+I'm not a professional developer. This GUI was built almost entirely with the help of an AI assistant (Claude by Anthropic): I described what I wanted, tested it, and iterated. It works for me, but it may contain bugs or code that a more experienced developer would write differently.
 
 If you find a problem or have suggestions, issues and pull requests are very welcome. Since the code is open, please review it yourself before trusting it.
 
@@ -113,6 +113,12 @@ GPL-2.0-only, see [LICENSE](LICENSE). The GUI loads the official `unwrap_self.py
 ## Credits
 
 [AnyPS5](https://github.com/boykopovar/AnyPS5) by its authors, which does the real work (relinker, system libraries, `unwrap_self.py`). This GUI only makes it easier to use.
+
+## Not affiliated
+
+This is an independent, third-party project. It is **not affiliated with, endorsed by or sponsored by Sony Interactive Entertainment**, and it is **not part of the AnyPS5 project** or its developers. "PlayStation" and "PS5" are trademarks of Sony Interactive Entertainment Inc.; they are used here only to describe compatibility.
+
+This GUI is essentially a launcher for [AnyPS5](https://github.com/boykopovar/AnyPS5). It does not include or redistribute the relinker, libraries or `unwrap_self.py`: it downloads them from the official AnyPS5 repository (or uses a local copy you provide). If that project becomes unavailable, this GUI will not be able to provide those files, and it will not work without them.
 
 ## Disclaimer
 
