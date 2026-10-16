@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AnyPS5 GUI</title>
+<style>
+:root{--bg:#0b0c0d;--glass:rgba(255,255,255,.07);--glass2:rgba(255,255,255,.12);--text:#f4f5f6;--dim:#a3a9ab;--line:rgba(255,255,255,.15);--ring:#ffffff;--on:#0b0c0e;--ok:#5fe3a1;--warn:#ffd166;--err:#ff6b81;--blue:#ffffff;--mag:#ffffff;--scale:1}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:300 calc(17px*var(--scale))/1.4 "Inter","Segoe UI","Helvetica Neue",Arial,sans-serif;overflow:hidden}
+/* ---- animated background (behind the glass) ---- */
+#bg{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+#bg i{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5;will-change:transform}
+#bg i:nth-child(1){width:48vmax;height:48vmax;left:-14vmax;top:-16vmax;background:var(--o1);animation:d1 30s ease-in-out infinite alternate}
+#bg i:nth-child(2){width:44vmax;height:44vmax;right:-14vmax;bottom:-18vmax;background:var(--o2);animation:d2 37s ease-in-out infinite alternate}
+#bg i:nth-child(3){display:none;width:34vmax;height:34vmax;left:38%;top:30%;background:var(--o3);animation:d3 43s ease-in-out infinite alternate}
+@keyframes d1{to{transform:translate3d(8vmax,6vmax,0) scale(1.12)}}
+@keyframes d2{to{transform:translate3d(-8vmax,-6vmax,0) scale(.92)}}
+@keyframes d3{to{transform:translate3d(-22vmax,20vmax,0) scale(1.25)}}
+body[data-bg=accent]{--o1:var(--ring);--o2:var(--ring);--o3:var(--ring)}
+body[data-bg=accent] #bg i{opacity:.12}
+body[data-bg=grid] #bg i:nth-child(1),body[data-bg=grid] #bg i:nth-child(2){display:none}
+body[data-bg=grid]{--o3:var(--ring)}
+body[data-bg=grid] #bg i:nth-child(3){display:block;left:calc(50% - 20vmax);top:calc(40% - 20vmax);width:40vmax;height:40vmax;opacity:.07;filter:blur(110px);animation:pulse 9s ease-in-out infinite alternate}
+body[data-bg=grid] #bg::before{content:"";position:absolute;inset:-48px;background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);background-size:48px 48px;
+ -webkit-mask-image:radial-gradient(circle at 50% 40%,#000 0,transparent 75%);mask-image:radial-gradient(circle at 50% 40%,#000 0,transparent 75%);animation:gridmove 24s linear infinite}
+@keyframes gridmove{to{transform:translate3d(48px,48px,0)}}
+@keyframes pulse{to{transform:scale(1.25);opacity:.03}}
+body[data-bg=none] #bg{display:none}
+/* ---- layout ---- */
+#page{position:relative;z-index:1;height:100%;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable both-edges;padding:3.5vh 4vw 6vh}
+/* ---- scrollbar discrete ---- */
+*::-webkit-scrollbar{width:10px;height:10px;background:transparent}
+*::-webkit-scrollbar-track,*::-webkit-scrollbar-corner{background:transparent}
+*::-webkit-scrollbar-button{display:none;width:0;height:0}
+*::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16);border-radius:10px;border:3px solid transparent;background-clip:padding-box;min-height:40px;transition:background .2s}
+*::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.34);background-clip:padding-box}
+*::-webkit-scrollbar-thumb:active{background:rgba(255,255,255,.5);background-clip:padding-box}
+@supports not selector(::-webkit-scrollbar){*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}}
+#in{max-width:66em;margin:0 auto}
+h1{font-weight:300;font-size:2.3em;margin:0;letter-spacing:-.01em}
+#in{position:relative}
+.ver{position:absolute;top:.9em;right:0;font-size:.8em;font-weight:400;letter-spacing:.04em;color:var(--dim);opacity:.8}
+h1 .gui{font-size:.45em;font-weight:500;letter-spacing:.12em;opacity:.65;vertical-align:.55em;margin-left:.15em}
+.tagline{color:var(--dim);font-size:.8em;margin:.2em 0 1em}
+.card{background:var(--glass);border:1px solid var(--line);border-radius:1.1em;padding:.9em 1.2em 1em;margin-top:.8em;
+ -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 .6em 2em rgba(0,0,0,.3)}
+.card h3{font-weight:400;font-size:.8em;color:var(--dim);margin:0 0 .6em;letter-spacing:.02em}
+.hrow{display:flex;align-items:center;gap:.6em;flex-wrap:wrap;margin-top:.45em}
+.hrow:first-child{margin-top:0}
+.hrow .lbl{color:var(--dim);min-width:6.5em}
+.hrow input{flex:1;min-width:10em}
+.sp{flex:1}
+.ind{margin:.5em 0 0 1.6em}
+.muted{color:var(--dim);font-size:.78em;margin:.35em 0 0}
+.stat{display:grid;grid-template-columns:15em 1fr;gap:.15em 1em;font-size:.85em}
+.stat span:nth-child(odd){color:var(--dim)}.stat span:nth-child(even){font-weight:400}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}.muted-c{color:var(--dim)}
+input[type=text],input:not([type]),textarea{background:rgba(0,0,0,.35);color:var(--text);border:1px solid var(--line);border-radius:.6em;padding:.4em .7em;font:400 .85em Consolas,"Cascadia Mono","DejaVu Sans Mono",monospace;outline:none}
+input:focus,textarea:focus{border-color:var(--ring);box-shadow:0 0 0 .1em var(--ring)}
+input:disabled{opacity:.4}
+.b,.opt,.chk,.sw{all:unset;box-sizing:border-box;cursor:pointer;transition:background .14s,box-shadow .14s}
+.b{display:inline-flex;align-items:center;justify-content:center;padding:.45em 1.1em;border-radius:2em;background:var(--glass2);border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.b.ic{display:inline-flex;align-items:center;gap:.6em}.b.ic .bi{display:flex;align-items:center;height:1em;flex:none}.bi svg{width:1.35em;height:1.35em;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;display:block}
+.bt{display:flex;flex-direction:column;line-height:1.15}.bt small{font-size:.66em;color:var(--dim)}
+.hrow:has([data-k="play"]){align-items:stretch}
+.hrow:has([data-k="play"]){margin:1.2em 0 1.1em}
+.dbody .hrow:has([data-k^="reset"]),.dbody .hrow:has([data-k="tpl"]){margin-top:1.6em}
+.b:hover{background:rgba(255,255,255,.2)}
+.b.pri{background:var(--ring);color:var(--on);font-weight:600;border-color:transparent}
+.b.pri:hover{background:var(--ring);filter:brightness(.9)}
+.b.sel{background:rgba(255,255,255,.28)}
+.b:focus-visible,.opt:focus-visible,.chk:focus-visible{box-shadow:0 0 0 .12em var(--ring)}
+[aria-disabled=true]{opacity:.35;cursor:not-allowed}
+.opt{display:flex;align-items:center;gap:.6em;padding:.25em .6em;border-radius:.7em}
+.opt:hover,.chk:hover{background:rgba(255,255,255,.06)}
+.opt i{width:1.05em;height:1.05em;border-radius:50%;border:1.5px solid var(--dim);position:relative;flex:none}
+.opt i{transition:border-color .22s}.opt i::after{content:"";position:absolute;inset:.2em;border-radius:50%;background:var(--ring);transform:scale(0);opacity:0;transition:transform .26s var(--ease),opacity .18s}.opt[aria-checked=true] i{border-color:var(--ring)}.opt[aria-checked=true] i::after{transform:scale(1);opacity:1}
+.opt small{color:var(--dim)}
+.chk{display:flex;gap:.7em;align-items:flex-start;padding:.3em .6em;border-radius:.7em;width:100%}
+.chk .box{width:1.1em;height:1.1em;border-radius:.3em;border:1.5px solid var(--dim);flex:none;margin-top:.15em;text-align:center;line-height:1em;font-size:.8em;position:relative;overflow:hidden;transition:border-color .22s}
+.chk .box::before{content:"";position:absolute;inset:0;background:var(--ring);transform:scale(0);opacity:0;transition:transform .26s var(--ease),opacity .18s}
+.chk[aria-checked=true] .box::before{transform:scale(1);opacity:1}
+.chk[aria-checked=true] .box{border-color:var(--ring)}.chk .box{transition:border-color .22s,transform .16s var(--ease)}.chk:active .box{transform:scale(.86)}
+.chk small{display:block;color:var(--dim);font-size:.78em}
+.tag{font-size:.7em;border:1px solid var(--line);border-radius:1em;padding:0 .6em;margin-left:.6em;color:var(--dim)}
+.sw{display:block;width:1.9em;height:1.9em;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}
+.sw[aria-checked=true]{box-shadow:inset 0 0 0 1px rgba(0,0,0,.35),0 0 0 .15em var(--bg),0 0 0 .28em var(--text)}
+.sw:focus-visible{outline:2px solid var(--text);outline-offset:.3em}
+#pb{height:.3em;border-radius:1em;background:rgba(255,255,255,.12);overflow:hidden;margin:.9em 0 0}
+#pb i{display:block;height:100%;width:0;background:var(--ring);transition:width .2s}
+#pb.ind i{width:30%;animation:ind 1.2s ease-in-out infinite}
+@keyframes ind{0%{margin-left:-30%}100%{margin-left:100%}}
+#log{margin-top:.8em;height:36vh;min-height:12em;overflow:auto;padding:.9em 1.1em;border-radius:1em;background:rgba(0,0,0,.42);border:1px solid var(--line);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+ font:400 calc(13.5px*var(--scale))/1.55 Consolas,"Cascadia Mono","DejaVu Sans Mono",monospace;white-space:pre-wrap;outline:none;-webkit-user-select:text;user-select:text;cursor:text}
+#log *{-webkit-user-select:text;user-select:text}
+#log:focus-visible{box-shadow:0 0 0 .1em var(--ring)}
+#log .step{color:var(--mag);font-weight:700;margin-top:.6em}#log .detail{color:var(--dim)}#log .progress{color:var(--blue)}#log .info{color:var(--text)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:20}
+.dlg,.cfm{background:rgba(30,32,35,.62);border:1px solid var(--line);border-radius:1.2em;padding:1.2em 1.4em;display:flex;flex-direction:column;
+ -webkit-backdrop-filter:blur(28px) saturate(150%);backdrop-filter:blur(28px) saturate(150%);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 2em 5em #000a}
+.cfm{width:min(32em,88vw)}.cfm h2{font-weight:300;margin:0 0 .4em}.cfm p{color:var(--dim);margin:0 0 .8em}
+.dlg{width:min(54em,94vw);height:min(82vh,46em)}.dlg h2{font-weight:300;margin:0 0 .6em}
+.dbody{flex:1;overflow:auto;margin:.8em 0 .8em -.35em;padding:.3em .5em .3em .35em}
+.si{margin-top:.5em}.si .sl{display:block;color:var(--text);font-size:.9em;margin:0 .6em .2em}
+.si input{width:100%}
+.cmb{position:relative}
+.cbtn{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:.6em;width:100%;cursor:pointer;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:.6em;padding:.45em .8em;transition:background .14s,border-color .14s}
+.cbtn:hover{background:rgba(255,255,255,.06)}
+.cbtn:focus-visible,.cmb.open .cbtn{border-color:var(--ring);box-shadow:0 0 0 .1em var(--ring)}
+.cbtn .car{color:var(--dim);font-size:.8em;transition:transform .15s}.cmb.open .car{transform:rotate(180deg)}
+.cpop{position:absolute;left:0;right:0;top:calc(100% + .3em);max-height:15em;overflow:auto;z-index:5;background:rgba(24,26,29,.97);border:1px solid var(--line);border-radius:.8em;padding:.3em;box-shadow:0 .8em 2em #000a}
+.cpop[hidden]{display:none}
+.copt{display:flex;justify-content:space-between;gap:1em;padding:.4em .7em;border-radius:.5em;cursor:pointer}
+.copt:hover,.copt.on{background:rgba(255,255,255,.14)}.copt[aria-selected=true]{font-weight:600}
+.copt small{color:var(--dim)}
+textarea{width:100%;height:34vh;resize:none}
+.legal{color:var(--dim);font-size:.65em;margin:1.2em 0 0;max-width:60em}
+.legal a{color:inherit;text-decoration:underline;cursor:pointer}.legal a:hover{color:var(--text)}
+.legal+.legal{margin-top:.4em}
+#toast{position:fixed;left:50%;bottom:5vh;transform:translateX(-50%);background:rgba(44,46,50,.72);border:1px solid var(--line);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);padding:.6em 1.5em;border-radius:2em;opacity:0;pointer-events:none;transition:opacity .2s;max-width:70vw;text-align:center;box-shadow:0 .5em 2em #000a;z-index:30}
+#toast.on{opacity:1}
+#toast,#toast.err,#toast.warn,#toast.ok{display:flex;align-items:center;justify-content:center;gap:.6em;color:var(--ring)}
+#toast .ti{width:1.25em;height:1.25em;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#toast .ti.err{color:var(--err)}#toast .ti.warn{color:var(--warn)}#toast .ti.ok{color:var(--ok)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card{background:rgba(30,32,35,.92)}.dlg,.cfm{background:#1c1e21}#log{background:#08090a}#toast{background:#2c2e32}}
+@media (prefers-contrast:more){:root{--dim:#d6d9db;--glass:rgba(20,22,24,.92)}}
+
+/* ---- animations (transform/opacity only: smooth, no reflow) ---- */
+:root{--ease:cubic-bezier(.2,.8,.2,1)}
+@keyframes mIn{from{opacity:0}to{opacity:1}}
+@keyframes mOut{to{opacity:0}}
+@keyframes dIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes dOut{to{opacity:0;transform:translateY(8px) scale(.97)}}
+@keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes tab{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:translateY(-6px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes lg{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
+@keyframes vinR{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+@keyframes vinL{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:none}}
+.modal{animation:mIn .2s ease-out both}
+.modal.out{animation:mOut .18s ease-in both;pointer-events:none}
+.modal .dlg,.modal .cfm{animation:dIn .3s var(--ease) both}
+.modal.out .dlg,.modal.out .cfm{animation:dOut .18s ease-in both}
+.dbody.tin{animation:tab .26s var(--ease) both}
+.cmb.open .cpop{animation:pop .16s var(--ease);transform-origin:top center}
+body.intro h1,body.intro .tagline,body.intro .card,body.intro #pb,body.intro #log{animation:up .5s var(--ease) both}
+body.intro .tagline{animation-delay:.05s}
+body.intro .card:nth-child(1){animation-delay:.1s}body.intro .card:nth-child(2){animation-delay:.17s}
+body.intro .card:nth-child(3){animation-delay:.24s}body.intro .card:nth-child(4){animation-delay:.31s}
+body.intro #pb{animation-delay:.36s}body.intro #log{animation-delay:.4s}
+#log div:not(.progress){animation:lg .22s ease-out}
+#toast{transform:translateX(-50%) translateY(14px);transition:opacity .25s,transform .32s var(--ease)}
+#toast.on{transform:translateX(-50%) translateY(0)}
+.b{transition:background .14s,box-shadow .14s,transform .14s var(--ease)}
+.b:active:not([aria-disabled=true]){transform:scale(.96)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (max-width:760px){.stat{grid-template-columns:1fr}}
+.padwrap{overflow-x:auto;margin:.3em 0}
+.pad{position:relative;width:100%;min-width:46em;aspect-ratio:1000/560}
+.pad>svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.pc{position:relative;box-sizing:border-box;border-radius:.7em;background:var(--glass);border:1px solid var(--line);transition:background .14s,border-color .14s}
+.pc.ab{position:absolute;width:19%;height:8.2%}
+.pc.st{min-height:2.9em}
+.pc.set{border-color:rgba(255,255,255,.5);background:var(--glass2)}
+.pc.lis{border-color:var(--ring);box-shadow:0 0 0 .1em var(--ring)}
+.pm{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;justify-content:center;width:100%;height:100%;padding:.15em 3.4em .15em .6em;overflow:hidden;border-radius:inherit}
+.pm:focus-visible{box-shadow:0 0 0 .12em var(--ring)}
+.pm .pt{font-size:.8em;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pm .pv{font-size:.66em;line-height:1.2;color:var(--ring);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pm .pv.dflt{color:var(--dim)}
+.pc:not(.set) .pm{padding-right:2.4em}
+.pcb{position:absolute;top:50%;right:.25em;transform:translateY(-50%);display:flex;gap:.15em}
+.pi{all:unset;cursor:pointer;width:1.5em;height:1.5em;border-radius:50%;text-align:center;line-height:1.5em;font-size:.8em;background:var(--glass2);border:1px solid var(--line)}
+.pi:hover{background:rgba(255,255,255,.22)}.pi:focus-visible{box-shadow:0 0 0 .12em var(--ring)}
+.padrow{display:flex;flex-wrap:wrap;gap:1.2em;margin-top:.6em}
+.pgrp{flex:1;min-width:13em}.pgrp .pc{margin-top:.35em}
+.pcross{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"up up" "left right" "down down";gap:.35em}.pcross .pc{margin-top:0}
+.padset{margin-top:.8em}.padset summary{cursor:pointer;color:var(--dim);font-size:.85em}
+.prow{display:flex;align-items:center;gap:.7em;margin-top:.4em}.prow .sl2{min-width:14em;font-size:.85em}.prow input{width:7em;flex:none}.prow small{color:var(--dim)}
+.adv summary{cursor:pointer;color:var(--dim);font-size:.8em;letter-spacing:.02em}.advb{overflow:hidden}.advi{padding-top:.6em}
+.prow input[type=range]{flex:1;min-width:8em;width:auto;accent-color:var(--ring);cursor:default;margin:0}
+.prow input[type=number]{width:5.2em;text-align:right;background:rgba(0,0,0,.35);color:var(--text);border:1px solid var(--line);border-radius:.6em;padding:.3em .5em;font:400 .85em Consolas,"Cascadia Mono","DejaVu Sans Mono",monospace;outline:none}
+.prow input[type=number]:focus{border-color:var(--ring)}
+.prow small{min-width:5.5em}
+.rst,.rstsp{width:2.1em;flex:none;text-align:center}.rst{all:unset;box-sizing:border-box;width:2.1em;flex:none;text-align:center;cursor:pointer;color:var(--dim);border:1px solid var(--line);border-radius:1em;padding:.05em 0;font-size:.85em}.rst:hover,.rst:focus-visible{color:var(--text);border-color:var(--ring)}
+.prow input[type=range]{cursor:default;-webkit-appearance:none;appearance:none;height:1.5em;background:transparent;--p:0%}
+.prow input[type=range]:focus,.prow input[type=range]:focus-visible{outline:none;box-shadow:none;border-color:transparent}
+.prow input[type=range]::-webkit-slider-runnable-track{height:.32em;border-radius:1em;background:linear-gradient(to right,var(--ring) var(--p),rgba(255,255,255,.16) var(--p))}
+.prow input[type=range]::-moz-range-track{height:.32em;border-radius:1em;background:rgba(255,255,255,.16)}
+.prow input[type=range]::-moz-range-progress{height:.32em;border-radius:1em;background:var(--ring)}
+.prow input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:1.1em;height:1.1em;margin-top:-.39em;border:0;border-radius:50%;background:var(--ring);box-shadow:0 .1em .4em #0009;transition:transform .18s cubic-bezier(.2,.8,.3,1),box-shadow .18s}
+.prow input[type=range]::-moz-range-thumb{width:1.1em;height:1.1em;border:0;border-radius:50%;background:var(--ring);box-shadow:0 .1em .4em #0009;transition:transform .18s cubic-bezier(.2,.8,.3,1),box-shadow .18s}
+.prow input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.2)}.prow input[type=range]:hover::-moz-range-thumb{transform:scale(1.2)}
+.prow input[type=range]:active::-webkit-slider-thumb{transform:scale(1.35)}.prow input[type=range]:active::-moz-range-thumb{transform:scale(1.35)}
+.prow input[type=range]:focus-visible::-webkit-slider-thumb{transform:scale(1.2);box-shadow:0 0 0 .32em rgba(255,255,255,.2),0 .1em .4em #0009}
+.prow input[type=range]:focus-visible::-moz-range-thumb{transform:scale(1.2);box-shadow:0 0 0 .32em rgba(255,255,255,.2),0 .1em .4em #0009}
+.prow input[type=number]{transition:border-color .2s,color .2s,box-shadow .2s}
+.prow input[type=number].live{border-color:var(--ring)}
+.rstsp{width:1.785em}
+.rst{transition:color .15s,border-color .15s}
+.upd{display:flex;align-items:center;flex-wrap:wrap;gap:.6em 1em;margin:0 0 1em;padding:.5em .9em;border-radius:1em;background:var(--glass);border:1px solid var(--line);font-size:.8em}
+</style></head><body data-bg="grid" class="intro">
+<div id="bg" aria-hidden="true"><i></i><i></i><i></i></div>
+<div id="page"><div id="in">
+ <h1>AnyPS5 <small class="gui">GUI</small></h1><small class="ver" id="ver"></small><p class="tagline">Unwrap SELF → ELF  ·  Convert PS5 game to PC  ·  Runtime and input</p>
+ <div id="cards"></div>
+ <div id="pb" role="progressbar"><i></i></div>
+ <div id="log" role="log" aria-live="polite" tabindex="0" data-nav="1" aria-label="Log"></div>
+<p class="legal">AnyPS5 GUI is an unofficial, independent tool. It is not affiliated with, endorsed by or sponsored by Sony Interactive Entertainment. PlayStation and PS5 are trademarks of Sony Interactive Entertainment. Use it only with games you legally own; do not use it to obtain or share pirated content.</p>
+<p class="legal">Originally part of the project <a href="#" id="origin">Lenny4250gh/AnyPS5-GUI</a>. Released under GPL-2.0-only.</p>
+</div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+const closeM=m=>{if(m._c)return;m._c=1;m.classList.add("out");setTimeout(()=>m.remove(),190)};
+setTimeout(()=>document.body.classList.remove("intro"),1400);
+const $=s=>document.querySelector(s),el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.textContent=h;return e};
+const api=(f,...a)=>pywebview.api[f](...a),yes=v=>["yes","true","1"].includes(String(v).toLowerCase());
+const TAG={win:"Windows",nowin:"Linux · macOS",host:"This system"};
+const LABEL={import_audit:"Import audit (checks that every import resolves)",unused_filter:"unused-filter (0 keep all · 1 filter · 2 strict)"};
+const UIDEF={accent:"#ffffff",bg:"grid"},HEX=/^#[0-9a-f]{6}$/i,COLORS=[["White","#ffffff"],["Mint","#3ec9a7"],["Amber","#ffb454"],["Rose","#ff6b9a"],["Violet","#a78bfa"],["Lime","#b6e35a"]],
+ BGS=[["grid","Soft grid"],["accent","Orbs in main color"],["none","None"]];
+let ui={...UIDEF};
+function applyUI(u){const c=HEX.test(u.accent)?u.accent.toLowerCase():UIDEF.accent,[r,g,b]=[1,3,5].map(i=>parseInt(c.substr(i,2),16)/255),st=document.documentElement.style;
+ st.setProperty("--ring",c);st.setProperty("--blue",c);st.setProperty("--mag",c);st.setProperty("--on",(.299*r+.587*g+.114*b)>.55?"#0b0c0e":"#ffffff");
+ document.body.dataset.bg=BGS.some(x=>x[0]==u.bg)?u.bg:UIDEF.bg}
+let S,cfg,status=[],space=null,running=false,log=[],pct="idle",folder="",poller=null,view="convert",vAnim="",advOpen={st:1,ut:1};
+const TI={err:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/>',warn:'<path d="M12 3.8 21.5 20h-19z"/><path d="M12 10v4.5M12 17.5h.01"/>',ok:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.5"/>'};
+function toast(t,l){const e=$("#toast");e.textContent="";if(TI[l]){const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 24 24");s.setAttribute("class","ti "+l);s.innerHTML=TI[l];e.append(s)}e.append(el("span","",t));e.className="on "+(l||"");clearTimeout(toast.t);toast.t=setTimeout(()=>e.className="",l=="err"?6000:3000)}
+// ---------- widgets ----------
+const dis=(e,off)=>{if(off){e.setAttribute("aria-disabled","true");delete e.dataset.nav}else{e.removeAttribute("aria-disabled");e.dataset.nav=1}return e};
+const ICON={pad:'<svg viewBox="0 0 24 24"><path d="M7 8.5h10a4 4 0 0 1 4 4v1.5a3 3 0 0 1-5.2 2l-1.3-1.5h-5L8.2 16A3 3 0 0 1 3 14v-1.5a4 4 0 0 1 4-4z"/><path d="M8.2 11v3M6.7 12.5h3"/><path d="M15.5 11.6h.01M17.6 13.4h.01"/></svg>',
+ tune:'<svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>',
+ link:'<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
+ kbd:'<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M7 10h.01M10.5 10h.01M14 10h.01M17.5 10h.01M7 14h10"/></svg>',
+ reset:'<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4.5v4h4"/></svg>',
+ imp:'<svg viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg>',
+ exp:'<svg viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M5 19h14"/></svg>'};
+function btn(label,fn,o={}){const b=el("button","b"+(o.pri?" pri":"")+(o.icon?" ic":""));b.dataset.k=o.k||label;
+ if(o.icon){const i=el("span","bi");i.innerHTML=ICON[o.icon];b.append(i)}
+ const t=el("span","bt");t.append(el("span","",label));if(o.sub)t.append(el("small","",o.sub));b.append(t);
+ if(o.tip){b.title=o.tip;b.setAttribute("aria-label",label+" - "+o.tip)}b.onclick=()=>{if(b.getAttribute("aria-disabled")!="true")fn()};return dis(b,o.off)}
+let rflip=null;
+function radio(label,on,fn,k,sub){const b=el("button","opt");b.dataset.k=k;b.setAttribute("role","radio");b.setAttribute("aria-checked",!!on);b.append(el("i"),el("span","",label));if(sub)b.append(el("small","",sub));
+ if(on&&rflip===k){b.setAttribute("aria-checked",false);requestAnimationFrame(()=>requestAnimationFrame(()=>{if(b.isConnected)b.setAttribute("aria-checked",true)}))}
+ b.onclick=()=>{if(b.getAttribute("aria-disabled")!="true"){rflip=k;try{fn()}finally{rflip=null}}};return dis(b,0)}
+let flip=null;
+function check(label,hint,get,set,k,o={}){const b=el("button","chk");b.dataset.k=k;b.setAttribute("role","checkbox");b.setAttribute("aria-checked",!!get());
+ const t=el("span","",""),x=el("span","",label);t.append(x);if(o.tag)t.append(el("span","tag",o.tag));if(hint)t.append(el("small","",hint));
+ b.append(el("span","box"),t);b.onclick=()=>{if(b.getAttribute("aria-disabled")!="true"){const nv=!get();flip=[k,nv];try{set(nv)}finally{flip=null}}};
+ const fl=flip&&flip[0]==k&&get()===flip[1]?flip:null;
+ if(fl){b.setAttribute("aria-checked",!fl[1]);requestAnimationFrame(()=>requestAnimationFrame(()=>{if(b.isConnected)b.setAttribute("aria-checked",fl[1])}))}
+ return dis(b,o.off)}
+function field(k,get,set,ph,o={}){const i=el("input");i.type="text";i.dataset.k=k;i.value=get();i.placeholder=ph||"";i.setAttribute("aria-label",o.label||k);i.spellcheck=false;
+ i.onchange=()=>set(i.value.trim());if(o.live)i.oninput=()=>o.live(i.value);i.disabled=!!o.off;return dis(i,o.off)}
+const NATIVE={"japanese":"日本語","english":"English","english us":"English (US)","american english":"English (US)","english uk":"English (UK)","british english":"English (UK)","english gb":"English (UK)","french":"Français","french france":"Français","french canada":"Français (Canada)","canadian french":"Français (Canada)","spanish":"Español","spanish spain":"Español (España)","spanish latin america":"Español (Latinoamérica)","latin american spanish":"Español (Latinoamérica)","spanish latam":"Español (Latinoamérica)","german":"Deutsch","italian":"Italiano","dutch":"Nederlands","portuguese":"Português","portuguese portugal":"Português (Portugal)","portuguese brazil":"Português (Brasil)","brazilian portuguese":"Português (Brasil)","portuguese brazilian":"Português (Brasil)","russian":"Русский","korean":"한국어","chinese":"中文","chinese traditional":"繁體中文","traditional chinese":"繁體中文","chinese simplified":"简体中文","simplified chinese":"简体中文","finnish":"Suomi","swedish":"Svenska","danish":"Dansk","norwegian":"Norsk","polish":"Polski","turkish":"Türkçe","arabic":"العربية","czech":"Čeština","hungarian":"Magyar","greek":"Ελληνικά","romanian":"Română","thai":"ไทย","vietnamese":"Tiếng Việt","indonesian":"Bahasa Indonesia","ukrainian":"Українська","hindi":"हिन्दी","hebrew":"עברית","catalan":"Català","croatian":"Hrvatski","slovak":"Slovenčina","slovenian":"Slovenščina","bulgarian":"Български","malay":"Bahasa Melayu"},
+ natv=x=>NATIVE[String(x).toLowerCase().replace(/[()_\-\/,]/g," ").replace(/\s+/g," ").trim()]||x;
+function combo(label,opts,get,set,k,o={}){const n=opts.length,i0=Math.max(0,opts.findIndex(x=>x[0]==get())),w=el("div","si cmb"),b=el("button","cbtn"),pop=el("div","cpop");
+ let hi=i0;b.dataset.k=k;b.setAttribute("aria-haspopup","listbox");b.setAttribute("aria-expanded","false");pop.setAttribute("role","listbox");pop.hidden=true;
+ const lb=el("span","sl",label);if(o.tag)lb.append(el("span","tag",o.tag));
+ b.append(el("span","",opts[i0][1]),el("span","car","▾"));
+ const items=opts.map((x,j)=>{const c=el("div","copt");c.setAttribute("role","option");c.setAttribute("aria-selected",j==i0);c.append(el("span","",x[1]));if(x[2])c.append(el("small","",x[2]));
+  c.onmousedown=e=>e.preventDefault();c.onclick=()=>{close();set(x[0])};return c});
+ pop.append(...items);
+ const paint=()=>items.forEach((c,j)=>c.classList.toggle("on",j==hi)),
+  out=e=>{if(!w.isConnected||!w.contains(e.target))close()},
+  close=()=>{pop.hidden=true;w.classList.remove("open");b.setAttribute("aria-expanded","false");document.removeEventListener("mousedown",out,true);w.ctl=null},
+  open=()=>{hi=i0;pop.hidden=false;w.classList.add("open");b.setAttribute("aria-expanded","true");paint();items[hi].scrollIntoView({block:"nearest"});document.addEventListener("mousedown",out,true);
+   w.ctl={close,move:d=>{hi=Math.max(0,Math.min(n-1,hi+d));paint();items[hi].scrollIntoView({block:"nearest"})},pick:()=>{close();set(opts[hi][0])}}};
+ b.onclick=()=>{if(b.getAttribute("aria-disabled")=="true")return;pop.hidden?open():close()};
+ b.cyc=d=>set(opts[(i0+d+n)%n][0]);
+ w.append(lb,b,pop);if(o.hint)w.append(el("p","muted",o.hint));dis(b,o.off);return w}
+const hrow=(...k)=>{const d=el("div","hrow");d.append(...k.filter(Boolean));return d};
+const note=t=>el("p","muted",t);
+function ask(title,text){return new Promise(res=>{const m=el("div","modal"),b=el("div","cfm");b.setAttribute("role","dialog");b.append(el("h2","",title),el("p","",text));
+ m.done=v=>{closeM(m);res(v)};const y=btn("Continue",()=>m.done(true),{pri:1,k:"y"}),n=btn("Cancel",()=>m.done(false),{k:"n"});
+ b.append(hrow(y,n));m.append(b);document.body.append(m);n.focus()})}
+// ---------- main page (same layout as the Tk version) ----------
+function setMain(sec,key,val){cfg[sec][key]=val;api("set_cfg",{[sec]:{[key]:val}});renderCards();refresh()}
+function foldAnim(d,sm,wb,key){let an=null;const rm=()=>matchMedia("(prefers-reduced-motion:reduce)").matches;
+ sm.addEventListener("click",e=>{e.preventDefault();if(an){an.cancel();an=null}
+  const op=d.open,set=v=>{d.open=v;advOpen[key]=v?1:0};
+  if(rm()){set(!op);return}
+  if(op){const h=wb.offsetHeight;wb.style.overflow="hidden";an=wb.animate([{height:h+"px",opacity:1},{height:"0px",opacity:0}],{duration:240,easing:"cubic-bezier(.2,.8,.2,1)"});
+   an.onfinish=an.oncancel=()=>{an=null;set(false)}}
+  else{set(true);const h=wb.offsetHeight;an=wb.animate([{height:"0px",opacity:0},{height:h+"px",opacity:1}],{duration:300,easing:"cubic-bezier(.2,.8,.2,1)"});an.onfinish=an.oncancel=()=>{an=null}}})}
+function renderCards(){const root=$("#cards"),a=document.activeElement,fk=a&&root.contains(a)&&a.dataset.k;root.textContent="";
+ const s=cfg.settings,r=cfg.relinker,rel=s.mode=="relink",gh=r.relinker_source=="github",rls=r.relinker_source=="release";
+ const card=(t,...k)=>{const c=el("section","card");c.append(el("h3","",t),...k);root.append(c);return c};
+ const fold=(key,t,...k)=>{const c=el("section","card"),d=document.createElement("details"),sm=document.createElement("summary");d.className="adv";d.open=!!advOpen[key];d.ontoggle=()=>{advOpen[key]=d.open?1:0};sm.textContent=t;const wb=el("div","advb"),wi=el("div","advi");wi.append(...k);wb.append(wi);d.append(sm,wb);foldAnim(d,sm,wb,key);c.append(d);root.append(c);return c};
+ const tabs=hrow(btn("Convert a game",()=>{if(view!="convert"){view="convert";vAnim="L"}renderCards()},{k:"vc"}),btn("Play a game",()=>{if(view!="play"){view="play";vAnim="R"}renderCards()},{k:"vp"}));tabs.children[view=="play"?1:0].classList.add("sel");root.append(tabs);
+ const logb=()=>[el("span","sp"),btn("Export log…",()=>api("save_log",log.map(x=>x[1]).join("\n")),{k:"exp"}),btn("Clear log",()=>{log=[];$("#log").textContent=""},{k:"clr"})];
+  const mkopts=()=>btn("AnyPS5 settings…",()=>openSettings(),{k:"opts",icon:"tune",tip:"Conversion, Source build, Runtime, Input and Appearance settings."});
+ if(view=="play"){card("Play a converted game",note("Choose the game's executable (eboot.exe, eboot.elf or eboot). It starts with the current settings you have now. You don't need the PS5 folder, and the converted folder can be anywhere."),
+   hrow(btn("Launch game",playExe,{k:"play",icon:"pad",sub:"With your current settings",tip:"Pick the game executable: it starts with the current settings currently set (language, present mode, GPU…)."}),
+    btn("Create shortcut…",shortcutExe,{k:"mkshort",icon:"link",sub:"With your current settings",tip:"Pick the game executable and create a shortcut that keeps the current settings set right now."})),
+   note("A shortcut keeps the settings it was created with: after changing them, create it again."))}else{
+ card("1. Select the game folder",hrow(field("folder",()=>folder,async v=>{folder=await api("set_folder",v);refresh()},"Paste the path (folder or .zip) or use Browse… / ZIP…",{label:"Game folder",live:v=>api("set_folder",v)}),
+  btn("Browse…",async()=>{const p=await api("pick_folder");if(p){folder=p;renderCards();refresh()}},{k:"browse"}),
+  btn("ZIP…",async()=>{const p=await api("pick_zip");if(p){folder=p;renderCards();refresh()}},{k:"browsezip",tip:"Select a game packed as a .zip: it is extracted automatically."})),note("Paste the path of a folder or of a .zip, or use Browse… / ZIP… (e.g. PPSAxxxxx or PPSAxxxxx.zip)"));
+ const st=el("div","stat");[["eboot","eboot.bin"],["modules","Modules (sce_module/prx)"],["dirs","sce_sys"],["unwrapper","unwrap_self.py"],["relinker","Relinker"],["libs","prx-*.zip (libs zip file)"],["space","Disk space needed"]]
+  .forEach(([k,t])=>{const v=el("span","","—");v.id="st-"+k;st.append(el("span","",t),v)});fold("st","Requirements check",st);
+ const m=card("2. Choose what to do",radio("Convert to PC  —  builds the package with the executable for your system",rel,()=>setMain("settings","mode","relink"),"m2"),
+  radio("Unwrap only  —  eboot.bin and modules (SELF → ELF, with backup)",!rel,()=>setMain("settings","mode","unwrap"),"m1"));
+ if(rel){const ind=el("div","ind"),tg=(k,sec,key,l,h)=>check(l,h,()=>yes(cfg[sec][key]),v=>setMain(sec,key,v?"yes":"no"),k);
+  ind.append(hrow(el("span","lbl","System:"),...Object.entries(S.targets).map(([k,v])=>radio(v.split(" (")[0],r.target==k,()=>setMain("relinker","target",k),"t"+k))),
+   tg("auto","settings","auto_unwrap","Automatic unwrap before the conversion","Works on the copy: the original is not touched."),
+   tg("intel","settings","intel","Intel processor (--to-intel) · all targets"),
+   tg("keep","settings","keep_game","Keep PS5 game","ON = copy · OFF = safe move: each file is deleted from the source once copied."),
+   hrow(el("span","lbl","Output folder:"),field("out",()=>s.output_dir,v=>setMain("settings","output_dir",v),"Empty = program folder",{label:"Output folder"}),
+    btn("Browse…",async()=>{const p=await api("pick_output");if(p)setMain("settings","output_dir",p)},{k:"outb"}),btn("Default",()=>setMain("settings","output_dir",""),{k:"outd"})),
+   note("Empty = program folder. A '<GAME>-<OS>' folder will be created."));m.append(ind)}
+ m.append(check("Notify when an operation finishes or fails","Shows an in-app message and a system notification (Windows / macOS / Linux).",()=>yes(s.notify),v=>setMain("settings","notify",v?"yes":"no"),"notify"));
+ const ut=fold("ut","Advanced: where the tools come from",hrow(el("span","lbl","Source:"),radio("Prebuilt (Utilities folder)",!gh&&!rls,()=>setMain("relinker","relinker_source","prebuilt"),"s1"),radio("Release from GitHub repo (auto-update)",rls,()=>setMain("relinker","relinker_source","release"),"s3"),radio("Build from GitHub source (auto-update)",gh,()=>setMain("relinker","relinker_source","github"),"s2")),
+  hrow(el("span","lbl","Repository:"),field("repo",()=>r.repo_url,v=>setMain("relinker","repo_url",v||S.default_repo),"",{label:"Repository",off:!gh&&!rls}),
+   btn("Default",()=>setMain("relinker","repo_url",S.default_repo),{off:!gh&&!rls,k:"repodef"}),btn("Download now",()=>act("download"),{off:!rls,k:"dl"}),btn("Build now",()=>act("build"),{off:!gh,k:"build"})),
+  note("Used by unwrap, libs and relink. Prebuilt: Utilities folder. Release: latest GitHub release. Build: compiles the repository with CMake. Branch/tag and CMake target: AnyPS5 settings → Source build."));
+  const act1=hrow(btn("▶  Start",()=>act("start"),{pri:1,k:"start"}),btn("■  Stop",()=>api("cancel"),{k:"stop",off:1}),btn("↺  Restore backup",()=>act("restore"),{k:"restore"}),mkopts(),...logb());act1.style.marginTop=".9em";act1.style.alignItems="stretch";root.append(act1)}
+
+ if(view=="play"){const foot=hrow(mkopts(),...logb());foot.style.marginTop=".9em";foot.style.alignItems="stretch";root.append(foot)}
+ const n=root.querySelector(`[data-k="${fk}"]`);if(fk&&n&&n.dataset.nav)n.focus();applyStatus();setRunning(running);
+ if(vAnim){const nm=vAnim=="R"?"vinR":"vinL";vAnim="";[...root.children].slice(1).forEach((c,i)=>{c.style.animation=nm+" .38s var(--ease) both";c.style.animationDelay=(i*.06)+"s"})}}
+function applyStatus(){status.forEach(([k,,v,lv])=>{const e=$("#st-"+k);if(e){e.textContent=v;e.className=lv=="muted"?"muted-c":lv}});
+ const e=$("#st-space");if(e){e.textContent=space?space.text:"—";e.className=space?space.level:"muted-c"}}
+function setRunning(b){running=b;const t=$('[data-k="stop"]');if(t)dis(t,!b);["start","restore","play"].forEach(k=>{const e=$(`#cards [data-k="${k}"]`);e&&dis(e,b&&k!="play")})}
+// ---------- settings dialog (tabs like the Tk version) ----------
+// ---------- visual input mapping (controller diagram) ----------
+const PAD_NAMES=["Cross","Circle","Triangle","Square","L1","R1","L2","R2","L3","R3","settings","Up","Right","Down","Left","LeftStickLeft","LeftStickRight","LeftStickUp","LeftStickDown","RightStickLeft","RightStickRight","RightStickUp","RightStickDown","TouchLeft","TouchRight","ToggleMouse","ToggleFullscreen"];
+// name, label, minimum, maximum, step, default, integer, minimum excluded
+const PAD_SETS=[["LeftStickDeadzone","Left stick deadzone (%)",0,90,1,"0",1,0],["RightStickDeadzone","Right stick deadzone (%)",0,90,1,"0",1,0],
+ ["MouseSensitivity","Mouse sensitivity",0,10,.1,"1",0,1],["MouseVerticalScale","Mouse vertical scale",.1,10,.1,"1",0,0],["MouseCurve","Mouse curve",.2,5,.1,"1",0,0],
+ ["MouseDeadzoneOffset","Mouse deadzone offset",0,.9,.05,"0.2",0,0],["MouseMaxSpeed","Mouse max speed",.1,10,.1,"1",0,0],["MouseSmoothingMs","Mouse smoothing (ms)",0,500,1,"10",0,0],["MouseDecayMs","Mouse decay (ms)",1,1000,1,"30",0,0]];
+const PAD_CANON={},PAD_LABEL={L2:"L2",L1:"L1",R2:"R2",R1:"R1",Up:"D-pad ↑",Left:"D-pad ←",Down:"D-pad ↓",Right:"D-pad →",L3:"L3",R3:"R3",settings:"settings",Triangle:"Triangle",Circle:"Circle",Cross:"Cross",Square:"Square",
+ TouchLeft:"Touchpad left",TouchRight:"Touchpad right",ToggleMouse:"Mouse as right stick",ToggleFullscreen:"Fullscreen",
+ LeftStickUp:"Left stick ↑",LeftStickLeft:"Left stick ←",LeftStickRight:"Left stick →",LeftStickDown:"Left stick ↓",
+ RightStickUp:"Right stick ↑",RightStickLeft:"Right stick ←",RightStickRight:"Right stick →",RightStickDown:"Right stick ↓"};
+PAD_NAMES.forEach(n=>PAD_CANON[n.toLowerCase()]=n);PAD_SETS.forEach(s=>PAD_CANON[s[0].toLowerCase()]=s[0]);
+const PAD_SETKEYS=new Set(PAD_SETS.map(s=>s[0].toLowerCase()));
+// [action, label, chip y (0-560), anchor on the controller]
+const PAD_L=[["L2","L2",60,[385,120]],["L1","L1",125,[385,147]],["Up","D-pad ↑",190,[340,236]],["Left","D-pad ←",255,[322,255]],["Down","D-pad ↓",320,[340,274]],["Right","D-pad →",385,[358,255]],["L3","L3 · stick click",450,[400,350]]];
+const PAD_R=[["R2","R2",60,[615,120]],["R1","R1",125,[615,147]],["settings","settings",190,[588,222]],["Triangle","Triangle",255,[660,233]],["Circle","Circle",320,[682,255]],["Cross","Cross",385,[660,277]],["Square","Square",450,[638,255]],["R3","R3 · stick click",515,[600,350]]];
+// built-in bindings of AnyPS5 (core/libs/prx/libScePad/include/InputMapping.hpp, commit 44df216)
+const PAD_DEF={Cross:["KEY:Return","KEY:Space"],settings:["KEY:Escape"],Triangle:["KEY:I"],Circle:["KEY:C"],Square:["MOUSE:Left"],L1:["KEY:Q"],R1:["KEY:E","KEY:Left Alt","KEY:Right Alt"],R2:["MOUSE:Right"],
+ L3:["KEY:Left Shift","KEY:Right Shift"],R3:["KEY:Left Ctrl","KEY:Right Ctrl"],Up:["KEY:Up","WHEEL:Up"],Right:["KEY:Right"],Down:["KEY:Down","WHEEL:Down"],Left:["KEY:Left"],
+ LeftStickLeft:["KEY:A"],LeftStickRight:["KEY:D"],LeftStickUp:["KEY:W"],LeftStickDown:["KEY:S"],RightStickLeft:["KEY:F"],RightStickRight:["KEY:H"],RightStickUp:["KEY:T"],RightStickDown:["KEY:G"],
+ TouchLeft:["KEY:Backspace"],TouchRight:["KEY:Tab"],ToggleMouse:["MOUSE:Middle"],ToggleFullscreen:["KEY:F11"]};
+function iniParse(t){const acts={},sets={};String(t).replace(/^\ufeff/,"").split(/\r?\n/).forEach(r=>{const l=r.split(/[#;]/)[0],i=l.indexOf("=");if(i<1)return;const k=l.slice(0,i).trim().toLowerCase(),v=l.slice(i+1).trim();if(!k||!v)return;
+  if(PAD_SETKEYS.has(k)){if(!(k in sets))sets[k]=v}else{const a=acts[k]||(acts[k]=[]);if(!a.some(x=>x.toLowerCase()==v.toLowerCase()))a.push(v)}});return{acts,sets}}
+function iniSet(t,key,vals){const lk=key.toLowerCase(),out=[];let ins=-1;
+ for(const r of String(t).replace(/^\ufeff/,"").split(/\r?\n/)){const l=r.split(/[#;]/)[0],i=l.indexOf("=");if(i>0&&l.slice(0,i).trim().toLowerCase()==lk){if(ins<0)ins=out.length;continue}out.push(r)}
+ if(ins<0){ins=out.length;while(ins>0&&out[ins-1].trim()==="")ins--}
+ out.splice(ins,0,...vals.map(v=>PAD_CANON[lk]+" = "+v));let s=out.join("\n");if(s&&!s.endsWith("\n"))s+="\n";return s}
+const padShow=v=>{const i=v.indexOf(":"),k=v.slice(0,i).toUpperCase(),x=v.slice(i+1);return k=="MOUSE"?"Mouse "+x:k=="WHEEL"?"Wheel "+(x.toLowerCase()=="up"?"↑":"↓"):x};
+function padKeyName(e){const c=e.code||"",M={ControlLeft:"Left Ctrl",ControlRight:"Right Ctrl",ShiftLeft:"Left Shift",ShiftRight:"Right Shift",AltLeft:"Left Alt",AltRight:"Right Alt",MetaLeft:"Left GUI",MetaRight:"Right GUI",
+  NumpadEnter:"Keypad Enter",NumpadAdd:"Keypad +",NumpadSubtract:"Keypad -",NumpadMultiply:"Keypad *",NumpadDivide:"Keypad /",NumpadDecimal:"Keypad .",
+  Enter:"Return",Space:"Space",Backspace:"Backspace",Tab:"Tab",ArrowUp:"Up",ArrowDown:"Down",ArrowLeft:"Left",ArrowRight:"Right",Delete:"Delete",Insert:"Insert",Home:"Home",End:"End",PageUp:"PageUp",PageDown:"PageDown",
+  CapsLock:"CapsLock",PrintScreen:"PrintScreen",ScrollLock:"ScrollLock",Pause:"Pause",Minus:"-",Equal:"=",BracketLeft:"[",BracketRight:"]",Backslash:"\\",Quote:"'",Backquote:"`",Comma:",",Period:".",Slash:"/"};
+ // AnyPS5 reads KEY names as scancodes (physical key positions, US-layout names), so e.code is used, not e.key
+ if(M[c])return M[c];let m=c.match(/^Key([A-Z])$/)||c.match(/^Digit(\d)$/);if(m)return m[1];
+ if(m=c.match(/^Numpad(\d)$/))return "Keypad "+m[1];if(/^F\d{1,2}$/.test(c))return c;
+ return null}
+let PADL=null,PADSW=0,PADSETOPEN=true;
+const padLive=()=>PADL&&PADL.root&&PADL.root.isConnected;
+function padCommit(entry){const p=PADL;PADL=null;const T=p.get(),{acts}=iniParse(T),lo=entry.toLowerCase(),me=p.act.toLowerCase();
+ for(const a in acts)if(a!=me&&acts[a].some(x=>x.toLowerCase()==lo)){toast(padShow(entry)+" is already used by "+(PAD_LABEL[PAD_CANON[a]]||a),"warn");break}
+ const cur=acts[me]||[];p.set(iniSet(T,p.act,p.mode=="add"?[...cur.filter(x=>x.toLowerCase()!=lo),entry]:[entry]));p.redraw()}
+addEventListener("keydown",e=>{if(!padLive())return;e.preventDefault();e.stopImmediatePropagation();if(e.repeat)return;
+ if(e.key=="Escape"){const r=PADL.redraw;PADL=null;r();return}
+ const n=padKeyName(e);if(!n){toast("That key can't be written to the file","warn");return}padCommit("KEY:"+n)},true);
+addEventListener("mousedown",e=>{if(!padLive())return;e.preventDefault();e.stopImmediatePropagation();const n=["Left","Middle","Right","X1","X2"][e.button];if(!n)return;PADSW=Date.now()+400;padCommit("MOUSE:"+n)},true);
+for(const t of["mouseup","click","auxclick","contextmenu"])addEventListener(t,e=>{if(padLive()||Date.now()<PADSW){e.preventDefault();e.stopImmediatePropagation()}},true);
+addEventListener("wheel",e=>{if(!padLive())return;e.preventDefault();e.stopImmediatePropagation();if(e.deltaY)padCommit("WHEEL:"+(e.deltaY<0?"Up":"Down"))},{capture:true,passive:false});
+function padChip(c,act,label,cls,css){const{get,set,redraw,root}=c,cur=iniParse(get()).acts[act.toLowerCase()]||[],lis=!!(PADL&&PADL.act==act);
+ const w=el("div","pc "+cls+(cur.length?" set":"")+(lis?" lis":""));if(css)Object.assign(w.style,css);
+ const b=el("button","pm");b.dataset.k="pad_"+act;b.dataset.nav=1;b.setAttribute("aria-label",label+": "+(cur.length?cur.map(padShow).join(", "):"default, "+((PAD_DEF[act]||[]).map(padShow).join(", ")||"none"))+". Press Enter, then the key to assign.");
+ const dv=(PAD_DEF[act]||[]).map(padShow).join(" · ")||"none",dtxt=cur.length?cur.map(padShow).join(" · "):dv;
+ b.title=cur.length?dtxt+"  (default: "+dv+")":"Default: "+dv;
+ b.append(el("span","pt",label),el("span","pv"+(cur.length||lis?"":" dflt"),lis?"Press a key, mouse button or wheel… Esc cancels":dtxt));
+ b.onclick=()=>{PADL=lis?null:{act,mode:"replace",root,get,set,redraw};redraw()};w.append(b);
+ const t=el("div","pcb"),a=el("button","pi","+");a.dataset.k="padA_"+act;a.dataset.nav=1;a.title="Add an alternate input";a.setAttribute("aria-label","Add an alternate input for "+label);
+ a.onclick=()=>{PADL={act,mode:"add",root,get,set,redraw};redraw()};t.append(a);
+ if(cur.length){const x=el("button","pi","×");x.dataset.k="padX_"+act;x.dataset.nav=1;x.title="Back to the default input";x.setAttribute("aria-label","Restore the default input for "+label);x.onclick=()=>{PADL=null;set(iniSet(get(),act,[]));redraw()};t.append(x)}
+ w.append(t);return w}
+function padSettings(c){const{get,set,redraw}=c,d=document.createElement("details");d.className="padset";d.open=PADSETOPEN;d.ontoggle=()=>{PADSETOPEN=d.open};
+ d.append(el("summary","","Stick deadzones and mouse-as-stick settings"));const sets=iniParse(get()).sets;
+ PAD_SETS.forEach(([n,lab,lo,hi,step,def,int,ex])=>{const r=el("div","prow"),cv=sets[n.toLowerCase()],dn=Number(def),sl=document.createElement("input"),i=document.createElement("input"),rd=x=>Number(Number(x).toFixed(4));
+  sl.type="range";sl.min=ex?lo+step:lo;sl.max=hi;sl.step=step;sl.value=cv!=null&&isFinite(Number(cv))?Number(cv):dn;sl.dataset.k="pss_"+n;sl.dataset.nav=1;sl.setAttribute("aria-label",lab);const pc=()=>sl.style.setProperty("--p",((sl.value-sl.min)/(sl.max-sl.min)*100)+"%");pc();
+  i.type="number";i.min=lo;i.max=hi;i.step=step;i.placeholder=def;i.value=cv==null?"":cv;i.dataset.k="ps_"+n;i.setAttribute("aria-label",lab+" value");
+  const put=x=>{x=rd(x);set(iniSet(get(),n,x===dn?[]:[String(x)]));redraw()};
+  sl.oninput=()=>{i.value=rd(sl.value);pc();i.classList.add("live")};sl.onchange=()=>put(sl.value);
+  i.onchange=()=>{const v=i.value.trim();if(v===""){set(iniSet(get(),n,[]));redraw();return}const x=Number(v);
+   if(!isFinite(x)||x<lo||x>hi||(ex&&x<=lo)||(int&&!Number.isInteger(x))){toast(lab+": allowed "+(ex?"above ":"")+lo+" to "+hi+(int?" (whole number)":""),"warn");i.value=cv==null?"":cv;return}
+   put(x)};
+  r.append(el("span","sl2",lab),sl,i,el("small","","default "+def));
+  if(cv!=null){const z=el("button","rst","\u21ba");z.dataset.k="psr_"+n;z.title="Back to default";z.setAttribute("aria-label","Restore default for "+lab);z.onclick=()=>{set(iniSet(get(),n,[]));redraw()};r.append(z)}else r.append(el("span","rstsp"));
+  d.append(r)});
+ d.append(el("p","muted","Empty field = default. The mouse values apply when the mouse drives the right stick (Mouse as right stick)."));return d}
+function padEditor(get,set,redraw,root){const c={get,set,redraw,root},top=(y)=>((y-23)/5.6)+"%",wrap=el("div","padwrap"),pad=el("div","pad");
+ let svg='<svg viewBox="0 0 1000 560" aria-hidden="true"><g fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.6" stroke-linejoin="round">'+
+ '<path d="M360 160Q500 138 640 160Q700 170 720 232Q745 330 730 420Q715 485 665 470Q620 455 600 422L400 422Q380 455 335 470Q285 485 270 420Q255 330 280 232Q300 170 360 160Z" fill="rgba(255,255,255,.05)"/>'+
+ '<rect x="345" y="141" width="80" height="14" rx="7"/><rect x="575" y="141" width="80" height="14" rx="7"/>'+
+ '<path d="M352 138Q385 100 428 128L428 138Z"/><path d="M572 128Q615 100 648 138L572 138Z"/>'+
+ '<rect x="440" y="185" width="120" height="75" rx="12" fill="rgba(255,255,255,.04)"/><path d="M500 185V260" stroke-dasharray="4 5"/>'+
+ '<path d="M331 236h18v14h14v10h-14v14h-18v-14h-14v-10h14z" transform="translate(0 -1)"/>'+
+ '<circle cx="660" cy="233" r="11"/><circle cx="682" cy="255" r="11"/><circle cx="660" cy="277" r="11"/><circle cx="638" cy="255" r="11"/>'+
+ '<rect x="584" y="213" width="8" height="20" rx="4"/>'+
+ '<circle cx="400" cy="350" r="30"/><circle cx="400" cy="350" r="17"/><circle cx="600" cy="350" r="30"/><circle cx="600" cy="350" r="17"/></g>'+
+ '<g stroke="rgba(255,255,255,.3)" stroke-width="1.1" fill="none">';
+ const tops=[["TouchLeft","Touchpad left",30,[470,222],395],["TouchRight","Touchpad right",51,[530,222],605]],dots=[];
+ PAD_L.forEach(([a,l,y,p])=>{svg+='<path d="M190 '+y+'H250L'+p[0]+' '+p[1]+'"/>';dots.push(p)});
+ PAD_R.forEach(([a,l,y,p])=>{svg+='<path d="M810 '+y+'H750L'+p[0]+' '+p[1]+'"/>';dots.push(p)});
+ tops.forEach(([a,l,x,p,cx])=>{svg+='<path d="M'+cx+' 46L'+p[0]+' '+p[1]+'"/>';dots.push(p)});
+ svg+='</g><g fill="rgba(255,255,255,.7)">'+dots.map(p=>'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3"/>').join("")+'</g></svg>';
+ pad.innerHTML=svg;
+ PAD_L.forEach(([a,l,y])=>pad.append(padChip(c,a,l,"ab",{left:"0",top:top(y)})));
+ PAD_R.forEach(([a,l,y])=>pad.append(padChip(c,a,l,"ab",{right:"0",top:top(y)})));
+ tops.forEach(([a,l,x])=>pad.append(padChip(c,a,l,"ab",{left:x+"%",top:"0"})));
+ wrap.append(pad);
+ const grp=(title,names)=>{const g=el("div","pgrp"),gr=el("div","pcross");g.append(el("span","sl",title));
+  ["Up","Left","Right","Down"].forEach(d=>{const a=names+d,ch=padChip(c,a,PAD_LABEL[a],"st",null);ch.style.gridArea=d.toLowerCase();gr.append(ch)});g.append(gr);return g};
+ const ex=el("div","pgrp");ex.append(el("span","sl","Extras"));["ToggleMouse","ToggleFullscreen"].forEach(a=>ex.append(padChip(c,a,PAD_LABEL[a],"st",null)));
+ const row=el("div","padrow");row.append(grp("Left stick","LeftStick"),grp("Right stick","RightStick"),ex);
+ const box=el("div","");box.append(note("Click a button, then press the key, mouse button or wheel direction to use. + adds an alternate input, × goes back to the default (shown dimmed on each button). Keys are saved by physical position on the keyboard, so a key keeps working whatever the layout. Controllers you plug in always work and are not affected."),wrap,row,padSettings(c));return box}
+const RESETX={"Conversion":[["relinker","target"]],"Source build":[],"Runtime":[["runtime","language"],["runtime","present_mode"]]};
+function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.runtime}};let tab=t0||"Conversion",inText=S.input,inMsg="",inMode="visual",A={...ui};
+ const m=el("div","modal"),d=el("div","dlg"),body=el("div","dbody"),tabs=el("div","hrow");d.setAttribute("role","dialog");m.append(d);m.done=()=>{applyUI(ui);closeM(m)};
+ const plat=(p,T)=>!p||p=="all"||(p=="win"&&T=="windows")||(p=="nowin"&&T!="windows")||(p=="host"&&T==S.host);
+ const item=it=>{const T=D.relinker.target,off=!plat(it.plat,T),tag=it.plat&&it.plat!="all"?TAG[it.plat]:null,lab=LABEL[it.key]||it.label,v=()=>D[it.section][it.key],set=x=>{D[it.section][it.key]=x;draw()},w=el("div","si");
+  if(it.type=="flag")w.append(check(lab,it.hint,()=>yes(v()),x=>set(x?"yes":"no"),it.key,{off,tag}));
+  else if(it.type=="text"){const l=el("span","sl",lab);if(tag)l.append(el("span","tag",tag));w.append(l,field(it.key,v,x=>{D[it.section][it.key]=x},"",{off,label:lab}));if(it.hint)w.append(note(it.hint))}
+  else{const l=el("span","sl",lab);if(tag)l.append(el("span","tag",tag));w.append(l,hrow(...it.values.map(x=>radio(x,v()==x,()=>set(x),it.key+x))));if(it.hint)w.append(note(it.hint))}return w};
+ let shown=null;
+ function draw(){if(shown!==tab){shown=tab;body.classList.remove("tin");void body.offsetWidth;body.classList.add("tin")}const a=document.activeElement,fk=a&&d.contains(a)&&a.dataset.k,top=body.scrollTop;if(tab!="Input"||inMode!="visual")PADL=null;tabs.textContent="";body.textContent="";
+  ["Conversion","Source build","Runtime","Input","Appearance"].forEach(t=>{const b=btn(t,()=>{tab=t;draw()},{k:"tab"+t});if(t==tab)b.classList.add("sel");tabs.append(b)});
+  if(tab=="Conversion"){body.append(hrow(el("span","lbl","Target system"),...Object.entries(S.targets).map(([k,v])=>radio(v.split(" (")[0],D.relinker.target==k,()=>{D.relinker.target=k;draw()},"T"+k))),
+    note("macOS: x86-64 Mach-O (runs through Rosetta on Apple silicon). settings that do not fit the selected target system are disabled."))}
+  if(tab=="Runtime"){body.append(note("Environment variables used by the 'Launch game' button (always the current ones) and saved into shortcuts when they are created (after changing them, create the shortcut again)."),
+    combo("Language (ANYPS5_LANGUAGE)",[["","(default: English US)"],...S.languages.map(([n,x])=>[String(n),natv(x),String(n)])],()=>D.runtime.language.trim(),x=>{D.runtime.language=x;draw()},"lang"),
+    combo("Present mode",S.present_modes.map(x=>[x,x||"(default)"]),()=>D.runtime.present_mode,x=>{D.runtime.present_mode=x;draw()},"present",{hint:"Empty = fifo (vsync). If the window is off-screen (Wayland, Linux) try fifo_latest_ready."}))}
+  if(tab=="Appearance"){const setA=(k,v)=>{A[k]=v;applyUI(A);draw()},
+    sw=el("div","si"),sl=el("span","sl","Main color"),row=hrow(...COLORS.map(([n,h])=>{const b=el("button","sw");b.dataset.k="sw"+h;b.dataset.nav=1;b.title=n;b.setAttribute("aria-label",n);b.setAttribute("role","radio");
+      b.setAttribute("aria-checked",A.accent.toLowerCase()==h);b.style.background=h;b.onclick=()=>setA("accent",h);return b}));
+    row.style.padding=".45em .6em";sw.append(sl,row);
+    const hx=el("div","si");hx.append(el("span","sl","Custom color (hex)"),field("hex",()=>A.accent,v=>{v=(v[0]=="#"?v:"#"+v).toLowerCase();if(HEX.test(v))setA("accent",v);else toast("Use a color like #ffffff","warn")},"#ffffff",{label:"Custom color (hex)",live:v=>{v=(v[0]=="#"?v:"#"+v);if(HEX.test(v)){A.accent=v.toLowerCase();applyUI(A)}}}));
+    const bg=el("div","si");bg.append(el("span","sl","Animated background"),hrow(...BGS.map(([k,l])=>radio(l,A.bg==k,()=>setA("bg",k),"bg"+k))),note("Animation stops automatically if your system asks for reduced motion."));
+    body.append(sw,hx,bg,hrow(btn("Reset appearance",()=>{A={...UIDEF};applyUI(A);draw()},{k:"uireset",icon:"reset"})),note("Changes preview live and are kept when you press Save and close."))}
+  if(tab=="Input"){const mg=note(inMsg);mg.style.whiteSpace="pre-wrap";
+   const tools=hrow(
+    btn("Reset all input settings",async()=>{inText=await api("reset_input");PADL=null;draw();toast("Defaults restored. Press Save and close to apply them.","ok")},{k:"tpl",icon:"reset",tip:"Puts the default key template in the editor. Nothing is saved until Save and close."}),btn("Import settings",async()=>{const r=await api("import_input");if(!r)return;if(r.error){inMsg=r.error;draw();return}
+     if(r.errors.length&&!await ask("Import with errors",r.name+" has problems and AnyPS5 would stop at startup: "+r.errors.join("; ")+". Import it anyway, to fix it here?"))return;
+     inText=r.text;PADL=null;inMsg="Imported "+r.name+". Check it, then press Save and close to apply it (Cancel discards it).";draw()},{k:"imp",icon:"imp",tip:"Load an input configuration (.ini) made by someone else. It replaces what you see here; nothing is written until Save and close."}),btn("Export settings",async()=>{const r=await api("export_input",inText);if(!r)return;if(r.error){inMsg=r.error;draw();return}
+     inMsg="Exported to "+r.name+".";draw()},{k:"exp",icon:"exp",tip:"Save the configuration shown here to an .ini file you can share or import later. Nothing else changes."}));
+   const vis=inMode=="visual",sw=hrow(el("span","lbl","View"),radio("Controller",vis,()=>{inMode="visual";draw()},"vwv"),radio("Text file",!vis,()=>{inMode="text";PADL=null;draw()},"vwt"));
+   if(vis)body.append(sw,padEditor(()=>inText,v=>{inText=v},draw,body),tools,mg);
+   else{const t=el("textarea");t.value=inText;t.dataset.nav=1;t.dataset.k="ta";t.spellcheck=false;t.oninput=()=>inText=t.value;body.append(sw,note("Edit "+S.input_name+" (keyboard and mouse)."),t,tools,mg)}}
+  else(S.schema[tab]||[]).forEach(it=>body.append(item(it)));
+  if(RESETX[tab]){const label=tab==="Source build"?"source build":tab.toLowerCase(),
+     keys=()=>[...(S.schema[tab]||[]).filter(it=>it.key).map(it=>[it.section,it.key]),...RESETX[tab]];
+   body.append(hrow(btn("Reset "+label+" settings",()=>{
+     keys().forEach(([sec,k])=>{if(S.defaults&&S.defaults[sec]&&k in S.defaults[sec])D[sec][k]=S.defaults[sec][k]});
+     toast("Defaults restored. Press Save and close to apply them.","ok");draw()},{k:"reset"+tab,icon:"reset",tip:"Puts every option of this section back to its default. Nothing is saved until Save and close."}),
+    btn("Import settings",async()=>{const r=await api("import_section");if(!r)return;if(r.error){toast(r.error,"warn");return}
+     if(r.tab!==tab){toast(r.name+" contains "+r.tab+" settings, not "+tab+" settings.","warn");return}
+     let n=0;keys().forEach(([sec,k])=>{const v=r.values&&r.values[sec]&&r.values[sec][k];if(v!==undefined&&v!==null&&typeof v!=="object"){D[sec][k]=String(v);n++}});
+     toast("Imported "+n+" options from "+r.name+". Press Save and close to apply them.","ok");draw()},{k:"imp"+tab,icon:"imp",tip:"Load this section's options from a file made with Export settings. Nothing is written until Save and close."}),
+    btn("Export settings",async()=>{const vals={};keys().forEach(([sec,k])=>{(vals[sec]=vals[sec]||{})[k]=D[sec][k]});
+     const r=await api("export_section",tab,vals);if(!r)return;if(r.error){toast(r.error,"warn");return}
+     toast("Exported to "+r.name+".","ok")},{k:"exp"+tab,icon:"exp",tip:"Save this section's options, as shown here, to a file you can share or import later."})))}
+  body.scrollTop=top;const n=fk&&d.querySelector(`[data-k="${fk}"]`);if(n&&n.dataset.nav)n.focus()}
+ async function save(){const vals={relinker:{target:D.relinker.target},runtime:{language:D.runtime.language,present_mode:D.runtime.present_mode}};
+  for(const t of Object.values(S.schema))for(const it of t)vals[it.section][it.key]=D[it.section][it.key];
+  let w=true;const errs=await api("check_input",inText);
+  if(errs.length){if(!await ask("Invalid input",S.input_name+" contains errors and AnyPS5 would stop at startup. Save the other settings anyway (without the input file)?"))return;w=false}
+  const r=await api("save_settings",vals,inText,w);if(r&&r.error)return toast(r.error,"err");
+  closeM(m);
+  try{for(const s in vals)Object.assign(cfg[s]||(cfg[s]={}),vals[s]);if(w)S.input=inText;ui={...A};try{await api("set_ui",ui)}catch(e){}renderCards();refresh();toast("Settings saved","ok")}catch(e){toast("Settings saved","ok")}}
+ d.append(el("h2","","AnyPS5 Settings"),tabs,body,(()=>{const f=hrow(el("span","sp"),btn("Cancel",()=>{applyUI(ui);closeM(m)},{k:"cancel"}),btn("Save and close",save,{pri:1,k:"save"}));f.style.justifyContent="flex-end";return f})());
+ document.body.append(m);draw();tabs.firstChild.focus()}
+// ---------- log / run ----------
+function addLine([k,t]){const l=$("#log"),I={ok:"✔ ",warn:"⚠ ",err:"✖ ",info:"ℹ ",detail:"    ",step:"▸ ",progress:"… "};
+ if(k=="progress"&&l.lastChild&&l.lastChild.dataset.pr)l.lastChild.remove();const d=el("div",k,(I[k]||"")+t);if(k=="progress")d.dataset.pr=1;l.append(d);l.scrollTop=l.scrollHeight}
+function setPct(p){const b=$("#pb");b.className=running&&(p==null||p=="idle")?"ind":"";b.firstChild.style.width=typeof p=="number"?p+"%":""}
+async function tick(){const r=await api("poll");
+ r.lines.forEach(x=>{if(x[0]=="progress"&&log.length&&log[log.length-1][0]=="progress")log.pop();log.push(x);addLine(x)});
+ if(r.pct!="keep")pct=r.pct;const was=running;running=r.running;setRunning(running);setPct(pct);
+ if(was&&!running){clearInterval(poller);poller=null;pct="idle";setPct(pct);refresh();if(yes(cfg.settings.notify))toast(r.ok?"Operation completed":"Operation finished with errors",r.ok?"ok":"err")}}
+async function playExe(){if(running)return toast("An operation is already running.","warn");await api("play_exe");$("#log").scrollIntoView({block:"nearest"});await tick()}
+async function shortcutExe(){if(running)return toast("An operation is already running.","warn");await api("shortcut_exe");$("#log").scrollIntoView({block:"nearest"});await tick()}
+async function act(a){if(running)return toast("An operation is already running.","warn");
+ const p=await api("prepare",a);if(p.error)return toast(p.error,"err");
+ for(const [t,x] of p.confirms)if(!await ask(t,x))return;
+ if(a!="play"){log=[];$("#log").textContent="";pct=null;setRunning(true);setPct(null)}
+ if(!await api("run",a,p.tools)){setRunning(false);return}
+ $("#log").scrollIntoView({block:"nearest"});if(a=="play"){await tick();return}poller=setInterval(tick,200)}
+async function refresh(){status=await api("status");space=null;applyStatus();clearTimeout(refresh.t);refresh.t=setTimeout(async()=>{space=await api("space");applyStatus()},350)}
+// ---------- keyboard ----------
+const topModal=()=>[...document.querySelectorAll(".modal:not(.out)")].pop(),scope=()=>topModal()||$("#page");
+const grp=e=>e.closest(".hrow")||e,list=()=>[...scope().querySelectorAll("[data-nav]")];
+function vmove(d){const l=list(),a=document.activeElement,i=l.indexOf(a);if(i<0){l[0]&&l[0].focus();return}
+ const g=grp(a);let j=i+d;while(j>=0&&j<l.length&&grp(l[j])===g)j+=d;if(j<0||j>=l.length)return;
+ if(d<0){const gg=grp(l[j]);while(j>0&&grp(l[j-1])===gg)j--}l[j].focus();l[j].scrollIntoView({block:"nearest"})}
+function hmove(d){const a=document.activeElement,h=a.closest(".hrow");if(!h)return;const l=[...h.querySelectorAll("[data-nav]")],t=l[l.indexOf(a)+d];if(t)t.focus()}
+function nav(k,e){const a=document.activeElement,inp=a.tagName=="INPUT",ta=a.tagName=="TEXTAREA",stop=()=>e&&e.preventDefault();
+ const oc=document.querySelector(".cmb.open");if(oc&&oc.ctl){if(k=="Up"||k=="Down")oc.ctl.move(k=="Up"?-1:1);else if(k=="Enter")oc.ctl.pick();else if(k=="Escape")oc.ctl.close();stop();return}
+ if(k=="Escape"){const m=topModal();if(m){m.done?m.done(false):closeM(m);stop()}return}
+ if(k=="Up"||k=="Down"){if(ta)return;vmove(k=="Up"?-1:1);stop()}
+ else if(k=="Left"||k=="Right"){const d=k=="Left"?-1:1;
+  if(inp&&!(d<0?a.selectionStart==0&&a.selectionEnd==0:a.selectionStart==a.value.length))return;if(ta)return;
+  if(a.cyc)a.cyc(d);else hmove(d);stop()}
+ else if(k=="Enter"){if(ta)return;if(inp){a.blur();a.focus()}else if(a.dataset&&a.dataset.nav)a.click();stop()}}
+addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()=="a"&&document.activeElement.id=="log"){const r=document.createRange();r.selectNodeContents($("#log"));const g=getSelection();g.removeAllRanges();g.addRange(r);e.preventDefault();return}
+ const m={ArrowUp:"Up",ArrowDown:"Down",ArrowLeft:"Left",ArrowRight:"Right",Enter:"Enter",Escape:"Escape"}[e.key];if(m)nav(m,e);
+ else if(e.key==" "){const a=document.activeElement;if(a.dataset&&a.dataset.nav&&!["INPUT","TEXTAREA"].includes(a.tagName)&&a.id!="log"){a.click();e.preventDefault()}}});
+function checkUpdate(){api("check_update").then(u=>{if(!u)return;const d=el("div","upd");d.append(el("span","warn","New version "+u.version+" available (you have "+u.current+")."));
+ d.append(btn("Download",()=>api("open_release_page"),{pri:1,k:"upd-go"}),btn("Later",()=>d.remove(),{k:"upd-no"}));$(".tagline").after(d)}).catch(()=>{})}
+document.getElementById("origin").onclick=e=>{e.preventDefault();api("open_origin_page")};
+// ---------- start ----------
+(async()=>{if(!window.pywebview)await new Promise(r=>addEventListener("pywebviewready",r,{once:true}));
+ S=await api("get_state");if(S.version)$("#ver").textContent="v"+S.version;ui={...UIDEF,...(S.ui||{})};if(ui.bg=="orbs")ui.bg="accent";applyUI(ui);cfg=S.cfg;folder=S.folder;renderCards();await refresh();const f=$('[data-k="folder"]');f&&f.focus();checkUpdate()})();
+</script></body></html>
