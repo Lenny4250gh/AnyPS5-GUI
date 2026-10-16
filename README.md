@@ -19,7 +19,7 @@ A graphical interface for [AnyPS5](https://github.com/boykopovar/AnyPS5): unwrap
    | Linux   | `AnyPS5_GUI-linux` (then `chmod +x AnyPS5_GUI-linux`) |
    | macOS   | `AnyPS5_GUI-macos.zip`                                |
 
-3. *(Optional but recommended)* verify the file against `SHA256SUMS.txt` from the same release:
+3. *(Optional but recommended)* verify the file: compare its SHA-256 with the `sha256:` value GitHub shows next to each file on the release page:
    - Windows (PowerShell): `Get-FileHash .\AnyPS5_GUI-windows.exe -Algorithm SHA256`
    - Linux: `sha256sum AnyPS5_GUI-linux`
    - macOS: `shasum -a 256 AnyPS5_GUI-macos.zip`
