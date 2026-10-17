@@ -183,7 +183,19 @@ body.intro #pb{animation-delay:.36s}body.intro #log{animation-delay:.4s}
 #toast{transform:translateX(-50%) translateY(14px);transition:opacity .25s,transform .32s var(--ease)}
 #toast.on{transform:translateX(-50%) translateY(0)}
 .b{transition:background .14s,box-shadow .14s,transform .14s var(--ease)}
-.b:active:not([aria-disabled=true]){transform:scale(.96)}
+body:not([data-bubble=off]) .b:active:not([aria-disabled=true]){transform:scale(.96)}
+/* Buttons: soft "bubble" pop on hover, squish on press */
+.b{transition:background .14s,box-shadow .14s,filter .14s,transform .22s cubic-bezier(.34,1.56,.64,1)}
+body:not([data-bubble=off]) .b:hover:not([aria-disabled=true]){transform:scale(1.045)}
+body:not([data-bubble=off]) .b:active:not([aria-disabled=true]){transform:scale(.95);transition-duration:.1s}
+/* Focus: border and ring fade in/out smoothly instead of snapping */
+input[type=text],input:not([type]),textarea,.prow input[type=number],.cbtn,#log,.pc{
+ box-shadow:0 0 0 .1em transparent;
+ transition:border-color .12s ease-out,box-shadow .12s ease-out,background .12s}
+input[type=text]:focus,input:not([type]):focus,textarea:focus,.prow input[type=number]:focus,
+.cbtn:focus-visible,.cmb.open .cbtn,#log:focus-visible,.pc.lis{
+ border-color:var(--ring);
+ box-shadow:0 0 0 .1em var(--ring)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 @media (max-width:760px){.stat{grid-template-columns:1fr}}
 .padwrap{overflow-x:auto;margin:.3em 0}
@@ -200,8 +212,9 @@ body.intro #pb{animation-delay:.36s}body.intro #log{animation-delay:.4s}
 .pm .pv{font-size:.66em;line-height:1.2;color:var(--ring);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pm .pv.dflt{color:var(--dim)}
 .pc:not(.set) .pm{padding-right:2.4em}
-.pcb{position:absolute;top:50%;right:.25em;transform:translateY(-50%);display:flex;gap:.15em}
-.pi{all:unset;cursor:pointer;width:1.5em;height:1.5em;border-radius:50%;text-align:center;line-height:1.5em;font-size:.8em;background:var(--glass2);border:1px solid var(--line)}
+.pcb{position:absolute;top:50%;right:.25em;transform:translateY(-50%);display:flex;gap:.45em}
+.pi{all:unset;cursor:pointer;width:1.5em;height:1.5em;box-sizing:border-box;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8em;background:var(--glass2);border:1px solid var(--line)}
+.pi svg{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block;pointer-events:none}
 .pi:hover{background:rgba(255,255,255,.22)}.pi:focus-visible{box-shadow:0 0 0 .12em var(--ring)}
 .padrow{display:flex;flex-wrap:wrap;gap:1.2em;margin-top:.6em}
 .pgrp{flex:1;min-width:13em}.pgrp .pc{margin-top:.35em}
@@ -239,6 +252,27 @@ body.intro #pb{animation-delay:.36s}body.intro #log{animation-delay:.4s}
 .rstsp{width:1.785em}
 .rst{transition:color .15s,border-color .15s}
 .upd{display:flex;align-items:center;flex-wrap:wrap;gap:.6em 1em;margin:0 0 1em;padding:.5em .9em;border-radius:1em;background:var(--glass);border:1px solid var(--line);font-size:.8em}
+/* Input tab: mapping cards and small buttons share the bubble animation; transitions re-declared here so they win over earlier rules */
+.pc{transition:background .14s,border-color .12s ease-out,box-shadow .12s ease-out,transform .22s cubic-bezier(.34,1.56,.64,1)}
+.pc{box-shadow:inset 0 0 0 .1em transparent}
+.pc.lis{box-shadow:inset 0 0 0 .1em var(--ring)}/* ring drawn inside the card so it never sticks out of its box */
+.prow input[type=number]{transition:border-color .12s ease-out,box-shadow .12s ease-out,color .2s}
+.pi,.rst{transition:background .14s,color .15s,border-color .15s,box-shadow .14s,transform .22s cubic-bezier(.34,1.56,.64,1)}
+/* wide cards must not grow (they overflow the panel and make a scrollbar appear): they brighten instead */
+.pc:not(.lis):hover{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.32)}
+.pc.set:not(.lis):hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.7)}
+body:not([data-bubble=off]) .pc:not(.lis):active{transform:scale(.985);transition-duration:.1s}
+body:not([data-bubble=off]) .pi:hover,body:not([data-bubble=off]) .rst:hover{transform:scale(1.18)}
+body:not([data-bubble=off]) .pi:active,body:not([data-bubble=off]) .rst:active{transform:scale(.9);transition-duration:.1s}
+/* Keyboard focus ring on buttons/cards fades in like the text fields */
+.b{box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 0 .12em transparent}
+.b:focus-visible{box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 0 .12em var(--ring)}
+.pm{box-shadow:0 0 0 .12em transparent;transition:box-shadow .12s ease-out}
+.pm:focus-visible{box-shadow:0 0 0 .12em var(--ring)}
+/* After Esc the leftover focus ring is hidden until the next navigation key */
+body.noring .b:focus-visible{box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 0 .12em transparent!important}
+body.noring :is(.opt,.chk,.sw,.pm,.pi,.rst):focus-visible{box-shadow:none!important;outline:none!important}
+body.noring .cmb:not(.open) .cbtn:focus-visible{border-color:var(--line)!important;box-shadow:none!important}
 </style></head><body data-bg="grid" class="intro">
 <div id="bg" aria-hidden="true"><i></i><i></i><i></i></div>
 <div id="page"><div id="in">
@@ -257,12 +291,12 @@ const $=s=>document.querySelector(s),el=(t,c,h)=>{const e=document.createElement
 const api=(f,...a)=>pywebview.api[f](...a),yes=v=>["yes","true","1"].includes(String(v).toLowerCase());
 const TAG={win:"Windows",nowin:"Linux · macOS",host:"This system"};
 const LABEL={import_audit:"Import audit (checks that every import resolves)",unused_filter:"unused-filter (0 keep all · 1 filter · 2 strict)"};
-const UIDEF={accent:"#ffffff",bg:"grid"},HEX=/^#[0-9a-f]{6}$/i,COLORS=[["White","#ffffff"],["Mint","#3ec9a7"],["Amber","#ffb454"],["Rose","#ff6b9a"],["Violet","#a78bfa"],["Lime","#b6e35a"]],
+const UIDEF={accent:"#ffffff",bg:"grid",bubble:true},HEX=/^#[0-9a-f]{6}$/i,COLORS=[["White","#ffffff"],["Mint","#3ec9a7"],["Amber","#ffb454"],["Rose","#ff6b9a"],["Violet","#a78bfa"],["Lime","#b6e35a"]],
  BGS=[["grid","Soft grid"],["accent","Orbs in main color"],["none","None"]];
 let ui={...UIDEF};
 function applyUI(u){const c=HEX.test(u.accent)?u.accent.toLowerCase():UIDEF.accent,[r,g,b]=[1,3,5].map(i=>parseInt(c.substr(i,2),16)/255),st=document.documentElement.style;
  st.setProperty("--ring",c);st.setProperty("--blue",c);st.setProperty("--mag",c);st.setProperty("--on",(.299*r+.587*g+.114*b)>.55?"#0b0c0e":"#ffffff");
- document.body.dataset.bg=BGS.some(x=>x[0]==u.bg)?u.bg:UIDEF.bg}
+ document.body.dataset.bg=BGS.some(x=>x[0]==u.bg)?u.bg:UIDEF.bg;document.body.dataset.bubble=(u.bubble===false||u.bubble==="false")?"off":"on"}
 let S,cfg,status=[],space=null,running=false,log=[],pct="idle",folder="",poller=null,view="convert",vAnim="",advOpen={st:1,ut:1};
 const TI={err:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/>',warn:'<path d="M12 3.8 21.5 20h-19z"/><path d="M12 10v4.5M12 17.5h.01"/>',ok:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.5"/>'};
 function toast(t,l){const e=$("#toast");e.textContent="";if(TI[l]){const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 24 24");s.setAttribute("class","ti "+l);s.innerHTML=TI[l];e.append(s)}e.append(el("span","",t));e.className="on "+(l||"");clearTimeout(toast.t);toast.t=setTimeout(()=>e.className="",l=="err"?6000:3000)}
@@ -422,6 +456,7 @@ function padKeyName(e){const c=e.code||"",M={ControlLeft:"Left Ctrl",ControlRigh
  if(M[c])return M[c];let m=c.match(/^Key([A-Z])$/)||c.match(/^Digit(\d)$/);if(m)return m[1];
  if(m=c.match(/^Numpad(\d)$/))return "Keypad "+m[1];if(/^F\d{1,2}$/.test(c))return c;
  return null}
+addEventListener("keydown",e=>{const b=document.body;if(e.key=="Escape")b.classList.add("noring");else if(!["Shift","Control","Alt","Meta"].includes(e.key))b.classList.remove("noring")},true);
 let PADL=null,PADSW=0;
 const padLive=()=>PADL&&PADL.root&&PADL.root.isConnected;
 function padCommit(entry){const p=PADL;PADL=null;const T=p.get(),{acts}=iniParse(T),lo=entry.toLowerCase(),me=p.act.toLowerCase();
@@ -434,15 +469,16 @@ addEventListener("mousedown",e=>{if(!padLive())return;e.preventDefault();e.stopI
 for(const t of["mouseup","click","auxclick","contextmenu"])addEventListener(t,e=>{if(padLive()||Date.now()<PADSW){e.preventDefault();e.stopImmediatePropagation()}},true);
 addEventListener("wheel",e=>{if(!padLive())return;e.preventDefault();e.stopImmediatePropagation();if(e.deltaY)padCommit("WHEEL:"+(e.deltaY<0?"Up":"Down"))},{capture:true,passive:false});
 function padChip(c,act,label,cls,css){const{get,set,redraw,root}=c,cur=iniParse(get()).acts[act.toLowerCase()]||[],lis=!!(PADL&&PADL.act==act);
- const w=el("div","pc "+cls+(cur.length?" set":"")+(lis?" lis":""));if(css)Object.assign(w.style,css);
+ const w=el("div","pc "+cls+(cur.length?" set":""));if(css)Object.assign(w.style,css);
+ if(lis)requestAnimationFrame(()=>requestAnimationFrame(()=>{if(w.isConnected)w.classList.add("lis")}));/* added after first paint so the ring fades in */
  const b=el("button","pm");b.dataset.k="pad_"+act;b.dataset.nav=1;b.setAttribute("aria-label",label+": "+(cur.length?cur.map(padShow).join(", "):"default, "+((PAD_DEF[act]||[]).map(padShow).join(", ")||"none"))+". Press Enter, then the key to assign.");
  const dv=(PAD_DEF[act]||[]).map(padShow).join(" · ")||"none",dtxt=cur.length?cur.map(padShow).join(" · "):dv;
  b.title=cur.length?dtxt+"  (default: "+dv+")":"Default: "+dv;
  b.append(el("span","pt",label),el("span","pv"+(cur.length||lis?"":" dflt"),lis?"Press a key, mouse button or wheel… Esc cancels":dtxt));
  b.onclick=()=>{PADL=lis?null:{act,mode:"replace",root,get,set,redraw};redraw()};w.append(b);
- const t=el("div","pcb"),a=el("button","pi","+");a.dataset.k="padA_"+act;a.dataset.nav=1;a.title="Add an alternate input";a.setAttribute("aria-label","Add an alternate input for "+label);
+ const t=el("div","pcb"),a=el("button","pi");a.innerHTML='<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>';a.dataset.k="padA_"+act;a.dataset.nav=1;a.title="Add an alternate input";a.setAttribute("aria-label","Add an alternate input for "+label);
  a.onclick=()=>{PADL={act,mode:"add",root,get,set,redraw};redraw()};t.append(a);
- if(cur.length){const x=el("button","pi","×");x.dataset.k="padX_"+act;x.dataset.nav=1;x.title="Back to the default input";x.setAttribute("aria-label","Restore the default input for "+label);x.onclick=()=>{PADL=null;set(iniSet(get(),act,[]));redraw()};t.append(x)}
+ if(cur.length){const x=el("button","pi");x.innerHTML=ICON.reset;x.dataset.k="padX_"+act;x.dataset.nav=1;x.title="Back to the default input";x.setAttribute("aria-label","Restore the default input for "+label);x.onclick=()=>{PADL=null;set(iniSet(get(),act,[]));redraw()};t.append(x)}
  w.append(t);return w}
 // live deadzone preview: shown only while a controller is connected (Gamepad API). Drag on a circle to set that stick's deadzone.
 function padStickPrev(ctl){const box=el("div","pdz"),hint=el("p","muted pdm","No controller detected. Connect one and press a button: the dots will then follow your sticks live. You can already drag on a circle to set the deadzone."),
@@ -531,7 +567,8 @@ function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.ru
     row.style.padding=".45em .6em";sw.append(sl,row);
     const hx=el("div","si");hx.append(el("span","sl","Custom color (hex)"),field("hex",()=>A.accent,v=>{v=(v[0]=="#"?v:"#"+v).toLowerCase();if(HEX.test(v))setA("accent",v);else toast("Use a color like #ffffff","warn")},"#ffffff",{label:"Custom color (hex)",live:v=>{v=(v[0]=="#"?v:"#"+v);if(HEX.test(v)){A.accent=v.toLowerCase();applyUI(A)}}}));
     const bg=el("div","si");bg.append(el("span","sl","Animated background"),hrow(...BGS.map(([k,l])=>radio(l,A.bg==k,()=>setA("bg",k),"bg"+k))),note("Animation stops automatically if your system asks for reduced motion."));
-    body.append(sw,hx,bg,hrow(btn("Reset appearance",()=>{A={...UIDEF};applyUI(A);draw()},{k:"uireset",icon:"reset"})),note("Changes preview live and are kept when you press Save and close."))}
+    const bb=el("div","si");bb.append(el("span","sl","Buttons"),check("Bubble animation on hover","Buttons grow slightly when the pointer is over them.",()=>A.bubble!==false&&A.bubble!=="false",v=>setA("bubble",v),"bubble"));
+    body.append(sw,hx,bg,bb,hrow(btn("Reset appearance",()=>{A={...UIDEF};applyUI(A);draw()},{k:"uireset",icon:"reset"})),note("Changes preview live and are kept when you press Save and close."))}
   if(tab=="Storage"){const st=S.storage,cur=st.path,same=()=>stPath.trim()==cur;
    body.append(note("Folder where the app keeps the downloaded tools, builds, backups and settings (config.ini). Default: your user data folder, so it survives updates."));
    if(st.problem)body.append(note("⚠ "+st.problem));
