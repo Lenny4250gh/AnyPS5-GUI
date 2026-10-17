@@ -3183,26 +3183,8 @@ INPUT_TEMPLATE = """# anyps5-input.ini - AnyPS5 keyboard and mouse mapping
 # Actions that are not listed keep their default keys. Controllers are not affected.
 #
 # Example below (active): Cross on F or Space, left stick on IJKL
-Cross = KEY:F
-Cross = KEY:Space
-LeftStickLeft = KEY:J
-LeftStickRight = KEY:L
-LeftStickUp = KEY:I
-LeftStickDown = KEY:K
-Square = MOUSE:Left
-R2 = MOUSE:Right
-ToggleMouse = MOUSE:Middle
 #
 # Settings (each at most once):
-LeftStickDeadzone = 12
-RightStickDeadzone = 8
-MouseSensitivity = 1
-MouseVerticalScale = 1
-MouseCurve = 1
-MouseDeadzoneOffset = 0.2
-MouseMaxSpeed = 1
-MouseSmoothingMs = 10
-MouseDecayMs = 30
 """
 
 
@@ -3634,7 +3616,7 @@ L = sys.modules[__name__]   # the logic lives in this same file
 HERE = SCRIPT_DIR
 
 # ---------- GUI update check ----------
-APP_VERSION = "1.0.2"
+APP_VERSION = "1.0.3"
 GUI_REPO_OWNER = "Lenny4250gh"
 GUI_REPO_NAME = "AnyPS5-GUI"
 GUI_RELEASES_URL = "https://github.com/%s/%s/releases/latest" % (GUI_REPO_OWNER, GUI_REPO_NAME)

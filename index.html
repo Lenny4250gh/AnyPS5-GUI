@@ -190,7 +190,16 @@ body.intro #pb{animation-delay:.36s}body.intro #log{animation-delay:.4s}
 .padrow{display:flex;flex-wrap:wrap;gap:1.2em;margin-top:.6em}
 .pgrp{flex:1;min-width:13em}.pgrp .pc{margin-top:.35em}
 .pcross{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"up up" "left right" "down down";gap:.35em}.pcross .pc{margin-top:0}
-.padset{margin-top:.8em}.padset summary{cursor:pointer;color:var(--dim);font-size:.85em}
+.padset{margin-top:.8em}.padset .pdt{color:var(--dim);font-size:.85em}
+.pdzrow{display:flex;gap:2.5em;justify-content:center;flex-wrap:wrap;margin:.7em 0 .3em}.pdzrow[hidden],.pdz p[hidden]{display:none}
+.pds{display:flex;flex-direction:column;align-items:center;gap:.3em;width:13em}.pdm{min-height:2.8em}.pdl{font-size:.85em}
+.pds svg{width:11em;height:11em;cursor:crosshair;touch-action:none;user-select:none}
+.pdv{font:400 .75em/1.5 Consolas,"Cascadia Mono","DejaVu Sans Mono",monospace;color:var(--dim);white-space:pre;text-align:center;height:3em;width:100%}
+.pdo{fill:rgba(255,255,255,.04);stroke:rgba(255,255,255,.4);stroke-width:1.2}
+.pdd{fill:rgba(255,255,255,.16);stroke:rgba(255,255,255,.55);stroke-width:1;stroke-dasharray:3 3}
+.pdx{stroke:rgba(255,255,255,.15);stroke-width:.8;fill:none}
+.pdn{stroke:rgba(255,255,255,.3);stroke-width:1.3;stroke-linecap:round}.pdn.act{stroke:var(--ring)}
+.pdp{fill:var(--dim);cx:0;cy:0}.pdp.act{fill:var(--ring);filter:drop-shadow(0 0 3px rgba(255,255,255,.6))}
 .prow{display:flex;align-items:center;gap:.7em;margin-top:.4em}.prow .sl2{min-width:14em;font-size:.85em}.prow input{width:7em;flex:none}.prow small{color:var(--dim)}
 .adv summary{cursor:pointer;color:var(--dim);font-size:.8em;letter-spacing:.02em}.advb{overflow:hidden}.advi{padding-top:.6em}
 .prow input[type=range]{flex:1;min-width:8em;width:auto;accent-color:var(--ring);cursor:default;margin:0}
@@ -378,7 +387,7 @@ function padKeyName(e){const c=e.code||"",M={ControlLeft:"Left Ctrl",ControlRigh
  if(M[c])return M[c];let m=c.match(/^Key([A-Z])$/)||c.match(/^Digit(\d)$/);if(m)return m[1];
  if(m=c.match(/^Numpad(\d)$/))return "Keypad "+m[1];if(/^F\d{1,2}$/.test(c))return c;
  return null}
-let PADL=null,PADSW=0,PADSETOPEN=true;
+let PADL=null,PADSW=0;
 const padLive=()=>PADL&&PADL.root&&PADL.root.isConnected;
 function padCommit(entry){const p=PADL;PADL=null;const T=p.get(),{acts}=iniParse(T),lo=entry.toLowerCase(),me=p.act.toLowerCase();
  for(const a in acts)if(a!=me&&acts[a].some(x=>x.toLowerCase()==lo)){toast(padShow(entry)+" is already used by "+(PAD_LABEL[PAD_CANON[a]]||a),"warn");break}
@@ -400,12 +409,33 @@ function padChip(c,act,label,cls,css){const{get,set,redraw,root}=c,cur=iniParse(
  a.onclick=()=>{PADL={act,mode:"add",root,get,set,redraw};redraw()};t.append(a);
  if(cur.length){const x=el("button","pi","×");x.dataset.k="padX_"+act;x.dataset.nav=1;x.title="Back to the default input";x.setAttribute("aria-label","Restore the default input for "+label);x.onclick=()=>{PADL=null;set(iniSet(get(),act,[]));redraw()};t.append(x)}
  w.append(t);return w}
-function padSettings(c){const{get,set,redraw}=c,d=document.createElement("details");d.className="padset";d.open=PADSETOPEN;d.ontoggle=()=>{PADSETOPEN=d.open};
- d.append(el("summary","","Stick deadzones and mouse-as-stick settings"));const sets=iniParse(get()).sets;
+// live deadzone preview: shown only while a controller is connected (Gamepad API). Drag on a circle to set that stick's deadzone.
+function padStickPrev(ctl){const box=el("div","pdz"),hint=el("p","muted pdm","No controller detected. Connect one and press a button: the dots will then follow your sticks live. You can already drag on a circle to set the deadzone."),
+ row=el("div","pdzrow"),R=50,sticks=[];
+ const MSG0=hint.textContent,MSG1="Move a stick: the dot inside the shaded circle is ignored by the game. Drag on a circle to set that deadzone.";
+ [["LeftStickDeadzone","Left stick",0],["RightStickDeadzone","Right stick",2]].forEach(([k,t,ax])=>{const s=ctl[k],w=el("div","pds"),ro=el("span","pdv","—");
+  w.innerHTML='<span class="pdl">'+t+'</span><svg viewBox="-56 -56 112 112" role="img" aria-label="'+t+' deadzone preview"><circle class="pdo" r="50"/><circle class="pdd" r="0"/><path class="pdx" d="M-50 0H50M0-50V50"/><line class="pdn" x1="0" y1="0" x2="0" y2="0"/><circle class="pdp" r="4.5"/></svg>';
+  const svg=w.querySelector("svg"),dz=w.querySelector(".pdd"),dot=w.querySelector(".pdp"),ln=w.querySelector(".pdn");w.append(ro);let drag=false;
+  const at=e=>{const r=svg.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*112-56,y=(e.clientY-r.top)/r.height*112-56;s.sl.value=Math.max(0,Math.min(90,Math.round(Math.hypot(x,y)/R*100)));s.sl.oninput()};
+  svg.onpointerdown=e=>{drag=true;try{svg.setPointerCapture(e.pointerId)}catch(_){}at(e)};
+  svg.onpointermove=e=>{if(drag)at(e)};
+  svg.onpointerup=svg.onpointercancel=()=>{if(!drag)return;drag=false;s.sl.onchange()};
+  sticks.push(g=>{const d=Number(s.sl.value);dz.setAttribute("r",d/100*R);
+   if(!g){for(const e of[dot,ln]){e.classList.remove("act")}dot.setAttribute("cx",0);dot.setAttribute("cy",0);ln.setAttribute("x2",0);ln.setAttribute("y2",0);ro.textContent="  -%   -  -\u00b0\nNo controller";return}
+   const x=g.axes[ax]||0,y=g.axes[ax+1]||0,h=Math.hypot(x,y),m=Math.min(1,h),f=h>1?1/h:1,on=m*100>d&&m>.005,px=x*f*R,py=y*f*R,
+    deg=Math.round((Math.atan2(-y,x)*180/Math.PI+360)%360),ar=["\u2192","\u2197","\u2191","\u2196","\u2190","\u2199","\u2193","\u2198"][Math.round(deg/45)%8];
+   dot.setAttribute("cx",px);dot.setAttribute("cy",py);ln.setAttribute("x2",px);ln.setAttribute("y2",py);dot.classList.toggle("act",on);ln.classList.toggle("act",on);
+   ro.textContent=(m<.005?"  0%   -  -\u00b0":String(Math.round(m*100)).padStart(3)+"%  "+ar+" "+String(deg).padStart(3)+"\u00b0")+"\n"+(m<.005?"Centered":on?"Active":"Inside deadzone")});
+  row.append(w)});
+ let has=null;const pad=()=>{const l=navigator.getGamepads?navigator.getGamepads():[];for(const g of l)if(g&&g.connected&&g.axes&&g.axes.length>=4)return g;return null};
+ const tick=()=>{if(!box.isConnected)return;const g=pad();if(!!g!==has){has=!!g;hint.textContent=g?MSG1:MSG0}sticks.forEach(f=>f(g));requestAnimationFrame(tick)};
+ box.append(row,hint);requestAnimationFrame(tick);return box}
+function padSettings(c){const{get,set,redraw}=c,d=el("div","padset"),ctl={},slot=el("div","");
+ d.append(el("div","pdt","Stick deadzones and mouse-as-stick settings"),slot);const sets=iniParse(get()).sets;
  PAD_SETS.forEach(([n,lab,lo,hi,step,def,int,ex])=>{const r=el("div","prow"),cv=sets[n.toLowerCase()],dn=Number(def),sl=document.createElement("input"),i=document.createElement("input"),rd=x=>Number(Number(x).toFixed(4));
   sl.type="range";sl.min=ex?lo+step:lo;sl.max=hi;sl.step=step;sl.value=cv!=null&&isFinite(Number(cv))?Number(cv):dn;sl.dataset.k="pss_"+n;sl.dataset.nav=1;sl.setAttribute("aria-label",lab);const pc=()=>sl.style.setProperty("--p",((sl.value-sl.min)/(sl.max-sl.min)*100)+"%");pc();
   i.type="number";i.min=lo;i.max=hi;i.step=step;i.placeholder=def;i.value=cv==null?"":cv;i.dataset.k="ps_"+n;i.setAttribute("aria-label",lab+" value");
-  const put=x=>{x=rd(x);set(iniSet(get(),n,x===dn?[]:[String(x)]));redraw()};
+  const put=x=>{x=rd(x);set(iniSet(get(),n,x===dn?[]:[String(x)]));redraw()};ctl[n]={sl,i,put};
   sl.oninput=()=>{i.value=rd(sl.value);pc();i.classList.add("live")};sl.onchange=()=>put(sl.value);
   i.onchange=()=>{const v=i.value.trim();if(v===""){set(iniSet(get(),n,[]));redraw();return}const x=Number(v);
    if(!isFinite(x)||x<lo||x>hi||(ex&&x<=lo)||(int&&!Number.isInteger(x))){toast(lab+": allowed "+(ex?"above ":"")+lo+" to "+hi+(int?" (whole number)":""),"warn");i.value=cv==null?"":cv;return}
@@ -413,7 +443,7 @@ function padSettings(c){const{get,set,redraw}=c,d=document.createElement("detail
   r.append(el("span","sl2",lab),sl,i,el("small","","default "+def));
   if(cv!=null){const z=el("button","rst","\u21ba");z.dataset.k="psr_"+n;z.title="Back to default";z.setAttribute("aria-label","Restore default for "+lab);z.onclick=()=>{set(iniSet(get(),n,[]));redraw()};r.append(z)}else r.append(el("span","rstsp"));
   d.append(r)});
- d.append(el("p","muted","Empty field = default. The mouse values apply when the mouse drives the right stick (Mouse as right stick)."));return d}
+ d.append(el("p","muted","Empty field = default. The mouse values apply when the mouse drives the right stick (Mouse as right stick)."));slot.append(padStickPrev(ctl));return d}
 function padEditor(get,set,redraw,root){const c={get,set,redraw,root},top=(y)=>((y-23)/5.6)+"%",wrap=el("div","padwrap"),pad=el("div","pad");
  let svg='<svg viewBox="0 0 1000 560" aria-hidden="true"><g fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.6" stroke-linejoin="round">'+
  '<path d="M360 160Q500 138 640 160Q700 170 720 232Q745 330 730 420Q715 485 665 470Q620 455 600 422L400 422Q380 455 335 470Q285 485 270 420Q255 330 280 232Q300 170 360 160Z" fill="rgba(255,255,255,.05)"/>'+
