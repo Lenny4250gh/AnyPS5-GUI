@@ -4201,14 +4201,21 @@ def _find_main_exe(root, host, cur_name):
   return max(files, key=lambda f: os.path.getsize(os.path.join(root, f)))
 
 
-def _run_detached(cmd):
+def _run_detached(cmd, marker=None):
   env = dict(os.environ)
+  if marker:
+    env["ANYPS5_UPDATE_MARKER"] = marker  # inherited by the new app, which deletes it once its window is up
   env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"  # the new onefile exe must not reuse our temp folder
   for k in ("_MEIPASS2", "_PYI_APPLICATION_HOME_DIR", "_PYI_ARCHIVE_FILE", "_PYI_PARENT_PROCESS_LEVEL"):
     env.pop(k, None)
   if os.name == "nt":
-    flags = 0x00000008 | 0x00000200 | 0x08000000  # DETACHED_PROCESS | NEW_PROCESS_GROUP | NO_WINDOW
-    subprocess.Popen(cmd, creationflags=flags, close_fds=True, env=env,
+    # NO_WINDOW + NEW_PROCESS_GROUP only. DETACHED_PROCESS must NOT be added: Windows then ignores
+    # NO_WINDOW and cmd.exe opens a visible console (the black terminal during the update).
+    flags = 0x00000200 | 0x08000000  # CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
+    si = subprocess.STARTUPINFO()
+    si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    si.wShowWindow = 0  # SW_HIDE, in case a console is created anyway
+    subprocess.Popen(cmd, creationflags=flags, startupinfo=si, close_fds=True, env=env,
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
   else:
     subprocess.Popen(cmd, start_new_session=True, close_fds=True, env=env,
@@ -4217,6 +4224,7 @@ def _run_detached(cmd):
 
 _BAT = """@echo off
 chcp 65001 >nul
+if exist "{splash}" start "" /b powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "{splash}"
 set "MAIN={main}"
 set "DEST={dest}"
 set "APPDIR={appdir}"
@@ -4236,8 +4244,106 @@ xcopy "%PAYLOAD%\\*" "%APPDIR%\\" /e /y /i /q >nul 2>&1
 :fail
 rmdir /s /q "%STAGE%" >nul 2>&1
 set "PYINSTALLER_RESET_ENVIRONMENT=1"
-start "" "%DEST%"
+start "" /b "%DEST%"
 (goto) 2>nul & del "%~f0"
+"""
+
+_PS_SPLASH = r"""
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+[System.Windows.Forms.Application]::EnableVisualStyles()
+$marker = '@@MARKER@@'
+$dest = '@@DEST@@'
+$W = 420; $H = 132
+$t0 = Get-Date
+$f = New-Object System.Windows.Forms.Form
+$f.Text = 'AnyPS5 GUI'
+$f.FormBorderStyle = 'None'
+$f.StartPosition = 'CenterScreen'
+$f.TopMost = $true
+$f.ShowInTaskbar = $false
+$f.ClientSize = New-Object System.Drawing.Size($W, $H)
+$f.BackColor = [System.Drawing.Color]::FromArgb(17, 19, 18)
+$f.GetType().GetProperty('DoubleBuffered', [Reflection.BindingFlags]'Instance,NonPublic').SetValue($f, $true, $null)
+
+function New-RoundPath($x, $y, $w, $h, $r) {
+  $gp = New-Object System.Drawing.Drawing2D.GraphicsPath
+  $d = $r * 2
+  $gp.AddArc($x, $y, $d, $d, 180, 90)
+  $gp.AddArc($x + $w - $d, $y, $d, $d, 270, 90)
+  $gp.AddArc($x + $w - $d, $y + $h - $d, $d, $d, 0, 90)
+  $gp.AddArc($x, $y + $h - $d, $d, $d, 90, 90)
+  $gp.CloseFigure()
+  return $gp
+}
+$f.Region = New-Object System.Drawing.Region((New-RoundPath 0 0 $W $H 18))
+
+$white = [System.Drawing.Color]::FromArgb(240, 240, 240)
+$dim = [System.Drawing.Color]::FromArgb(150, 154, 152)
+$line = [System.Drawing.Color]::FromArgb(52, 56, 54)
+$track = [System.Drawing.Color]::FromArgb(40, 43, 42)
+$fTitle = New-Object System.Drawing.Font('Segoe UI Semibold', 13)
+$fSub = New-Object System.Drawing.Font('Segoe UI', 9.5)
+$bWhite = New-Object System.Drawing.SolidBrush($white)
+$bDim = New-Object System.Drawing.SolidBrush($dim)
+$bTrack = New-Object System.Drawing.SolidBrush($track)
+$penLine = New-Object System.Drawing.Pen($line, 1)
+$penIcon = New-Object System.Drawing.Pen($white, 2.4)
+$penIcon.StartCap = 'Round'; $penIcon.EndCap = 'Round'; $penIcon.LineJoin = 'Round'
+$penIconDim = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(70, 240, 240, 240), 2)
+
+$f.Add_Paint({
+  param($sender, $e)
+  $g = $e.Graphics
+  $g.SmoothingMode = 'AntiAlias'
+  $g.TextRenderingHint = 'ClearTypeGridFit'
+  $sec = ((Get-Date) - $t0).TotalSeconds
+  # border
+  $bp = New-RoundPath 0.5 0.5 ($W - 1) ($H - 1) 18
+  $g.DrawPath($penLine, $bp)
+  # icon: circle with a bobbing download arrow
+  $g.DrawEllipse($penIconDim, 28, 30, 44, 44)
+  $bob = [Math]::Sin($sec * 4) * 2.5
+  $g.DrawLine($penIcon, 50, (41 + $bob), 50, (56 + $bob))
+  $g.DrawLine($penIcon, 43, (50 + $bob), 50, (57 + $bob))
+  $g.DrawLine($penIcon, 57, (50 + $bob), 50, (57 + $bob))
+  $g.DrawLine($penIcon, 43, 64, 57, 64)
+  # texts
+  $g.DrawString('Updating AnyPS5 GUI', $fTitle, $bWhite, 88, 30)
+  $g.DrawString('The app will restart by itself.', $fSub, $bDim, 89, 56)
+  # indeterminate bar
+  $tx = 28; $ty = 100; $tw = $W - 56; $th = 6; $sw = 120
+  $tp = New-RoundPath $tx $ty $tw $th 3
+  $g.FillPath($bTrack, $tp)
+  $g.SetClip($tp)
+  $pos = (($sec * 0.55) % 1.0)
+  $ease = 0.5 - 0.5 * [Math]::Cos($pos * 2 * [Math]::PI)
+  $sx = $tx - $sw + (($tw + $sw) * $pos)
+  $sp = New-RoundPath $sx $ty $sw $th 3
+  $g.FillPath($bWhite, $sp)
+  $g.ResetClip()
+})
+
+$tm = New-Object System.Windows.Forms.Timer
+$tm.Interval = 33
+$tm.Add_Tick({
+  $f.Invalidate()
+  $el = ((Get-Date) - $t0).TotalSeconds
+  $done = $false
+  if ($el -gt 3 -and -not (Test-Path -LiteralPath $marker)) { $done = $true }
+  if (-not $done -and $el -gt 2 -and ([int]($el * 30) % 15 -eq 0)) {
+    # fallback for builds that do not clear the marker: a NEW process of the app with a visible window
+    try {
+      $np = Get-Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.MainWindowHandle -ne 0 -and $_.StartTime -gt $t0 -and $_.Path -eq $dest }
+      if ($np) { $done = $true }
+    } catch {}
+  }
+  if ($done -or $el -gt 90) { $tm.Stop(); $f.Close() }
+})
+$tm.Start()
+[void]$f.ShowDialog()
+Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue
 """
 
 _SH_LINUX = """#!/bin/sh
@@ -4250,6 +4356,21 @@ while [ $i -lt 90 ]; do
   sleep 1; i=$((i+1))
 done
 sleep 1
+MARK="$ANYPS5_UPDATE_MARKER"
+SPL=""
+MSG="Updating AnyPS5 GUI... The app will restart by itself."
+if command -v zenity >/dev/null 2>&1; then
+  (sleep 120) | zenity --progress --pulsate --no-cancel --auto-close --title="AnyPS5 GUI" --text="$MSG" --width=380 >/dev/null 2>&1 &
+  SPL=$!
+elif command -v kdialog >/dev/null 2>&1; then
+  kdialog --title "AnyPS5 GUI" --passivepopup "$MSG" 60 >/dev/null 2>&1 &
+  SPL=$!
+elif command -v xmessage >/dev/null 2>&1; then
+  xmessage -center "$MSG" >/dev/null 2>&1 &
+  SPL=$!
+elif command -v notify-send >/dev/null 2>&1; then
+  notify-send "AnyPS5 GUI" "$MSG" >/dev/null 2>&1
+fi
 if mv -f "$MAIN" "$DEST"; then
   chmod +x "$DEST"
   if [ -d "$PAYLOAD/_internal" ]; then rm -rf "$APPDIR/_internal"; fi
@@ -4258,7 +4379,12 @@ fi
 rm -rf "$STAGE"
 export PYINSTALLER_RESET_ENVIRONMENT=1
 setsid "$DEST" >/dev/null 2>&1 &
-rm -f "$0"
+if [ -n "$MARK" ]; then
+  j=0
+  while [ -e "$MARK" ] && [ $j -lt 90 ]; do sleep 1; j=$((j+1)); done
+fi
+[ -n "$SPL" ] && kill "$SPL" 2>/dev/null
+rm -f "$MARK" "$0"
 """
 
 _SH_MAC = """#!/bin/sh
@@ -4271,6 +4397,9 @@ while [ $i -lt 90 ]; do
   sleep 1; i=$((i+1))
 done
 sleep 1
+MARK="$ANYPS5_UPDATE_MARKER"
+osascript -e 'display dialog "Updating AnyPS5 GUI..." & return & return & "The app will reopen by itself." with title "AnyPS5 GUI" buttons {} giving up after 120 with icon note' >/dev/null 2>&1 &
+SPL=$!
 SAVE="$STAGE/keep"
 if [ -n "$KEEP" ] && [ -e "$OLDAPP/$KEEP" ]; then mkdir -p "$SAVE" && mv "$OLDAPP/$KEEP" "$SAVE/data"; fi
 BACKUP="$OLDAPP.old"
@@ -4287,7 +4416,12 @@ xattr -dr com.apple.quarantine "$OLDAPP" 2>/dev/null
 rm -rf "$STAGE"
 export PYINSTALLER_RESET_ENVIRONMENT=1
 open -n "$OLDAPP"
-rm -f "$0"
+if [ -n "$MARK" ]; then
+  j=0
+  while [ -e "$MARK" ] && [ $j -lt 90 ]; do sleep 1; j=$((j+1)); done
+fi
+kill "$SPL" 2>/dev/null
+rm -f "$MARK" "$0"
 """
 
 
@@ -4375,6 +4509,8 @@ def prepare_and_launch_update(asset, status, cancel):
     raise RuntimeError(errors[-1] if errors else "download failed")
 
   status(state="installing", pct=None, text="Preparing the installation…")
+  mfd, marker = tempfile.mkstemp(prefix="anyps5-upd-", suffix=".run")  # splash stays up while this exists
+  os.close(mfd)
   if host == "macos":
     newapp = _mac_extract_app(dl, stage)
     keep = ""
@@ -4385,7 +4521,7 @@ def prepare_and_launch_update(asset, status, cancel):
     with os.fdopen(fd, "w") as f:
       f.write(_SH_MAC)
     os.chmod(script, 0o700)
-    _run_detached(["/bin/sh", script, newapp, bundle, keep, stage] + [str(p) for p in pids])
+    _run_detached(["/bin/sh", script, newapp, bundle, keep, stage] + [str(p) for p in pids], marker)
     return
 
   # Windows / Linux: single file, or an archive with the file (and maybe its folder)
@@ -4403,6 +4539,10 @@ def prepare_and_launch_update(asset, status, cancel):
   main = _find_main_exe(payload, host, os.path.basename(dest))
   if not main:
     shutil.rmtree(stage, ignore_errors=True)
+    try:
+      os.remove(marker)
+    except OSError:
+      pass
     raise RuntimeError("no executable found in the downloaded file")
   if host == "linux":
     os.chmod(os.path.join(payload, main), 0o755)
@@ -4411,16 +4551,19 @@ def prepare_and_launch_update(asset, status, cancel):
   if host == "windows":
     fd, script = tempfile.mkstemp(prefix="anyps5-upd-", suffix=".bat")
     esc = lambda p: p.replace("%", "%%")
+    sfd, splash = tempfile.mkstemp(prefix="anyps5-splash-", suffix=".ps1")
+    with os.fdopen(sfd, "w", encoding="utf-8-sig") as f:  # BOM: PowerShell 5 reads UTF-8 paths correctly
+      f.write(_PS_SPLASH.replace("@@MARKER@@", marker.replace("'", "''")).replace("@@DEST@@", dest.replace("'", "''")))
     with os.fdopen(fd, "w", encoding="utf-8") as f:
       f.write(_BAT.format(main=esc(main_path), dest=esc(dest), appdir=esc(appdir),
-                          payload=esc(payload), stage=esc(stage)).replace("\n", "\r\n"))
-    _run_detached(["cmd.exe", "/c", script])
+                          payload=esc(payload), stage=esc(stage), splash=esc(splash)).replace("\n", "\r\n"))
+    _run_detached(["cmd.exe", "/c", script], marker)
   else:
     fd, script = tempfile.mkstemp(prefix="anyps5-upd-", suffix=".sh")
     with os.fdopen(fd, "w") as f:
       f.write(_SH_LINUX)
     os.chmod(script, 0o700)
-    _run_detached(["/bin/sh", script, main_path, dest, appdir, payload, stage] + [str(p) for p in pids])
+    _run_detached(["/bin/sh", script, main_path, dest, appdir, payload, stage] + [str(p) for p in pids], marker)
 
 
 # Options schema (generated from the old SettingsDialog; if you add options, update it here)
@@ -5049,7 +5192,7 @@ class Api:
       return res
     zipsrc = L.is_archive_source(self.folder)
     if action != "build" and not (self.folder and (os.path.isdir(self.folder) or zipsrc)):
-      res["error"] = "Select the game folder (e.g. PPSAxxxxx) or an archive of the game."
+      res["error"] = "Select the game folder (e.g. PPSAxxxxx) or an archive of the game (.zip or .rar)."
       return res
     if zipsrc and action != "build":
       z = L.scan_archive(self.folder)
@@ -5438,6 +5581,15 @@ def main():
   window = webview.create_window("AnyPS5 GUI - Unofficial | v" + APP_VERSION, js_api=api, width=1280, height=760,
                                  min_size=(900, 560), background_color="#111312", **_src)
   window.events.closing += api.on_closing  # asks for confirmation if an operation is running
+
+  def _clear_update_marker(*_):
+    m = os.environ.pop("ANYPS5_UPDATE_MARKER", "")  # set only after a self-update: closes its splash
+    if m:
+      try:
+        os.remove(m)
+      except OSError:
+        pass
+  window.events.loaded += _clear_update_marker
   # Windows (WinForms) needs a real .ico here: a PNG raises "picture must be an image usable as Icon"
   _icon = resource_path("icon.ico" if os.name == "nt" else "icon.png")
   try:
