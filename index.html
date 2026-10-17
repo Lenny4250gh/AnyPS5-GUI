@@ -50,6 +50,18 @@ h1 .gui{font-size:.45em;font-weight:500;letter-spacing:.12em;opacity:.65;vertica
 .hrow .lbl{color:var(--dim);min-width:6.5em}
 .hrow input{flex:1;min-width:10em}
 .sp{flex:1}
+/* show/hide of the tools-source controls with animation */
+.vz{display:flex;opacity:1;transition:max-width .35s var(--ease),opacity .25s,margin-left .35s var(--ease)}
+.vz>*{flex:none}
+.vz .b,.vz .b *{white-space:nowrap}
+.vz.gone{opacity:0;margin-left:-.6em;pointer-events:none}
+.vz.gone,.vz.mov{overflow:hidden}
+.vzr{display:grid;grid-template-rows:1fr;margin-top:.45em;opacity:1;transition:grid-template-rows .35s var(--ease),opacity .25s,margin-top .35s var(--ease)}
+.vzr>.vzin{min-height:0}
+.vzr.gone{grid-template-rows:0fr;opacity:0;margin-top:0;pointer-events:none}
+.vzr.gone>.vzin,.vzr.mov>.vzin{overflow:hidden}
+.vzin>.hrow{margin-top:0}
+
 .ind{margin:.5em 0 0 1.6em}
 .muted{color:var(--dim);font-size:.78em;margin:.35em 0 0}
 .stat{display:grid;grid-template-columns:15em 1fr;gap:.15em 1em;font-size:.85em}
@@ -98,11 +110,14 @@ input:disabled{opacity:.4}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:20}
 .dlg,.cfm{background:rgba(30,32,35,.62);border:1px solid var(--line);border-radius:1.2em;padding:1.2em 1.4em;display:flex;flex-direction:column;
  -webkit-backdrop-filter:blur(28px) saturate(150%);backdrop-filter:blur(28px) saturate(150%);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 2em 5em #000a}
-.cfm{width:min(32em,88vw)}.cfm h2{font-weight:300;margin:0 0 .4em}.cfm p{color:var(--dim);margin:0 0 .8em}
+.cfm{width:min(32em,88vw)}.cfm h2{font-weight:300;margin:0 0 .4em}.cfm p{color:var(--dim);margin:0 0 .8em;white-space:pre-line}
 .dlg{width:min(54em,94vw);height:min(82vh,46em)}.dlg h2{font-weight:300;margin:0 0 .6em}
 .dbody{flex:1;overflow:auto;margin:.8em 0 .8em -.35em;padding:.3em .5em .3em .35em}
 .si{margin-top:.5em}.si .sl{display:block;color:var(--text);font-size:.9em;margin:0 .6em .2em}
 .si input{width:100%}
+.stg{margin-top:1.2em}.stg .sl{color:var(--dim);font-size:.8em;letter-spacing:.02em;margin:0 0 .4em .2em}
+.stpath{display:block;font-family:ui-monospace,Consolas,monospace;font-size:.85em;padding:.6em .9em;border-radius:.8em;background:rgba(255,255,255,.04);border:1px solid var(--line);word-break:break-all;user-select:text}
+
 .cmb{position:relative}
 .cbtn{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:.6em;width:100%;cursor:pointer;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:.6em;padding:.45em .8em;transition:background .14s,border-color .14s}
 .cbtn:hover{background:rgba(255,255,255,.06)}
@@ -313,6 +328,7 @@ function foldAnim(d,sm,wb,key){let an=null;const rm=()=>matchMedia("(prefers-red
   if(op){const h=wb.offsetHeight;wb.style.overflow="hidden";an=wb.animate([{height:h+"px",opacity:1},{height:"0px",opacity:0}],{duration:240,easing:"cubic-bezier(.2,.8,.2,1)"});
    an.onfinish=an.oncancel=()=>{an=null;set(false)}}
   else{set(true);const h=wb.offsetHeight;an=wb.animate([{height:"0px",opacity:0},{height:h+"px",opacity:1}],{duration:300,easing:"cubic-bezier(.2,.8,.2,1)"});an.onfinish=an.oncancel=()=>{an=null}}})}
+let prevSrc=null,prevRel=null;
 function renderCards(){const root=$("#cards"),a=document.activeElement,fk=a&&root.contains(a)&&a.dataset.k;root.textContent="";
  const s=cfg.settings,r=cfg.relinker,rel=s.mode=="relink",gh=r.relinker_source=="github",rls=r.relinker_source=="release";
  const card=(t,...k)=>{const c=el("section","card");c.append(el("h3","",t),...k);root.append(c);return c};
@@ -331,19 +347,37 @@ function renderCards(){const root=$("#cards"),a=document.activeElement,fk=a&&roo
   .forEach(([k,t])=>{const v=el("span","","—");v.id="st-"+k;st.append(el("span","",t),v)});fold("st","Requirements check",st);
  const m=card("2. Choose what to do",radio("Convert to PC  —  builds the package with the executable for your system",rel,()=>setMain("settings","mode","relink"),"m2"),
   radio("Unwrap only  —  eboot.bin and modules (SELF → ELF, with backup)",!rel,()=>setMain("settings","mode","unwrap"),"m1"));
- if(rel){const ind=el("div","ind"),tg=(k,sec,key,l,h)=>check(l,h,()=>yes(cfg[sec][key]),v=>setMain(sec,key,v?"yes":"no"),k);
+ {const ind=el("div","ind"),tg=(k,sec,key,l,h)=>check(l,h,()=>yes(cfg[sec][key]),v=>setMain(sec,key,v?"yes":"no"),k);
   ind.append(hrow(el("span","lbl","System:"),...Object.entries(S.targets).map(([k,v])=>radio(v.split(" (")[0],r.target==k,()=>setMain("relinker","target",k),"t"+k))),
    tg("auto","settings","auto_unwrap","Automatic unwrap before the conversion","Works on the copy: the original is not touched."),
    tg("intel","settings","intel","Intel processor (--to-intel) · all targets"),
    tg("keep","settings","keep_game","Keep PS5 game","ON = copy · OFF = safe move: each file is deleted from the source once copied."),
    hrow(el("span","lbl","Output folder:"),field("out",()=>s.output_dir,v=>setMain("settings","output_dir",v),"Empty = program folder",{label:"Output folder"}),
     btn("Browse…",async()=>{const p=await api("pick_output");if(p)setMain("settings","output_dir",p)},{k:"outb"}),btn("Default",()=>setMain("settings","output_dir",""),{k:"outd"})),
-   note("Empty = program folder. A '<GAME>-<OS>' folder will be created."));m.append(ind)}
+   note("Empty = program folder. A '<GAME>-<OS>' folder will be created."));
+  const wr=el("div","vzr"),wi=el("div","vzin"),fromRel=prevRel===null?rel:prevRel;prevRel=rel;wi.append(ind);wr.append(wi);
+  const setR=(r,anim)=>{wr.classList.toggle("gone",!r);wr.inert=!r;if(anim){wr.classList.add("mov");clearTimeout(wr._t);wr._t=setTimeout(()=>wr.classList.remove("mov"),450)}};
+  setR(fromRel);if(fromRel!==rel)requestAnimationFrame(()=>requestAnimationFrame(()=>setR(rel,1)));
+  m.append(wr)}
  m.append(check("Notify when an operation finishes or fails","Shows an in-app message and a system notification (Windows / macOS / Linux).",()=>yes(s.notify),v=>setMain("settings","notify",v?"yes":"no"),"notify"));
- const ut=fold("ut","Advanced: where the tools come from",hrow(el("span","lbl","Source:"),radio("Prebuilt (Utilities folder)",!gh&&!rls,()=>setMain("relinker","relinker_source","prebuilt"),"s1"),radio("Release from GitHub repo (auto-update)",rls,()=>setMain("relinker","relinker_source","release"),"s3"),radio("Build from GitHub source (auto-update)",gh,()=>setMain("relinker","relinker_source","github"),"s2")),
-  hrow(el("span","lbl","Repository:"),field("repo",()=>r.repo_url,v=>setMain("relinker","repo_url",v||S.default_repo),"",{label:"Repository",off:!gh&&!rls}),
-   btn("Default",()=>setMain("relinker","repo_url",S.default_repo),{off:!gh&&!rls,k:"repodef"}),btn("Download now",()=>act("download"),{off:!rls,k:"dl"}),btn("Build now",()=>act("build"),{off:!gh,k:"build"})),
-  note("Used by unwrap, libs and relink. Prebuilt: Utilities folder. Release: latest GitHub release. Build: compiles the repository with CMake. Branch/tag and CMake target: AnyPS5 settings → Source build."));
+ const src=gh?"github":rls?"release":"prebuilt",from=prevSrc||src;prevSrc=src;
+ const SHOW={prebuilt:{repo:0,dl:0,build:0,imp:1},release:{repo:1,dl:1,build:0,imp:0},github:{repo:1,dl:0,build:1,imp:0}},vzs=[];
+ const vz=(key,node,row)=>{const w=el("div",row?"vzr":"vz");if(row){const i=el("div","vzin");i.append(node);w.append(i)}else w.append(node);
+  const set=(s,anim)=>{const g=!SHOW[s][key],was=w.classList.contains("gone");w.inert=g;
+   if(!row){clearTimeout(w._t);
+    if(!anim){w.style.maxWidth=g?"0px":"none";w.classList.toggle("gone",g)}
+    else if(g!==was){const nw=node.offsetWidth;w.classList.add("mov");
+     if(g){w.style.maxWidth=nw+"px";void w.offsetWidth;w.classList.add("gone");w.style.maxWidth="0px";w._t=setTimeout(()=>w.classList.remove("mov"),450)}
+     else{w.classList.remove("gone");w.style.maxWidth=nw+"px";w._t=setTimeout(()=>{w.style.maxWidth="none";w.classList.remove("mov")},450)}}
+    return}
+   w.classList.toggle("gone",g);if(anim){w.classList.add("mov");clearTimeout(w._t);w._t=setTimeout(()=>w.classList.remove("mov"),450)}};
+  set(from);vzs.push(()=>set(src,1));return w};
+ const ut=fold("ut","Advanced: where the tools come from",hrow(el("span","lbl","Source:"),radio("Local files (manual)",!gh&&!rls,()=>setMain("relinker","relinker_source","prebuilt"),"s1"),radio("Release from GitHub repo (auto-update)",rls,()=>setMain("relinker","relinker_source","release"),"s3"),radio("Build from GitHub source (auto-update)",gh,()=>setMain("relinker","relinker_source","github"),"s2")),
+  vz("repo",hrow(el("span","lbl","Repository:"),field("repo",()=>r.repo_url,v=>setMain("relinker","repo_url",v||S.default_repo),"",{label:"Repository"}),
+   btn("Default",()=>setMain("relinker","repo_url",S.default_repo),{k:"repodef"}),vz("dl",btn("Download now",()=>act("download"),{k:"dl"})),vz("build",btn("Build now",()=>act("build"),{k:"build"}))),1),
+  vz("imp",hrow(el("span","lbl",""),btn("Import files…",importTools,{k:"imptools",tip:"Copy unwrap_self.py, relinker-*, prx-*.zip (and import_audit.py / pad_input.py) into the Utilities folder."}),el("span","muted","unwrap_self.py · relinker-* · prx-*.zip")),1),
+  note("Used by unwrap, libs and relink. Local files: the files you import (or put) in the Utilities folder. Release: latest GitHub release. Build: compiles the repository with CMake. Branch/tag and CMake target: AnyPS5 settings → Source build."));
+  if(from!==src)requestAnimationFrame(()=>requestAnimationFrame(()=>vzs.forEach(f=>f())));
   const act1=hrow(btn("▶  Start",()=>act("start"),{pri:1,k:"start"}),btn("■  Stop",()=>api("cancel"),{k:"stop",off:1}),btn("↺  Restore backup",()=>act("restore"),{k:"restore"}),mkopts(),...logb());act1.style.marginTop=".9em";act1.style.alignItems="stretch";root.append(act1)}
 
  if(view=="play"){const foot=hrow(mkopts(),...logb());foot.style.marginTop=".9em";foot.style.alignItems="stretch";root.append(foot)}
@@ -472,7 +506,11 @@ function padEditor(get,set,redraw,root){const c={get,set,redraw,root},top=(y)=>(
  const row=el("div","padrow");row.append(grp("Left stick","LeftStick"),grp("Right stick","RightStick"),ex);
  const box=el("div","");box.append(note("Click a button, then press the key, mouse button or wheel direction to use. + adds an alternate input, × goes back to the default (shown dimmed on each button). Keys are saved by physical position on the keyboard, so a key keeps working whatever the layout. Controllers you plug in always work and are not affected."),wrap,row,padSettings(c));return box}
 const RESETX={"Conversion":[["relinker","target"]],"Source build":[],"Runtime":[["runtime","language"],["runtime","present_mode"]]};
-function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.runtime}};let tab=t0||"Conversion",inText=S.input,inMsg="",inMode="visual",A={...ui};
+function storageDone(path){const m=el("div","modal updm"),b=el("div","cfm");b.setAttribute("role","alertdialog");b.setAttribute("aria-modal","true");m.done=()=>{};
+ const go=btn("Close the app",()=>api("force_quit"),{pri:1,k:"st-quit"});
+ b.append(el("h2","","Storage folder moved"),el("p","","Everything is now in:\n"+path+"\n\nClose the app and open it again to use the new folder."),hrow(go));
+ m.append(b);document.body.append(m);go.focus()}
+function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.runtime}};let tab=t0||"Conversion",inText=S.input,inMsg="",inMode="visual",A={...ui},stPath=S.storage.path,stMsg="",stBusy=0;
  const m=el("div","modal"),d=el("div","dlg"),body=el("div","dbody"),tabs=el("div","hrow");d.setAttribute("role","dialog");m.append(d);m.done=()=>{applyUI(ui);closeM(m)};
  const plat=(p,T)=>!p||p=="all"||(p=="win"&&T=="windows")||(p=="nowin"&&T!="windows")||(p=="host"&&T==S.host);
  const item=it=>{const T=D.relinker.target,off=!plat(it.plat,T),tag=it.plat&&it.plat!="all"?TAG[it.plat]:null,lab=LABEL[it.key]||it.label,v=()=>D[it.section][it.key],set=x=>{D[it.section][it.key]=x;draw()},w=el("div","si");
@@ -481,7 +519,7 @@ function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.ru
   else{const l=el("span","sl",lab);if(tag)l.append(el("span","tag",tag));w.append(l,hrow(...it.values.map(x=>radio(x,v()==x,()=>set(x),it.key+x))));if(it.hint)w.append(note(it.hint))}return w};
  let shown=null;
  function draw(){if(shown!==tab){shown=tab;body.classList.remove("tin");void body.offsetWidth;body.classList.add("tin")}const a=document.activeElement,fk=a&&d.contains(a)&&a.dataset.k,top=body.scrollTop;if(tab!="Input"||inMode!="visual")PADL=null;tabs.textContent="";body.textContent="";
-  ["Conversion","Source build","Runtime","Input","Appearance"].forEach(t=>{const b=btn(t,()=>{tab=t;draw()},{k:"tab"+t});if(t==tab)b.classList.add("sel");tabs.append(b)});
+  ["Conversion","Source build","Runtime","Input","Appearance","Storage"].forEach(t=>{const b=btn(t,()=>{tab=t;draw()},{k:"tab"+t});if(t==tab)b.classList.add("sel");tabs.append(b)});
   if(tab=="Conversion"){body.append(hrow(el("span","lbl","Target system"),...Object.entries(S.targets).map(([k,v])=>radio(v.split(" (")[0],D.relinker.target==k,()=>{D.relinker.target=k;draw()},"T"+k))),
     note("macOS: x86-64 Mach-O (runs through Rosetta on Apple silicon). settings that do not fit the selected target system are disabled."))}
   if(tab=="Runtime"){body.append(note("Environment variables used by the 'Launch game' button (always the current ones) and saved into shortcuts when they are created (after changing them, create the shortcut again)."),
@@ -494,6 +532,28 @@ function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.ru
     const hx=el("div","si");hx.append(el("span","sl","Custom color (hex)"),field("hex",()=>A.accent,v=>{v=(v[0]=="#"?v:"#"+v).toLowerCase();if(HEX.test(v))setA("accent",v);else toast("Use a color like #ffffff","warn")},"#ffffff",{label:"Custom color (hex)",live:v=>{v=(v[0]=="#"?v:"#"+v);if(HEX.test(v)){A.accent=v.toLowerCase();applyUI(A)}}}));
     const bg=el("div","si");bg.append(el("span","sl","Animated background"),hrow(...BGS.map(([k,l])=>radio(l,A.bg==k,()=>setA("bg",k),"bg"+k))),note("Animation stops automatically if your system asks for reduced motion."));
     body.append(sw,hx,bg,hrow(btn("Reset appearance",()=>{A={...UIDEF};applyUI(A);draw()},{k:"uireset",icon:"reset"})),note("Changes preview live and are kept when you press Save and close."))}
+  if(tab=="Storage"){const st=S.storage,cur=st.path,same=()=>stPath.trim()==cur;
+   body.append(note("Folder where the app keeps the downloaded tools, builds, backups and settings (config.ini). Default: your user data folder, so it survives updates."));
+   if(st.problem)body.append(note("⚠ "+st.problem));
+   if(!st.editable)body.append(note("Not available when running from the Python script or in portable mode (an empty file named 'portable' next to the program)."));
+   else{
+    const sg=(t,...k)=>{const g=el("div","si stg");g.append(el("span","sl",t),...k);return g},mvrow=(...k)=>{const r=hrow(...k);r.style.marginTop="1.2em";return r};
+    body.append(sg("Current folder",el("code","stpath",cur)),sg("New folder",
+     hrow(field("stp",()=>stPath,v=>{stPath=v;stMsg="";draw()},st.default,{label:"Storage folder",off:stBusy}),
+      btn("Browse…",async()=>{const p=await api("pick_storage");if(p){stPath=p;stMsg="";draw()}},{k:"stb",off:stBusy}),
+      btn("Default",async()=>{stPath=st.default;stMsg="";draw()},{k:"std",off:stBusy||cur==st.default}))),
+     mvrow(btn(stBusy?"Moving…":"Move everything here",async()=>{
+       if(stBusy||same())return;
+       if(!await ask("Move the storage folder?","Everything in the current folder will be moved to:\n"+stPath.trim()+"\n\nThe app has to be closed and reopened afterwards. Other settings changes you made in this window are not saved by this: use Save and close first if you want them.","Move","Cancel"))return;
+       const r=await api("move_storage",stPath.trim());if(r&&r.ok===false){stMsg=r.error;draw();return}
+       stBusy=1;draw();
+       const t=setInterval(()=>api("storage_status").then(x=>{if(!x)return;stMsg=x.text||"";
+         if(x.state=="failed"){clearInterval(t);stBusy=0;draw()}
+         else if(x.state=="done"){clearInterval(t);stBusy=0;storageDone(x.path)}
+         else draw()}).catch(()=>{}),400)},{pri:1,k:"stm",off:stBusy||same()})));
+     if(stMsg)body.append(note(stMsg));
+     
+   }}
   if(tab=="Input"){const mg=note(inMsg);mg.style.whiteSpace="pre-wrap";
    const tools=hrow(
     btn("Reset all input settings",async()=>{inText=await api("reset_input");PADL=null;draw();toast("Defaults restored. Press Save and close to apply them.","ok")},{k:"tpl",icon:"reset",tip:"Puts the default key template in the editor. Nothing is saved until Save and close."}),btn("Import settings",async()=>{const r=await api("import_input");if(!r)return;if(r.error){inMsg=r.error;draw();return}
@@ -542,6 +602,14 @@ async function act(a){if(running)return toast("An operation is already running."
  if(a!="play"){log=[];$("#log").textContent="";pct=null;setRunning(true);setPct(null)}
  if(!await api("run",a,p.tools)){setRunning(false);return}
  $("#log").scrollIntoView({block:"nearest"});if(a=="play"){await tick();return}poller=setInterval(tick,200)}
+async function importTools(){let plan;try{plan=await api("pick_tool_files")}catch(e){toast("Import failed: "+(e&&e.message||e)+" (is AnyPS5_GUI.py the updated version?)","err");return}if(!plan||!plan.length)return;
+ const ok=plan.filter(x=>!x.skip),sk=plan.filter(x=>x.skip);
+ if(!ok.length){toast("Nothing to import: "+sk.map(x=>x.name+" ("+x.skip+")").join("; "),"err");return}
+ const ex=ok.filter(x=>x.exists);let rep=false;
+ if(ex.length){rep=await ask("Replace existing files?",ex.map(x=>x.dest).join("\n")+"\n\n"+(ex.length>1?"These files already exist":"This file already exists")+" in the Utilities folder. Replace "+(ex.length>1?"them":"it")+"?","Replace","Keep existing");}
+ let r;try{r=await api("import_tool_files",ok,rep)}catch(e){toast("Import failed: "+(e&&e.message||e),"err");return}
+ if(r.errors.length)toast(r.errors[0],"err");else if(r.done.length)toast("Imported: "+r.done.join(", ")+(sk.length?" · skipped "+sk.length:""),"ok");else toast("Nothing imported (existing files kept).","warn");
+ refresh()}
 async function refresh(){status=await api("status");space=null;applyStatus();clearTimeout(refresh.t);refresh.t=setTimeout(async()=>{space=await api("space");applyStatus()},350)}
 // ---------- keyboard ----------
 const topModal=()=>[...document.querySelectorAll(".modal:not(.out)")].pop(),scope=()=>topModal()||$("#page");

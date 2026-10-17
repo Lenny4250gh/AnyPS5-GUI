@@ -98,7 +98,52 @@ else:
 
 # Everything the program needs lives in this folder
 UTILITIES_DIR_NAME = "Utilities"
-UTILITIES_DIR = os.path.join(SCRIPT_DIR, UTILITIES_DIR_NAME)
+LEGACY_UTILITIES_DIR = os.path.join(SCRIPT_DIR, UTILITIES_DIR_NAME)  # old location: next to the program
+PORTABLE_MARK = "portable"  # empty file next to the program: keep everything next to it (old behaviour)
+
+
+def _user_data_dir():
+  """Per-user data folder (never inside an .app bundle or a read-only install folder)."""
+  if os.name == "nt":
+    base = os.environ.get("APPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Roaming")
+  elif sys.platform == "darwin":
+    base = os.path.join(os.path.expanduser("~"), "Library", "Application Support")
+  else:
+    base = os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
+  return os.path.join(base, "AnyPS5_GUI")
+
+
+LOCATION_FILE = os.path.join(_user_data_dir(), "location.txt")  # tiny pointer: where Utilities/ was moved by the user
+DEFAULT_UTILITIES_DIR = _user_data_dir()  # the app's files go directly in here (location.txt is the only extra)
+INTERIM_UTILITIES_DIR = os.path.join(_user_data_dir(), UTILITIES_DIR_NAME)  # layout of an earlier build: migrated
+# the location can be changed only in the packaged app (from source / portable mode: next to the script)
+STORAGE_EDITABLE = bool(getattr(sys, "frozen", False)) and not os.path.exists(os.path.join(SCRIPT_DIR, PORTABLE_MARK))
+STORAGE_PROBLEM = ""  # set when the chosen folder is unavailable and the default one is used instead
+
+
+def _read_location():
+  try:
+    with open(LOCATION_FILE, encoding="utf-8") as fh:
+      text = fh.read().strip()
+  except OSError:
+    return ""
+  return text if text and os.path.isabs(text) else ""
+
+
+# Executable: Utilities/ lives in the user data folder, or in the folder chosen in Settings → Storage
+# (the old Utilities/ next to the program is moved there at startup, see migrate_legacy_utilities).
+# From source or in portable mode: next to the script.
+if STORAGE_EDITABLE:
+  UTILITIES_DIR = DEFAULT_UTILITIES_DIR
+  _custom = _read_location()
+  if _custom:
+    try:
+      os.makedirs(_custom, exist_ok=True)
+      UTILITIES_DIR = _custom
+    except OSError as _e:
+      STORAGE_PROBLEM = "The folder you chose (%s) is not available (%s): using the default one." % (_custom, _e)
+else:
+  UTILITIES_DIR = LEGACY_UTILITIES_DIR
 try:
   os.makedirs(UTILITIES_DIR, exist_ok=True)
 except OSError:
@@ -1066,6 +1111,157 @@ def move_to_trash(path):
     return True
   except Exception:
     return False
+
+
+def storage_choice_to_dir(picked):
+  """Folder picked in the dialog = the folder to use as is (validate_storage_target requires it to be
+  empty, so nothing already there gets mixed up with the app's files)."""
+  return os.path.abspath(picked)
+
+
+def validate_storage_target(new):
+  """Returns "" if Utilities/ can be moved to `new`, else the reason why not."""
+  if not STORAGE_EDITABLE:
+    return "The location can only be changed in the packaged app (not from source or in portable mode)."
+  if not new or not os.path.isabs(new):
+    return "Enter a full folder path."
+  cur, new = os.path.realpath(UTILITIES_DIR), os.path.realpath(new)
+  nc, cc = os.path.normcase(new), os.path.normcase(cur)
+  if nc == cc:
+    return "That is already the current folder."
+  if nc.startswith(cc + os.sep):
+    return "Choose a folder outside the current one."
+  if cc.startswith(nc + os.sep):
+    return "Choose a folder that does not contain the current one."
+  if os.path.isfile(new):
+    return "That path is a file."
+  try:
+    if os.path.isdir(new) and [n for n in os.listdir(new) if n != os.path.basename(LOCATION_FILE)]:
+      return "That folder is not empty: choose an empty one (or a new one)."
+    os.makedirs(new, exist_ok=True)
+    probe = os.path.join(new, ".write-test")
+    with open(probe, "w", encoding="utf-8") as fh:
+      fh.write("x")
+    os.remove(probe)
+  except OSError as e:
+    return "Cannot write in that folder: %s" % e
+  return ""
+
+
+def relocate_utilities(new, status):
+  """Moves everything in Utilities/ to `new` (an empty folder), then makes it the new location.
+  status(text, pct) reports progress. Raises RuntimeError with a readable message on failure; in that
+  case the already moved items are put back. The app must be restarted afterwards."""
+  problem = validate_storage_target(new)
+  if problem:
+    raise RuntimeError(problem)
+  old = UTILITIES_DIR
+  items = [n for n in sorted(os.listdir(old)) if n.lower() != "__pycache__" and n != os.path.basename(LOCATION_FILE)]
+  if os.stat(old).st_dev != os.stat(new).st_dev:  # other drive: real copy, check the space first
+    status("Checking the free space…", None)
+    need, free = dir_size(old), shutil.disk_usage(existing_parent(new)).free
+    if need + (64 << 20) > free:
+      raise RuntimeError("Not enough space in the new folder: %s needed, %s free." % (format_size(need), format_size(free)))
+  done, name = [], ""
+  try:
+    for i, name in enumerate(items):
+      status("Moving %s… (%d/%d)" % (name, i + 1, len(items)), int(100 * i / max(1, len(items))))
+      shutil.move(os.path.join(old, name), os.path.join(new, name))
+      done.append(name)
+  except Exception as e:
+    status("Something went wrong: putting everything back…", None)
+    partial = os.path.join(new, name)
+    if name and os.path.exists(partial) and os.path.exists(os.path.join(old, name)):
+      shutil.rmtree(partial, ignore_errors=True) if os.path.isdir(partial) else _remove_quiet(partial)
+    for n in reversed(done):
+      try:
+        shutil.move(os.path.join(new, n), os.path.join(old, n))
+      except Exception:
+        pass
+    raise RuntimeError("Could not move '%s': %s. The folder was not changed (if a file is open in another "
+                       "program, close it and try again)." % (name, e))
+  status("Saving the new location…", 100)
+  try:
+    os.makedirs(os.path.dirname(LOCATION_FILE), exist_ok=True)
+    if os.path.normcase(os.path.realpath(new)) == os.path.normcase(os.path.realpath(DEFAULT_UTILITIES_DIR)):
+      if os.path.isfile(LOCATION_FILE):
+        os.remove(LOCATION_FILE)  # back to the default: no pointer needed
+    else:
+      with open(LOCATION_FILE + ".tmp", "w", encoding="utf-8") as fh:
+        fh.write(os.path.abspath(new))
+      os.replace(LOCATION_FILE + ".tmp", LOCATION_FILE)
+  except OSError as e:
+    for n in reversed(done):  # without the pointer the app would not find its data: undo
+      try:
+        shutil.move(os.path.join(new, n), os.path.join(old, n))
+      except Exception:
+        pass
+    raise RuntimeError("Could not save the new location: %s. The folder was not changed." % e)
+  shutil.rmtree(os.path.join(old, "__pycache__"), ignore_errors=True)
+  if os.path.normcase(os.path.realpath(old)) != os.path.normcase(os.path.realpath(DEFAULT_UTILITIES_DIR)):
+    if os.path.isdir(old) and not os.listdir(old) and not move_to_trash(old):  # old folder empty: to the trash
+      try:
+        os.rmdir(old)
+      except OSError:
+        pass
+
+
+# what the program itself puts in Utilities/ (or looks for there): moved by migrate_legacy_utilities.
+# Anything else the user left in the old folder stays where it is.
+_MIGRATE_NAMES = {"backups", "release", "source", "toolchain", "extracted", "update", "anyps5-fonts", "tools",
+                  "config.ini", "userelinker.ini", "anyps5-input.ini", "unwrap_self.py",
+                  "7z", "7zz", "7za", "7z.exe", "7za.exe", "7z.dll"}
+_MIGRATE_PREFIXES = ("relinker-", "prx-")
+_MIGRATE_HEAVY = {"release", "source", "toolchain", "extracted", "update"}  # big, rebuilt on demand
+_MIGRATE_JUNK = {"__pycache__", ".ds_store", "thumbs.db", "desktop.ini"}
+
+
+def migrate_legacy_utilities(old=None):
+  """Moves an old Utilities folder (default: <program folder>/Utilities) into UTILITIES_DIR, item by item.
+  Items already present in the new folder are not touched. The old folder goes to the trash only if
+  nothing else is left in it. Never raises. Returns (moved, left) lists of names."""
+  moved, left = [], []
+  old, new = old or LEGACY_UTILITIES_DIR, UTILITIES_DIR
+  try:
+    if os.path.abspath(old) == os.path.abspath(new) or not os.path.isdir(old):
+      return moved, left
+    os.makedirs(new, exist_ok=True)
+    same_drive = os.stat(old).st_dev == os.stat(new).st_dev
+    for name in sorted(os.listdir(old)):
+      low = name.lower()
+      if low in _MIGRATE_JUNK:
+        continue
+      known = low in _MIGRATE_NAMES or low.startswith(_MIGRATE_PREFIXES)
+      src, dst = os.path.join(old, name), os.path.join(new, name)
+      if not known or os.path.lexists(dst):
+        left.append(name)
+        continue
+      if low in _MIGRATE_HEAVY and not same_drive:
+        left.append(name)  # a copy across drives could take minutes with no window: leave it
+        continue
+      try:
+        shutil.move(src, dst)  # same drive: instant rename
+        moved.append(name)
+      except OSError:
+        left.append(name)
+    if not left:  # empty (junk aside): to the trash
+      for name in os.listdir(old):
+        junk = os.path.join(old, name)
+        if os.path.isdir(junk) and not os.path.islink(junk):
+          shutil.rmtree(junk, ignore_errors=True)
+        else:
+          try:
+            os.remove(junk)
+          except OSError:
+            pass
+      if not os.listdir(old) and not move_to_trash(old):
+        try:
+          os.rmdir(old)
+        except OSError:
+          pass
+  except Exception:
+    pass
+  return moved, left
 
 
 def _remove_empty_dirs(root):
@@ -4071,7 +4267,7 @@ L = sys.modules[__name__]   # the logic lives in this same file
 HERE = SCRIPT_DIR
 
 # ---------- GUI update check ----------
-APP_VERSION = "1.0.4"
+APP_VERSION = "1.0.5"
 GUI_REPO_OWNER = "Lenny4250gh"
 GUI_REPO_NAME = "AnyPS5-GUI"
 GUI_RELEASES_URL = "https://github.com/%s/%s/releases/latest" % (GUI_REPO_OWNER, GUI_REPO_NAME)
@@ -4950,6 +5146,8 @@ class Api:
     self.quitting = False      # True once the user confirmed closing during an operation
     self._quit_asked = False   # a confirmation popup is already on screen
     self._upd = {"state": "idle"}  # progress of the GUI self-update
+    self._mov = {"state": "idle"}  # progress of moving the Utilities folder
+    self.relocated = False         # True once Utilities/ was moved: the app must be reopened
 
   # ---------- closing the window ----------
   def on_closing(self):
@@ -5000,9 +5198,13 @@ class Api:
                   "targets": {k: v["label"] for k, v in L.TARGETS.items()}, "languages": L.LANGUAGES,
                   "present_modes": L.PRESENT_MODES, "default_repo": L.DEFAULT_REPO_URL,
                   "utilities": L.UTILITIES_DIR_NAME, "defaults": L.DEFAULTS, "input": inp, "input_name": L.INPUT_INI_NAME,
+                  "storage": {"path": L.UTILITIES_DIR, "default": L.DEFAULT_UTILITIES_DIR, "editable": L.STORAGE_EDITABLE,
+                              "problem": L.STORAGE_PROBLEM},
                   "version": APP_VERSION})
 
   def set_cfg(self, values):
+    if self.relocated:
+      return False
     for s, items in values.items():
       self.cfg[s].update({k: str(v) for k, v in items.items()})
     L.save_config(self.cfg)
@@ -5048,6 +5250,44 @@ class Api:
       pass
     time.sleep(1.5)
     os._exit(0)
+
+  # ---------- storage folder (Utilities) ----------
+  def pick_storage(self):
+    """Folder dialog; returns the Utilities folder that would be used inside the picked folder."""
+    res = webview.windows[0].create_file_dialog(getattr(getattr(webview, "FileDialog", None), "FOLDER", None)
+                                                or webview.FOLDER_DIALOG)
+    return L.storage_choice_to_dir(res[0]) if res else None
+
+  def default_storage(self):
+    return L.DEFAULT_UTILITIES_DIR
+
+  def move_storage(self, path):
+    """Moves Utilities/ to `path` in a thread (progress: storage_status)."""
+    if self.running:
+      return {"ok": False, "error": "Finish or cancel the running operation first."}
+    if self._mov.get("state") == "moving":
+      return {"ok": True}
+    path = os.path.abspath(str(path or "").strip()) if path else ""
+    problem = L.validate_storage_target(path)
+    if problem:
+      return {"ok": False, "error": problem}
+    self._mov = {"state": "moving", "pct": None, "text": "Starting…"}
+    threading.Thread(target=self._move_worker, args=(path,), daemon=True).start()
+    return {"ok": True}
+
+  def storage_status(self):
+    return clean(self._mov)
+
+  def _move_worker(self, path):
+    def status(text, pct):
+      self._mov.update(text=text, pct=pct)
+    try:
+      L.relocate_utilities(path, status)
+    except Exception as e:
+      self._mov = {"state": "failed", "text": str(e)}
+      return
+    self.relocated = True
+    self._mov = {"state": "done", "pct": 100, "text": "Done. Close and reopen the app to use the new folder.", "path": path}
 
   def open_release_page(self):
     import webbrowser
@@ -5426,6 +5666,80 @@ class Api:
   def reset_input(self):
     return L.INPUT_TEMPLATE
 
+  # ---------- import tools into Utilities (Local files option) ----------
+  def _tool_dest(self, name):
+    """(relative destination inside Utilities, None) for a file the program knows, else (None, reason)."""
+    low = name.lower()
+    if low == L.UNWRAP_SCRIPT_NAME:
+      return L.UNWRAP_SCRIPT_NAME, None
+    if low.startswith(L.RELINKER_PREFIX):
+      if os.name == "nt" and not low.endswith(".exe"):
+        return None, "not a Windows relinker (.exe)"
+      if os.name != "nt" and (low.endswith(".exe") or low.endswith(L.NOT_BINARY_EXT)):
+        return None, "not a relinker for this system"
+      return name, None
+    if low.startswith(L.LIBS_ZIP_PREFIX) and low.endswith(".zip"):
+      return name, None
+    if low in ("import_audit.py", "pad_input.py"):
+      return os.path.join("tools", name), None
+    return None, "not a file the program uses"
+
+  def pick_tool_files(self):
+    """Choose files to copy into Utilities/. Returns the plan: [{src, name, dest, exists, skip}]."""
+    kind = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
+    res = webview.windows[0].create_file_dialog(
+      kind, allow_multiple=True,
+      file_types=("Tool files (*.py;*.zip;*.exe)", "All files (*.*)"))
+    if not res:
+      return []
+    paths = [res] if isinstance(res, str) else list(res)
+    plan = []
+    for src in paths:
+      name = os.path.basename(src)
+      rel, why = self._tool_dest(name)
+      item = {"src": src, "name": name, "skip": why or "", "dest": rel or "", "exists": False}
+      if rel:
+        dest = os.path.join(L.UTILITIES_DIR, rel)
+        item["exists"] = os.path.isfile(dest)
+        try:
+          if item["exists"] and os.path.samefile(src, dest):
+            item["skip"] = "already in the Utilities folder"
+        except OSError:
+          pass
+      plan.append(item)
+    return plan
+
+  def import_tool_files(self, plan, replace):
+    """Copy the files of the plan into Utilities/. Existing ones are overwritten only if `replace`."""
+    done, kept, errors = [], [], []
+    for it in plan or []:
+      if it.get("skip") or not it.get("dest"):
+        continue
+      rel, why = self._tool_dest(os.path.basename(it["src"]))  # never trust the destination coming from the page
+      if not rel:
+        continue
+      dest = os.path.join(L.UTILITIES_DIR, rel)
+      if os.path.isfile(dest) and not replace:
+        kept.append(rel)
+        continue
+      try:
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        tmp = dest + ".part"
+        shutil.copyfile(it["src"], tmp)
+        if os.name != "nt" and rel.lower().startswith(L.RELINKER_PREFIX):
+          os.chmod(tmp, os.stat(tmp).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        os.replace(tmp, dest)
+        done.append(rel)
+      except OSError as e:
+        errors.append(f"{rel}: {e}")
+    L._unwrapper = None  # unwrap_self.py may have been replaced: reload it on next use
+    L._libs_cache.clear()
+    for k, m in [("ok", f"Imported into {L.UTILITIES_DIR_NAME}: " + ", ".join(done)) if done else None,
+                 ("info", "Kept existing: " + ", ".join(kept)) if kept else None,
+                 ("err", "Import failed: " + "; ".join(errors)) if errors else None]:
+      self.q.put((k, m))
+    return {"done": done, "kept": kept, "errors": errors}
+
   def import_input(self):
     """Pick an input .ini made by someone else: its text goes into the editor (nothing is written yet)."""
     kind = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
@@ -5502,6 +5816,8 @@ class Api:
       return str(e)
 
   def save_settings(self, values, input_text, write_input):
+    if self.relocated:
+      return {"error": "The storage folder was changed: close and reopen the app first."}
     new = {s: dict(v) for s, v in self.cfg.items()}
     for s, items in values.items():
       new[s].update({k: str(v) for k, v in items.items()})
@@ -5575,6 +5891,9 @@ def report_crash():
 
 def main():
   hide_own_console()
+  if UTILITIES_DIR != LEGACY_UTILITIES_DIR:  # before Api(): it reads config.ini
+    migrate_legacy_utilities()  # <program folder>/Utilities (first versions)
+    migrate_legacy_utilities(INTERIM_UTILITIES_DIR)  # <user data>/Utilities (previous build)
   _html = load_embedded_ui()
   _src = {"html": _html} if _html else {"url": find_ui()}
   api = Api()
