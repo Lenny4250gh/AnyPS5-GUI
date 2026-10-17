@@ -60,22 +60,22 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 
 <img src="docs/screenshots/3.png" width="600" alt="Play Page">
 
-**Conversion settings** (each marked with the systems it applies to)
-
+**Settings**
+- Conversion settings
 <img src="docs/screenshots/8.png" width="600" alt="Conversion settings">
 
-**Runtime settings**
-- Language, GPU, present mode, fonts, tracing and more, passed to the game as environment variables.
-
+- Runtime settings: Language, GPU, present mode, fonts, tracing and more, passed to the game as environment variables.
 <img src="docs/screenshots/7.png" width="600" alt="Runtime settings">
 
 **Input**
 - Visual controller editor: click a button, then press a key, mouse button or wheel direction. Alternate inputs supported.
-- Stick deadzones and mouse-as-stick settings (sensitivity, curve, smoothing, decay).
-- Import / export your settings, or edit `anyps5-input.ini` directly in text view (with validity check).
 
 <img src="docs/screenshots/4.png" width="600" alt="Input mapping">
+
+- Stick deadzones and mouse-as-stick settings (sensitivity, curve, smoothing, decay).
 <img src="docs/screenshots/5.png" width="600" alt="Input deadzones and mouse settings">
+
+- Import / export your settings, or edit `anyps5-input.ini` directly in text view (with validity check).
 <img src="docs/screenshots/6.png" width="600" alt="Input deadzones and mouse settings">
 
 **Appearance**
