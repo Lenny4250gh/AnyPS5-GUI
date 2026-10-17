@@ -23,9 +23,18 @@ A graphical interface for [AnyPS5](https://github.com/boykopovar/AnyPS5): unwrap
    - Windows (PowerShell): `Get-FileHash .\AnyPS5_GUI-windows.exe -Algorithm SHA256`
    - Linux: `sha256sum AnyPS5_GUI-linux`
    - macOS: `shasum -a 256 AnyPS5_GUI-macos.zip`
-4. Run it. The first time it creates a `Utilities/` folder next to the program, where it keeps the downloaded tools (relinker, libs, `unwrap_self.py`).
+4. Run it. The first time it creates a `Utilities/` folder in your user data folder (so it survives updates), where it keeps the downloaded tools (relinker, libs, `unwrap_self.py`). You can move it from **Settings → Storage**. To keep everything next to the program instead, put an empty file named `portable` next to it.
 
 All three files are built automatically by GitHub Actions on real Windows, macOS and Linux machines, straight from the source in this repository. You can inspect the [workflow](.github/workflows/build.yml) and the [build runs](https://github.com/Lenny4250gh/AnyPS5-GUI/actions).
+
+### Upgrading from an older version
+
+The first versions kept a `Utilities/` folder next to the program. On startup the app moves it automatically to the new location (your user data folder, or the one chosen in **Settings → Storage**):
+
+- Only what the app itself uses is moved: tools (`unwrap_self.py`, `relinker-*`, `prx-*.zip`, `tools/`), `config.ini`, `anyps5-input.ini`, backups, fonts and 7-Zip files.
+- Items that already exist in the new folder are not overwritten, and any other file you left in the old folder stays where it is.
+- The old folder is removed (sent to the trash) only if nothing else is left in it.
+- The big folders `release/`, `source/`, `toolchain/`, `extracted/` and `update/` are moved only if the old and new folders are on the same drive; otherwise they stay behind and are downloaded or rebuilt when needed.
 
 ### Requirements and warnings
 
@@ -37,7 +46,7 @@ All three files are built automatically by GitHub Actions on real Windows, macOS
 
 1. Open the app and go to **Convert a game**.
 2. Check the **requirements**: the app tells you what is missing and can download the tools for you.
-3. Pick your game folder (your own dump).
+3. Pick your game folder (your own dump), or a `.zip` / `.rar` of it: archives are extracted automatically.
 4. Run **Unwrap** if your files are decrypted SELF/fSELF, then **Relink**. The result is a `<GAME>-<system>` package next to the game.
 5. Go to **Play a game** and press **Launch**, or create a shortcut.
 
@@ -48,7 +57,9 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 **Convert a game**
 - **Unwrap:** already-decrypted SELF/fSELF → ELF, using the official `unwrap_self.py` (the original files are backed up, with a *Restore backup* button).
 - **Relink:** builds the `<GAME>-<system>` package (app0 + libs + executable) for Windows, Linux or macOS.
+- **Game archives:** the game can be a folder or a `.zip` / `.rar` (`.rar` needs 7-Zip installed).
 - **Requirements check:** shows what is missing before you start, and downloads the tools for you when needed.
+- **Tools source:** choose where the relinker, libs and `unwrap_self.py` come from (see [below](#where-the-tools-come-from)).
 - **Options:** all relinker options, each marked with the systems it applies to. Options that do not fit the selected target are disabled automatically.
 - **Audit:** runs `import_audit.py` (if present) after the relink.
 
@@ -67,7 +78,11 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 - **Runtime settings:** Language, GPU, present mode, fonts, tracing and more, passed to the game as environment variables.
 <img src="docs/screenshots/7.png" width="600" alt="Runtime settings">
 
+- **Storage:** see where the app keeps its tools, builds, backups and `config.ini`, and move everything to another folder with one click.
 - Any section of the settings can be exported as a shareable file.
+
+**Updates**
+- The app checks the latest release of this repository and, when a newer one exists, can download it for your system, replace itself and restart.
 
 **Input**
 - Visual controller editor: click a button, then press a key, mouse button or wheel direction. Alternate inputs supported.
@@ -85,7 +100,17 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 
 <img src="docs/screenshots/9.png" width="600" alt="Appearance settings">
 
-The relinker, libs and `unwrap_self.py` can come from the AnyPS5 GitHub releases, from a local clone built from source (needs git, CMake and a C/C++ compiler), or from files you put in `Utilities/`.
+### Where the tools come from
+
+The relinker, libs and `unwrap_self.py` are chosen in **Advanced: where the tools come from** (Convert a game page):
+
+| Source | What it does |
+| ------ | ------------ |
+| **Local files (manual)** | Uses the files you provide. Press **Import files…** and pick `unwrap_self.py`, `relinker-*` and `prx-*.zip` (optionally `import_audit.py` and `pad_input.py`): they are copied into `Utilities/`. If a file already exists you are asked whether to replace it. |
+| **Release from GitHub repo (auto-update)** | Downloads the latest release of the AnyPS5 repository (**Download now**). |
+| **Build from GitHub source (auto-update)** | Clones the repository and builds it (**Build now**); needs git, CMake and a C/C++ compiler. |
+
+Only the controls that apply to the selected source are shown.
 
 ## Build from source
 
