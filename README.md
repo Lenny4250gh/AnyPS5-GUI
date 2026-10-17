@@ -52,50 +52,38 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 - **Options:** all relinker options, each marked with the systems it applies to. Options that do not fit the selected target are disabled automatically.
 - **Audit:** runs `import_audit.py` (if present) after the relink.
 
+<img src="docs/screenshots/1.png" width="700" alt="Convert Page">
+<img src="docs/screenshots/2.png" width="700" alt="Convert Page 2">
+
 **Play a game**
 - **Launch** a converted game with your current settings, or **create a shortcut** that starts it with the right variables.
 
-**Runtime**
+<img src="docs/screenshots/3.png" width="700" alt="Play Page">
+
+**Conversion settings** (each marked with the systems it applies to)
+
+<img src="docs/screenshots/8.png" width="700" alt="Conversion settings">
+
+**Runtime settings**
 - Language, GPU, present mode, fonts, tracing and more, passed to the game as environment variables.
+
+<img src="docs/screenshots/7.png" width="700" alt="Runtime settings">
 
 **Input**
 - Visual controller editor: click a button, then press a key, mouse button or wheel direction. Alternate inputs supported.
 - Stick deadzones and mouse-as-stick settings (sensitivity, curve, smoothing, decay).
 - Import / export your settings, or edit `anyps5-input.ini` directly in text view (with validity check).
 
-**Appearance**
-- Choose the main color (presets or custom hex) and the animated background (soft grid, orbs or none). It stops automatically if your system asks for reduced motion.
-
-The relinker, libs and `unwrap_self.py` can come from the AnyPS5 GitHub releases, from a local clone built from source (needs git, CMake and a C/C++ compiler), or from files you put in `Utilities/`.
-
-<img src="docs/screenshots/1.png" width="700" alt="Main Page">
-
-<img src="docs/screenshots/2.png" width="700" alt="Main Page 2">
-
-<details>
-<summary><b>Other screenshots</b></summary>
-
-<br>
-
-**Input editor** (controller view, deadzones and mouse settings)
-
 <img src="docs/screenshots/4.png" width="700" alt="Input mapping">
 <img src="docs/screenshots/5.png" width="700" alt="Input deadzones and mouse settings">
 <img src="docs/screenshots/6.png" width="700" alt="Input deadzones and mouse settings">
 
-**Appearance settings**
+**Appearance**
+- Choose the main color (presets or custom hex) and the animated background (soft grid, orbs or none). It stops automatically if your system asks for reduced motion.
 
 <img src="docs/screenshots/9.png" width="700" alt="Appearance settings">
 
-**Conversion settings** (each marked with the systems it applies to)
-
-<img src="docs/screenshots/8.png" width="700" alt="Conversion settings">
-
-**Runtime settings** (language, GPU, tracing, fonts...)
-
-<img src="docs/screenshots/7.png" width="700" alt="Runtime settings">
-
-</details>
+The relinker, libs and `unwrap_self.py` can come from the AnyPS5 GitHub releases, from a local clone built from source (needs git, CMake and a C/C++ compiler), or from files you put in `Utilities/`.
 
 ## Build from source
 
