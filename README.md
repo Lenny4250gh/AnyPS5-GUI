@@ -61,11 +61,13 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 <img src="docs/screenshots/3.png" width="600" alt="Play Page">
 
 **Settings**
-- Conversion settings
+- **Conversion settings**
 <img src="docs/screenshots/8.png" width="600" alt="Conversion settings">
 
-- Runtime settings: Language, GPU, present mode, fonts, tracing and more, passed to the game as environment variables.
+- **Runtime settings:** Language, GPU, present mode, fonts, tracing and more, passed to the game as environment variables.
 <img src="docs/screenshots/7.png" width="600" alt="Runtime settings">
+
+- Any section of the settings can be exported as a shareable file.
 
 **Input**
 - Visual controller editor: click a button, then press a key, mouse button or wheel direction. Alternate inputs supported.
