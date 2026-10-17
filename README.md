@@ -73,34 +73,25 @@ The relinker, libs and `unwrap_self.py` can come from the AnyPS5 GitHub releases
 <img src="docs/screenshots/2.png" width="700" alt="Main Page 2">
 
 <details>
-<summary><b>Screenshots: settings</b></summary>
 <summary><b>Other screenshots</b></summary>
 
 <br>
 
-**Conversion options** (each marked with the systems it applies to)
+**Input editor** (controller view, deadzones and mouse settings)
+
+<img src="docs/screenshots/4.png" width="700" alt="Input mapping">
+<img src="docs/screenshots/5.png" width="700" alt="Input deadzones and mouse settings">
+
 **Appearance settings**
 
 <img src="docs/screenshots/8.png" width="700" alt="Conversion settings">
 
-**Runtime** (language, GPU, tracing, fonts...)
-**Input editor** (controller view, deadzones and mouse settings)
-
-<img src="docs/screenshots/7.png" width="700" alt="Runtime settings">
-<img src="docs/screenshots/4.png" width="700" alt="Input mapping">
-<img src="docs/screenshots/5.png" width="700" alt="Input deadzones and mouse settings">
-
-**Input editor** (controller view, deadzones and mouse settings)
 **Conversion options** (each marked with the systems it applies to)
 
-<img src="docs/screenshots/5.png" width="700" alt="Input mapping">
-<img src="docs/screenshots/6.png" width="700" alt="Input deadzones and mouse settings">
 <img src="docs/screenshots/7.png" width="700" alt="Conversion settings">
 
-**Appearance** (main color and animated background)
 **Runtime** (language, GPU, tracing, fonts...)
 
-<img src="docs/screenshots/1.png" width="700" alt="Appearance settings">
 <img src="docs/screenshots/6.png" width="700" alt="Runtime settings">
 
 </details>
