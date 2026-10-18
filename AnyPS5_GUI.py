@@ -207,7 +207,7 @@ PRESENT_MODES = ["", "fifo_latest_ready", "mailbox", "immediate"]
 
 # default option values (all saved in config.ini as strings)
 DEFAULTS = {
-  "settings": {"output_dir": "", "intel": "no", "auto_unwrap": "yes", "mode": "relink", "notify": "yes",
+  "settings": {"output_dir": "", "intel": "no", "auto_unwrap": "yes", "mode": "relink", "notify": "yes", "open_trash": "yes",
                "keep_game": "yes", "window_size": "", "open_sections": ""},
   "relinker": {
     "target": "windows", "rosetta": "no", "gui": "no", "diagnostics": "no",
@@ -760,7 +760,7 @@ def format_duration(seconds):
   return f"{seconds}s"
 
 
-def cancellable_copy(cancel, log=None, total=0, sync=True, workers=0):
+def cancellable_copy(cancel, log=None, total=0, sync=True, workers=0, label="Copying"):
   """copy function for shutil.copytree: checks the cancel flag every 8 MiB (a large game can be
   interrupted in the middle of a file) and reports the progress through log("percent", value)
   and log("progress", text). The returned function has a .finish() to call at the end.
@@ -799,9 +799,9 @@ def cancellable_copy(cancel, log=None, total=0, sync=True, workers=0):
     pct = min(done * 100.0 / total, 100.0) if total else 0.0
     elapsed = max(now - state["t0"], 0.001)
     speed = done / elapsed
-    text = f"Copying: {pct:.0f}% ({format_size(done)} / {format_size(total)}) · {format_size(speed)}/s"
+    text = f"{label}: {pct:.0f}% - {format_size(done)} of {format_size(total)} · speed {format_size(speed)}/s"
     if elapsed > 2 and total > done and speed > 0:
-      text += f" · {format_duration((total - done) / speed)} left"
+      text += f" · about {format_duration((total - done) / speed)} remaining"
     log("percent", pct)
     log("progress", text)
 
@@ -969,7 +969,7 @@ def cancellable_move(mover, cancel, log=None, total=0):
   """copy function for shutil.copytree that MOVES the file: rename if possible, otherwise copy,
   check the size (after flush + fsync) and only then remove the source. Same interface as
   cancellable_copy."""
-  inner = cancellable_copy(cancel, log, total)
+  inner = cancellable_copy(cancel, log, total, label="Moving")
 
   def move(src, dst):
     size = os.path.getsize(src)
@@ -1111,6 +1111,28 @@ def move_to_trash(path):
     return True
   except Exception:
     return False
+
+
+def open_trash():
+  """Opens the system trash folder in the file manager. Returns True if it was launched."""
+  try:
+    if os.name == "nt":
+      subprocess.Popen(["explorer.exe", "shell:RecycleBinFolder"])
+      return True
+    if sys.platform == "darwin":
+      subprocess.Popen(["open", os.path.expanduser("~/.Trash")])
+      return True
+    for cmd in (["gio", "open", "trash:///"], ["xdg-open", "trash:///"]):
+      if shutil.which(cmd[0]):
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    base = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+    if shutil.which("xdg-open"):
+      subprocess.Popen(["xdg-open", os.path.join(base, "Trash", "files")])
+      return True
+  except Exception:
+    pass
+  return False
 
 
 def storage_choice_to_dir(picked):
@@ -1305,14 +1327,19 @@ def do_relink(folder, cfg, log, cancel, holder):
           safe_to_trash = False
           log("err", "Restore incomplete: the package folder was NOT deleted, "
                      "the missing files are still inside it.")
+      trashed = False
       for d in created:
         if safe_to_trash and os.path.isdir(d):
           if move_to_trash(d):
+            trashed = True
             log("info", f"Incomplete folder moved to the trash: {d}")
           else:
             log("warn", f"Unable to move it to the trash, delete it by hand: {d}")
         elif os.path.isdir(d):
           log("warn", f"Folder left in place: {d}")
+      if trashed and yes(cfg["settings"].get("open_trash", "yes")):
+        if open_trash():
+          log("info", "Trash folder opened (you can restore or empty it from there).")
 
 
 def _remove_quiet(path):
@@ -3599,6 +3626,16 @@ def cleanup_extracted(folder, log):
     log("warn", f"Could not remove the temporary folder {folder}: {e}")
 
 
+def is_inside(path, parent):
+  """True if `path` is `parent` or lives inside it (real paths, case-insensitive on Windows)."""
+  try:
+    a = os.path.normcase(os.path.realpath(path))
+    b = os.path.normcase(os.path.realpath(parent))
+    return os.path.commonpath([a, b]) == b
+  except ValueError:  # different drives
+    return False
+
+
 def package_dir(output_base, game_name, target):
   return os.path.join(output_base, f"{game_name}-{TARGETS[target]['suffix']}")
 
@@ -3694,11 +3731,12 @@ def space_requirements(folder, target, mode, output_base, auto=True, move=False)
         pass
       biggest = max((os.path.getsize(os.path.join(r, f)) for r, _d, fs in os.walk(folder) for f in fs
                      if os.path.isfile(os.path.join(r, f))), default=0)
-      parts.append(("game move (app0)", biggest if same else dir_size(folder)))
+      parts.append(("game files moved on the same drive: only the biggest file counts" if same
+                    else "game files moved to another drive: full size", biggest if same else dir_size(folder)))
     else:
-      parts.append(("game copy (app0)", dir_size(folder)))
+      parts.append(("game files copy: full size", dir_size(folder)))
     libs = libs_info(target)
-    parts.append(("libs", libs["size"] if libs else 0))
+    parts.append(("libs folder", libs["size"] if libs else 0))
     if os.path.isdir(fonts):
       parts.append(("fonts", dir_size(fonts)))
     parts.append(("new executable", os.path.getsize(eboot) if os.path.isfile(eboot) else 0))
@@ -3799,11 +3837,11 @@ def log_space(req, log):
   detail = ", ".join(f"{label} {format_size(b)}" for label, b in req["parts"] if b)
   avail = req["free"] + req["reusable"]
   ok = avail >= req["needed"]
-  log("detail", f"Space needed: ~{format_size(req['needed'])} ({detail})")
-  note = f" (including {format_size(req['reusable'])} freed from the existing package)" if req["reusable"] else ""
+  log("detail", f"Disk space required: about {format_size(req['needed'])} ({detail})")
+  note = f" (includes {format_size(req['reusable'])} that will be freed by replacing the old output folder)" if req["reusable"] else ""
   log("ok" if ok else "err",
-      f"Space available on {req['where']}: {format_size(avail)}{note}"
-      + ("" if ok else f" - missing {format_size(req['needed'] - avail)}"))
+      f"Free space at {req['where']}: {format_size(avail)}{note}"
+      + ("" if ok else f" - NOT ENOUGH, {format_size(req['needed'] - avail)} more needed"))
   return ok
 
 
@@ -4045,8 +4083,15 @@ def _do_relink(folder, cfg, log, cancel, holder, created, mover=None):
     return False
   pkg_dir = package_dir(output_base, game_name, target)
   app0_dir = os.path.join(pkg_dir, "app0")
-  log("step", "[2] Preparing the output folder")
+  log("step", "[2] Creating the output folder (the game goes into its 'app0' subfolder)")
   log("detail", pkg_dir)
+  if is_inside(pkg_dir, folder):
+    log("err", "The output folder is INSIDE the game folder, so the tool would keep copying "
+               "its own output forever (the size would grow past 100% and never finish).")
+    log("info", "Fix: choose an output folder OUTSIDE the game folder, then start again.")
+    log("detail", f"Game folder:   {folder}")
+    log("detail", f"Output folder: {output_base}")
+    return False
   try:
     if not log_space(space_requirements(folder, target, "relink", output_base, auto,
                                         move=mover is not None), log):
@@ -4068,10 +4113,10 @@ def _do_relink(folder, cfg, log, cancel, holder, created, mover=None):
 
   # 3. Copy the game
   if mover is not None:
-    log("step", "[3] Moving the game into app0 (each file is removed from the source only after it is verified)")
+    log("step", "[3] Moving the game files into 'app0' (each original is deleted only after its new copy is checked)")
     copier = cancellable_move(mover, cancel, log, dir_size(folder))
   else:
-    log("step", "[3] Copying the game into app0")
+    log("step", "[3] Copying the game files into 'app0' (your original game folder is not touched)")
     copier = cancellable_copy(cancel, log, dir_size(folder), sync=False, workers=COPY_WORKERS)
   try:
     shutil.copytree(folder, app0_dir, copy_function=copier)
@@ -4268,7 +4313,7 @@ L = sys.modules[__name__]   # the logic lives in this same file
 HERE = SCRIPT_DIR
 
 # ---------- GUI update check ----------
-APP_VERSION = "1.0.6"
+APP_VERSION = "1.0.7"
 GUI_REPO_OWNER = "Lenny4250gh"
 GUI_REPO_NAME = "AnyPS5-GUI"
 GUI_RELEASES_URL = "https://github.com/%s/%s/releases/latest" % (GUI_REPO_OWNER, GUI_REPO_NAME)
@@ -5472,7 +5517,7 @@ class Api:
       return res
     zipsrc = L.is_archive_source(self.folder)
     if action != "build" and not (self.folder and (os.path.isdir(self.folder) or zipsrc)):
-      res["error"] = "Select the game folder (e.g. PPSAxxxxx) or an archive of the game (.zip or .rar)."
+      res["error"] = "Select the game folder or an archive of the game."
       return res
     if zipsrc and action != "build":
       z = L.scan_archive(self.folder)
@@ -5585,7 +5630,7 @@ class Api:
             log("info", f"Unwrap-only on an archive works on the extracted copy, kept in: {root}")
           else:
             L.cleanup_extracted(root, log)
-    self.running, self.result = True, None
+    self.running, self.result, self.cancelled = True, None, False
     self.cancel_ev.clear()
     self.holder = {}
     log0("step", title)
@@ -5599,6 +5644,7 @@ class Api:
       except Exception as e:
         log0("err", f"Unexpected error: {e}")
       dt = time.time() - t0
+      self.cancelled = self.cancel_ev.is_set()
       if self.cancel_ev.is_set():
         log0("warn", f"Cancelled after {dt:.0f}s.")
       else:
@@ -5687,7 +5733,8 @@ class Api:
         pct = m
       else:
         lines.append([k, str(m)])
-    return {"lines": lines, "pct": pct, "running": self.running, "ok": self.result}
+    return {"lines": lines, "pct": pct, "running": self.running, "ok": self.result,
+            "cancelled": bool(getattr(self, "cancelled", False))}
 
   def cancel(self):
     self.cancel_ev.set()
@@ -5774,10 +5821,11 @@ class Api:
         errors.append(f"{rel}: {e}")
     L._unwrapper = None  # unwrap_self.py may have been replaced: reload it on next use
     L._libs_cache.clear()
-    for k, m in [("ok", f"Imported into {L.UTILITIES_DIR_NAME}: " + ", ".join(done)) if done else None,
+    for item in [("ok", f"Imported into {L.UTILITIES_DIR_NAME}: " + ", ".join(done)) if done else None,
                  ("info", "Kept existing: " + ", ".join(kept)) if kept else None,
                  ("err", "Import failed: " + "; ".join(errors)) if errors else None]:
-      self.q.put((k, m))
+      if item:
+        self.q.put(item)
     return {"done": done, "kept": kept, "errors": errors}
 
   def import_input(self):

@@ -462,7 +462,7 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
    combo("Present mode",S.present_modes.map(x=>[x,x||"(default)"]),()=>cfg.runtime.present_mode,x=>cfgSet("runtime","present_mode",x),"present",{hint:"Empty = fifo (vsync). If the window is off-screen (Wayland, Linux) try fifo_latest_ready."}),hrow(btn("Open runtime settings (GPU, fonts…)",()=>openSettings("Runtime"),{k:"rt",icon:"tune"}),btn("Open input settings (keys and mouse)",()=>openSettings("Input"),{k:"keys",icon:"kbd"})));}else{
  card("1. Select the game folder",hrow(field("folder",()=>folder,async v=>{folder=await api("set_folder",v);refresh()},"Paste the path (folder or .zip / .rar) or use Browse… / Archive…",{label:"Game folder",live:v=>api("set_folder",v)}),
   btn("Browse…",async()=>{const p=await api("pick_folder");if(p){folder=p;renderCards();refresh()}},{k:"browse"}),
-  btn("Archive…",async()=>{const p=await api("pick_archive");if(p){folder=p;renderCards();refresh()}},{k:"browsezip",tip:"Select a game packed as .zip or .rar: it is extracted automatically (.rar needs 7-Zip installed)."})),note("Paste the path of a folder or of a .zip or .rar, or use Browse… / Archive… (e.g. PPSAxxxxx or PPSAxxxxx.rar)"));
+  btn("Archive…",async()=>{const p=await api("pick_archive");if(p){folder=p;renderCards();refresh()}},{k:"browsezip",tip:"Select a game packed as .zip or .rar: it is extracted automatically (.rar needs 7-Zip installed)."})),note("Paste the path of a folder or of a .zip or .rar, or use Browse… / Archive…"));
  const st=el("div","stat");[["eboot","eboot.bin"],["modules","Modules (sce_module/prx)"],["dirs","sce_sys"],["unwrapper","unwrap_self.py"],["relinker","Relinker"],["libs","prx-*.zip (libs zip file)"],["space","Disk space needed"]]
   .forEach(([k,t])=>{const v=el("span","","—");v.id="st-"+k;st.append(el("span","",t),v)});{const rw=el("div","readyrow"),rd=el("span","ready");rd.id="ready";rd.textContent="Checking…";rw.append(rd,btn("Open game and module settings",()=>openSettings("Game and modules"),{k:"os1",icon:"tune",tip:"Game and modules tab: --module-dir, --executable, --sce-module-path, unwrap of modules…"}));fold("st","Requirements check (details)",st).prepend(rw)}
  const m=card("2. Choose what to do",radio("Convert to PC  —  builds the package with the executable for your system",rel,()=>setMain("settings","mode","relink"),"m2"),
@@ -479,7 +479,7 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
   const setR=(r,anim)=>{wr.classList.toggle("gone",!r);wr.inert=!r;if(anim){wr.classList.add("mov");clearTimeout(wr._t);wr._t=setTimeout(()=>wr.classList.remove("mov"),450)}};
   setR(fromRel);if(fromRel!==rel)requestAnimationFrame(()=>requestAnimationFrame(()=>setR(rel,1)));
   m.append(wr)}
- m.append(check("Notify when an operation finishes or fails","Shows an in-app message and a system notification (Windows / macOS / Linux).",()=>yes(s.notify),v=>setMain("settings","notify",v?"yes":"no"),"notify"));m.append(hrow(btn("Open conversion settings",()=>openSettings("Conversion"),{k:"os2",icon:"tune",tip:"Conversion tab: all relinker flags (--to-rosetta, --rpath, --lazy-binding…)"})));
+ m.append(check("Notify when an operation finishes or fails","Shows an in-app message and a system notification (Windows / macOS / Linux).",()=>yes(s.notify),v=>setMain("settings","notify",v?"yes":"no"),"notify"));m.append(check("Open the trash folder automatically","When a failed or cancelled operation moves an incomplete folder to the trash, open the trash so you can see or restore it.",()=>yes(s.open_trash),v=>setMain("settings","open_trash",v?"yes":"no"),"open_trash"));m.append(hrow(btn("Open conversion settings",()=>openSettings("Conversion"),{k:"os2",icon:"tune",tip:"Conversion tab: all relinker flags (--to-rosetta, --rpath, --lazy-binding…)"})));
  const src=gh?"github":rls?"release":"prebuilt",from=prevSrc||src;prevSrc=src;
  const SHOW={prebuilt:{repo:0,dl:0,build:0,imp:1},release:{repo:1,dl:1,build:0,imp:0},github:{repo:1,dl:0,build:1,imp:0}},vzs=[];
  const vz=(key,node,row)=>{const w=el("div",row?"vzr":"vz");if(row){const i=el("div","vzin");i.append(node);w.append(i)}else w.append(node);
@@ -495,18 +495,33 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
  const ut=fold("ut","Tools and updates: where they come from",hrow(el("span","lbl","Source:"),radio("Local files (manual)",!gh&&!rls,()=>setMain("relinker","relinker_source","prebuilt"),"s1"),radio("Release from GitHub repo (auto-update)",rls,()=>setMain("relinker","relinker_source","release"),"s3"),radio("Build from GitHub source (auto-update)",gh,()=>setMain("relinker","relinker_source","github"),"s2")),
   vz("repo",hrow(el("span","lbl","Repository:"),field("repo",()=>r.repo_url,v=>setMain("relinker","repo_url",v||S.default_repo),"",{label:"Repository"}),
    btn("Default",()=>setMain("relinker","repo_url",S.default_repo),{k:"repodef"}),vz("dl",btn("Download now",()=>act("download"),{k:"dl"})),vz("build",btn("Build now",()=>act("build"),{k:"build"}))),1),
-  vz("imp",hrow(el("span","lbl",""),btn("Import files…",importTools,{k:"imptools",tip:"Copy unwrap_self.py, relinker-*, prx-*.zip (and import_audit.py / pad_input.py) into the Utilities folder."}),el("span","muted","unwrap_self.py · relinker-* · prx-*.zip")),1),
+  vz("imp",hrow(el("span","lbl","Local files:"),btn("Import files…",importTools,{k:"imptools",tip:"Copy unwrap_self.py, relinker-*, prx-*.zip (and import_audit.py / pad_input.py) into the Utilities folder."}),el("span","muted","unwrap_self.py · relinker-* · prx-*.zip")),1),
   note("Used by unwrap, libs and relink. Local files: the files you import (or put) in the Utilities folder. Release: latest GitHub release. Build: compiles the repository with CMake. Branch/tag and CMake target: AnyPS5 settings → Source build."));
   if(from!==src)requestAnimationFrame(()=>requestAnimationFrame(()=>vzs.forEach(f=>f())));
   const sc=S.schema.Conversion.find(it=>/autorun/.test(it.label||"")),ar=sc&&yes(cfg[sc.section][sc.key]),
-  sumT="Will do: "+(rel?"convert for "+String(S.targets[r.target]||r.target).split(" (")[0]:"unwrap only")+" · "+(yes(s.keep_game)?"copy the game (original kept)":"move the game (original deleted)")+(rel&&ar?" · start the game afterwards":""),
+  sumT="Will do: "+(rel?"convert for "+String(S.targets[r.target]||r.target).split(" (")[0]+" · "+(yes(s.keep_game)?"copy the game (original kept)":"move the game (original deleted)")+(ar?" · start the game afterwards":""):"unwrap only · files are unwrapped in place in the game folder (backup kept, restorable)"),
   act1=el("div","step");act1.append(el("h3","","3. Start"),hrow(btn(rel?"▶  Convert game":"▶  Unwrap files",()=>act("start"),{pri:1,k:"start"}),btn("■  Stop",()=>api("cancel"),{k:"stop",off:1}),btn("↺  Restore backup",()=>act("restore"),{k:"restore"})),el("p","sum",sumT));ut.prepend(act1);ut.querySelector(".advi").append(hrow(btn("Open tools and updates settings",()=>openSettings("Source build"),{k:"os3",icon:"tune",tip:"Source build tab: release tag, branch, CMake, update checks"}),btn("Open storage settings",()=>openSettings("Storage"),{k:"os4",icon:"folder",tip:"Storage tab: where tools, builds, backups and settings are kept"})));root.append(ut);
   const res=el("section","card step");{const rh=el("div","rh");rh.append(el("h3","","Log"),hrow(...logb().slice(1)));res.append(rh)}lbar.append(res)}
 
  if(view=="play"){const res=el("section","card step"),rh=el("div","rh");rh.append(el("h3","","Log"),hrow(...logb().slice(1)));res.append(rh);lbar.append(res)}
  const n=root.querySelector(`[data-k="${fk}"]`);if(fk&&n&&n.dataset.nav)n.focus();applyStatus();setRunning(running);
  if(vAnim){const nm=vAnim=="R"?"vinR":"vinL";vAnim="";[...root.children].slice(1).forEach((c,i)=>{c.style.animation=nm+" .38s var(--ease) both";c.style.animationDelay=(i*.06)+"s"})}}
-function applyStatus(){const rd=$("#ready");if(rd){const bad=status.filter(x=>/^(err|bad|fail)/.test(String(x[3])));rd.className="ready "+(!status.length?"":bad.length?"err":"ok");rd.textContent=!status.length?"Checking…":bad.length?"✖ Not ready, missing: "+bad.map(x=>{const e=$("#st-"+x[0]);return e&&e.previousSibling?e.previousSibling.textContent:x[0]}).join(", ")+" (see Requirements check)":"✔ Ready to convert"}status.forEach(([k,,v,lv])=>{const e=$("#st-"+k);if(e){e.textContent=v;e.className=lv=="muted"?"muted-c":lv}});
+function applyStatus(){const rd=$("#ready");if(rd){
+  const lv=k=>{const x=status.find(r=>r[0]==k);return x?String(x[3]):""},has=k=>/^(ok|warn)/.test(lv(k)),bad=k=>/^(err|bad|fail)/.test(lv(k));
+  const mode=cfg.settings.mode,auto=yes(cfg.settings.auto_unwrap);
+  const gameSel=!!lv("eboot")&&lv("eboot")!="muted",gameBad=["eboot","modules","dirs"].some(bad),spaceBad=!!space&&space.level=="err";
+  const needsUnw=lv("eboot")=="warn"||lv("modules")=="warn"; // SELF files still to unwrap
+  const unw=has("unwrapper"),relOk=has("relinker")&&has("libs"); // warn = "will be built/downloaded" counts as available
+  const convOk=relOk&&(!gameSel||!needsUnw||(auto&&unw));
+  const err="✖ Not ready. Missing requirements (see Requirements check)";
+  let cls="err",txt=err;
+  if(!status.length){cls="";txt="Checking…"}
+  else if(!gameBad&&!spaceBad){
+   if(mode=="unwrap"){if(unw){cls="ok";txt="✔ Ready for unwrap only"}}
+   else if(convOk){cls="ok";txt=unw?"✔ Ready to unwrap and convert":gameSel?"✔ Ready to convert":"✔ Ready for relink only (no unwrap)"}
+   else if(unw){cls="ok";txt="✔ Ready for unwrap only"}}
+  rd.className="ready "+cls;rd.textContent=txt}
+status.forEach(([k,,v,lv])=>{const e=$("#st-"+k);if(e){e.textContent=v;e.className=lv=="muted"?"muted-c":lv}});
  const e=$("#st-space");if(e){e.textContent=space?space.text:"—";e.className=space?space.level:"muted-c"}}
 function setRunning(b){running=b;const t=$('[data-k="stop"]');if(t)dis(t,!b);["start","restore","play"].forEach(k=>{const e=$(`#cards [data-k="${k}"]`);e&&dis(e,b&&k!="play")})}
 // ---------- settings dialog (tabs like the Tk version) ----------
@@ -742,7 +757,7 @@ function setPct(p){const b=$("#pb");b.className=running&&(p==null||p=="idle")?"i
 async function tick(){const r=await api("poll");
  r.lines.forEach(x=>{if(x[0]=="progress"&&log.length&&log[log.length-1][0]=="progress")log.pop();log.push(x);addLine(x)});
  if(r.pct!="keep")pct=r.pct;const was=running;running=r.running;setRunning(running);setPct(pct);
- if(was&&!running){clearInterval(poller);poller=null;pct="idle";setPct(pct);refresh();if(yes(cfg.settings.notify))toast(r.ok?"Operation completed":"Operation finished with errors",r.ok?"ok":"err")}}
+ if(was&&!running){clearInterval(poller);poller=null;pct="idle";setPct(pct);refresh();if(yes(cfg.settings.notify))toast(r.cancelled?"Operation cancelled":r.ok?"Operation completed successfully":"Operation finished with errors",r.cancelled?"warn":r.ok?"ok":"err")}}
 async function playExe(){if(running)return toast("An operation is already running.","warn");await api("play_exe");$("#log").scrollIntoView({block:"nearest"});await tick()}
 async function shortcutExe(){if(running)return toast("An operation is already running.","warn");await api("shortcut_exe");$("#log").scrollIntoView({block:"nearest"});await tick()}
 async function act(a){if(running)return toast("An operation is already running.","warn");
