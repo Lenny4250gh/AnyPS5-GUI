@@ -23,7 +23,7 @@ A graphical interface for [AnyPS5](https://github.com/boykopovar/AnyPS5): unwrap
    - Windows (PowerShell): `Get-FileHash .\AnyPS5_GUI-windows.exe -Algorithm SHA256`
    - Linux: `sha256sum AnyPS5_GUI-linux`
    - macOS: `shasum -a 256 AnyPS5_GUI-macos.zip`
-4. Run it. The first time it creates a `Utilities/` folder in your user data folder (so it survives updates), where it keeps the downloaded tools (relinker, libs, `unwrap_self.py`). You can move it from **Settings → Storage**. To keep everything next to the program instead, put an empty file named `portable` next to it.
+4. Run it. The first time it creates a folder in your user data folder (so it survives updates), where it keeps the downloaded tools (relinker, libs, `unwrap_self.py`). You can move it from **Settings → Storage**. To keep everything next to the program instead, put an empty file named `portable` next to it.
 
 All three files are built automatically by GitHub Actions on real Windows, macOS and Linux machines, straight from the source in this repository. You can inspect the [workflow](.github/workflows/build.yml) and the [build runs](https://github.com/Lenny4250gh/AnyPS5-GUI/actions).
 
