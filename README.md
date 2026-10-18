@@ -33,6 +33,19 @@ game dump (folder / .zip / .rar)
 
 The GUI does **not** do the conversion itself: it drives the official AnyPS5 tools and shows what they do.
 
+## Highlights
+
+What you get besides "a window instead of a command line":
+
+- **Interactive input editor.** Click a button on the controller, press a key, mouse button or wheel direction, done. Alternate inputs, stick deadzones and mouse-as-stick (sensitivity, curve, smoothing, decay) are all in the same screen. Prefer text? Edit `anyps5-input.ini` directly, with a validity check.
+- **Share your settings as a file.** Export any section (conversion, runtime, input) as a small file and import someone else's. Handy to help a friend, or to post a working setup for a game.
+- **Use any repository, not only the official one.** Point the GUI at a fork, a branch or an older tag and it downloads that release or builds it from source. Each repository gets its own folder, so testing a fork never mixes files with the official one. See [Using a different repository](#using-a-different-repository-forks-and-custom-builds).
+- **Tools handled for you.** Relinker, system libs and `unwrap_self.py` are downloaded (checked with SHA-256) or built, and kept up to date.
+- **Options that make sense.** Every relinker option is explained and disabled automatically when it does not fit the selected target.
+- **Safe unwrap.** Original files are backed up, with a *Restore backup* button.
+- **Runtime settings and shortcuts.** GPU, language, present mode, fonts, tracing and more, passed to the game as environment variables, or saved in a shortcut.
+- **Self-updating.** The app checks this repository's latest release and can replace itself and restart.
+
 ## Download (no build needed)
 
 1. Open the [**Releases**](https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest) page.
