@@ -495,8 +495,8 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
  const ut=fold("ut","Tools and updates: where they come from",hrow(el("span","lbl","Source:"),radio("Local files (manual)",!gh&&!rls,()=>setMain("relinker","relinker_source","prebuilt"),"s1"),radio("Release from GitHub repo (auto-update)",rls,()=>setMain("relinker","relinker_source","release"),"s3"),radio("Build from GitHub source (auto-update)",gh,()=>setMain("relinker","relinker_source","github"),"s2")),
   vz("repo",hrow(el("span","lbl","Repository:"),field("repo",()=>r.repo_url,v=>setMain("relinker","repo_url",v||S.default_repo),"",{label:"Repository"}),
    btn("Default",()=>setMain("relinker","repo_url",S.default_repo),{k:"repodef"}),vz("dl",btn("Download now",()=>act("download"),{k:"dl"})),vz("build",btn("Build now",()=>act("build"),{k:"build"}))),1),
-  vz("imp",hrow(el("span","lbl","Local files:"),btn("Import files…",importTools,{k:"imptools",tip:"Copy unwrap_self.py, relinker-*, prx-*.zip (and import_audit.py / pad_input.py) into the Utilities folder."}),el("span","muted","unwrap_self.py · relinker-* · prx-*.zip")),1),
-  note("Used by unwrap, libs and relink. Local files: the files you import (or put) in the Utilities folder. Release: latest GitHub release. Build: compiles the repository with CMake. Branch/tag and CMake target: AnyPS5 settings → Source build."));
+  vz("imp",hrow(el("span","lbl","Local files:"),btn("Import files…",importTools,{k:"imptools",tip:"Copy unwrap_self.py, relinker-*, prx-*.zip (and import_audit.py / pad_input.py) into the app data folder."}),el("span","muted","unwrap_self.py · relinker-* · prx-*.zip")),1),
+  note("Used by unwrap, libs and relink. Local files: the files you import (or put) in the app data folder. Release: latest GitHub release. Build: compiles the repository with CMake. Branch/tag and CMake target: AnyPS5 settings → Source build."));
   if(from!==src)requestAnimationFrame(()=>requestAnimationFrame(()=>vzs.forEach(f=>f())));
   const sc=S.schema.Conversion.find(it=>/autorun/.test(it.label||"")),ar=sc&&yes(cfg[sc.section][sc.key]),
   sumT="Will do: "+(rel?"convert for "+String(S.targets[r.target]||r.target).split(" (")[0]+" · "+(yes(s.keep_game)?"copy the game (original kept)":"move the game (original deleted)")+(ar?" · start the game afterwards":""):"unwrap only · files are unwrapped in place in the game folder (backup kept, restorable)"),
@@ -770,7 +770,7 @@ async function importTools(){let plan;try{plan=await api("pick_tool_files")}catc
  const ok=plan.filter(x=>!x.skip),sk=plan.filter(x=>x.skip);
  if(!ok.length){toast("Nothing to import: "+sk.map(x=>x.name+" ("+x.skip+")").join("; "),"err");return}
  const ex=ok.filter(x=>x.exists);let rep=false;
- if(ex.length){rep=await ask("Replace existing files?",ex.map(x=>x.dest).join("\n")+"\n\n"+(ex.length>1?"These files already exist":"This file already exists")+" in the Utilities folder. Replace "+(ex.length>1?"them":"it")+"?","Replace","Keep existing");}
+ if(ex.length){rep=await ask("Replace existing files?",ex.map(x=>x.dest).join("\n")+"\n\n"+(ex.length>1?"These files already exist":"This file already exists")+" in the app data folder. Replace "+(ex.length>1?"them":"it")+"?","Replace","Keep existing");}
  let r;try{r=await api("import_tool_files",ok,rep)}catch(e){toast("Import failed: "+(e&&e.message||e),"err");return}
  if(r.errors.length)toast(r.errors[0],"err");else if(r.done.length)toast("Imported: "+r.done.join(", ")+(sk.length?" · skipped "+sk.length:""),"ok");else toast("Nothing imported (existing files kept).","warn");
  refresh()}
@@ -820,7 +820,7 @@ function checkUpdate(){api("check_update").then(u=>{if(!u)return;
     else{ul=null;const q=el("p");inl(l,q);bd.append(q)}});
    d.append(sm,bd);return d})(),
   st=el("p","st"),bar=el("div","ubar"),fill=el("i"),row=el("div","row"),
-  tiny=el("p","muted tiny","The app downloads the new version, replaces the current one and restarts by itself.\nSettings and the Utilities folder are kept.");
+  tiny=el("p","muted tiny","The app downloads the new version, replaces the current one and restarts by itself.\nSettings and your data are kept.");
  bar.append(fill);bar.hidden=true;
  const show=(txt,warn)=>{st.textContent=txt||"";st.className="st"+(warn?" warn":"")};
  let go,page,phase="idle",last="",timer=null;

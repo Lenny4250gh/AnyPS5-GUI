@@ -4,7 +4,7 @@ Originally part of https://github.com/Lenny4250gh/AnyPS5-GUI (GPL-2.0-only).
 
 Graphical interface to use AnyPS5 without touching the command line:
   - Unwrap   : already-decrypted SELF/fSELF -> ELF, using the OFFICIAL unwrap_self.py
-               (external file in the Utilities folder, not embedded here)
+               (external file in the app data folder, not embedded here)
   - Relink   : builds the "<GAME>-<system>" package with app0 + libs + executable
   - Options  : all relinker options (Windows / Linux / macOS, --to-intel,
                --to-rosetta, --windows-gui, --windows-fixed-base, unused-filter,
@@ -17,7 +17,7 @@ Graphical interface to use AnyPS5 without touching the command line:
                creates a shortcut named after the game (.lnk on Windows) in the program folder that starts the
                executable with the right variables
   - Input    : anyps5-input.ini editor with validity check
-  - Audit    : import_audit.py (if present in Utilities/tools/) after the relink
+  - Audit    : import_audit.py (if present in <data>/tools/) after the relink
 
 What it does NOT do: no decryption, no keys, no game files included.
 unwrap_self.py refuses containers that look encrypted.
@@ -30,11 +30,13 @@ project (GPL v2 only); if you distribute it together with the GUI, include
 its license and its sources.
 (I am not a lawyer: check the project's license before distributing.)
 
-Layout. Next to this script there is ONE folder, "Utilities", that holds
-everything the program needs (it is created automatically if missing):
+Layout. Everything the program needs lives in ONE folder, the app data folder <data>
+(created automatically if missing): AppData/Roaming/AnyPS5_GUI on Windows,
+~/Library/Application Support/AnyPS5_GUI on macOS, ~/.local/share/AnyPS5_GUI on Linux.
+The packaged app can move it from Settings → Storage; from source or in portable mode
+it is a folder next to the script.
 
-  AnyPS5_GUI.py
-  Utilities/
+  <data>/
     unwrap_self.py      the official AnyPS5 unwrapper (NOT needed when "Build from GitHub source"
                         is selected: tools/unwrap_self.py of the cloned repo is used instead)
     relinker-*.exe      the relinker (the last one in alphabetical order is used;
@@ -59,7 +61,7 @@ choose another output folder in the program.
 
 Optional: `pip install tkinterdnd2` enables folder drag & drop.
 Game archives: .zip and .rar (the prx-*.zip libs: only .zip). .zip works out of the box; .rar needs 7-Zip
-(7z/7zz in PATH or in Utilities/) or `pip install rarfile` (+ UnRAR/WinRAR).
+(7z/7zz in PATH or in the app data folder) or `pip install rarfile` (+ UnRAR/WinRAR).
 """
 import configparser
 import hashlib
@@ -96,9 +98,10 @@ if getattr(sys, "frozen", False):  # PyInstaller executable
 else:
   SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Everything the program needs lives in this folder
-UTILITIES_DIR_NAME = "Utilities"
-LEGACY_UTILITIES_DIR = os.path.join(SCRIPT_DIR, UTILITIES_DIR_NAME)  # old location: next to the program
+# Folder name used by the first versions (next to the program). Kept only to find and migrate the old
+# data, and as the data folder of the portable / from-source mode (so existing data is not lost).
+LEGACY_DIR_NAME = "Utilities"
+LEGACY_DATA_DIR = os.path.join(SCRIPT_DIR, LEGACY_DIR_NAME)  # old location: next to the program
 PORTABLE_MARK = "portable"  # empty file next to the program: keep everything next to it (old behaviour)
 
 
@@ -113,9 +116,9 @@ def _user_data_dir():
   return os.path.join(base, "AnyPS5_GUI")
 
 
-LOCATION_FILE = os.path.join(_user_data_dir(), "location.txt")  # tiny pointer: where Utilities/ was moved by the user
-DEFAULT_UTILITIES_DIR = _user_data_dir()  # the app's files go directly in here (location.txt is the only extra)
-INTERIM_UTILITIES_DIR = os.path.join(_user_data_dir(), UTILITIES_DIR_NAME)  # layout of an earlier build: migrated
+LOCATION_FILE = os.path.join(_user_data_dir(), "location.txt")  # tiny pointer: where the data folder was moved by the user
+DEFAULT_DATA_DIR = _user_data_dir()  # the app's files go directly in here (location.txt is the only extra)
+INTERIM_DATA_DIR = os.path.join(_user_data_dir(), LEGACY_DIR_NAME)  # layout of an earlier build: migrated
 # the location can be changed only in the packaged app (from source / portable mode: next to the script)
 STORAGE_EDITABLE = bool(getattr(sys, "frozen", False)) and not os.path.exists(os.path.join(SCRIPT_DIR, PORTABLE_MARK))
 STORAGE_PROBLEM = ""  # set when the chosen folder is unavailable and the default one is used instead
@@ -130,22 +133,22 @@ def _read_location():
   return text if text and os.path.isabs(text) else ""
 
 
-# Executable: Utilities/ lives in the user data folder, or in the folder chosen in Settings → Storage
-# (the old Utilities/ next to the program is moved there at startup, see migrate_legacy_utilities).
+# Executable: the data folder is the user data folder, or the folder chosen in Settings → Storage
+# (the old folder next to the program is moved there at startup, see migrate_legacy_data).
 # From source or in portable mode: next to the script.
 if STORAGE_EDITABLE:
-  UTILITIES_DIR = DEFAULT_UTILITIES_DIR
+  DATA_DIR = DEFAULT_DATA_DIR
   _custom = _read_location()
   if _custom:
     try:
       os.makedirs(_custom, exist_ok=True)
-      UTILITIES_DIR = _custom
+      DATA_DIR = _custom
     except OSError as _e:
       STORAGE_PROBLEM = "The folder you chose (%s) is not available (%s): using the default one." % (_custom, _e)
 else:
-  UTILITIES_DIR = LEGACY_UTILITIES_DIR
+  DATA_DIR = LEGACY_DATA_DIR
 try:
-  os.makedirs(UTILITIES_DIR, exist_ok=True)
+  os.makedirs(DATA_DIR, exist_ok=True)
 except OSError:
   pass
 
@@ -157,19 +160,19 @@ EXECUTABLE_NAME = "eboot.bin"
 BACKUP_DIR_NAME = "backups"
 UNWRAP_SCRIPT_NAME = "unwrap_self.py"
 INPUT_INI_NAME = "anyps5-input.ini"
-AUDIT_SCRIPT = os.path.join("tools", "import_audit.py")  # relative to Utilities/
-CONFIG_FILE = os.path.join(UTILITIES_DIR, "config.ini")
-LEGACY_CONFIG_FILE = os.path.join(UTILITIES_DIR, "UseRelinker.ini")
-INPUT_INI_FILE = os.path.join(UTILITIES_DIR, INPUT_INI_NAME)
+AUDIT_SCRIPT = os.path.join("tools", "import_audit.py")  # relative to the data folder
+CONFIG_FILE = os.path.join(DATA_DIR, "config.ini")
+LEGACY_CONFIG_FILE = os.path.join(DATA_DIR, "UseRelinker.ini")
+INPUT_INI_FILE = os.path.join(DATA_DIR, INPUT_INI_NAME)
 
 # relinker built from a GitHub repository (alternative to the prebuilt relinker-*.exe)
 DEFAULT_REPO_URL = "https://github.com/boykopovar/AnyPS5"
-SOURCE_DIR_NAME = "source"            # Utilities/source/<repo>-<hash>/{repo,build}
+SOURCE_DIR_NAME = "source"            # <data>/source/<repo>-<hash>/{repo,build}
 SOURCE_INFO_NAME = "build_info.ini"
 SOURCE_CLONED_MARK = ".cloned"        # written after a complete clone
 RELINKER_TARGET_GUESS = "relinker"    # CMake target tried first when none is configured
 RELINKER_SOURCES = ("prebuilt", "github", "release")
-RELEASE_DIR_NAME = "release"          # Utilities/release/<repo>/<tag>/ (files named as in the release)
+RELEASE_DIR_NAME = "release"          # <data>/release/<repo>/<tag>/ (files named as in the release)
 RELEASE_CURRENT_NAME = "current.ini"  # tag in use for that repository
 RELEASE_INFO_NAME = "release.json"    # assets of the release (name, url, size, sha256): offline reuse
 RELEASE_DOCS = ("USAGE.md", "INPUT_MAPPING.md", "release-notes.md")  # optional, small
@@ -213,7 +216,7 @@ DEFAULTS = {
     "target": "windows", "rosetta": "no", "gui": "no", "diagnostics": "no",
     "fixed_base": "", "unused_filter": "0", "registry": "yes", "rpath": "",
     "trace_imports": "no", "module_dirs": "", "executables": "",
-    "unwrap_modules": "yes", "import_audit": "no", "make_launcher": "yes",
+    "unwrap_modules": "yes", "move_root_prx": "yes", "import_audit": "no", "make_launcher": "yes",
     "names_file": "",
     "auto_module_dirs": "yes",
     "relinker_source": "release", "repo_url": DEFAULT_REPO_URL, "repo_ref": "",
@@ -276,11 +279,11 @@ def release_unwrapper_path(rl=None):
 
 def unwrapper_path():
   """unwrap_self.py to use: the one of the release (Release option) or of the cloned repo (GitHub
-  option), else Utilities/."""
+  option), else the data folder."""
   path = release_unwrapper_path() or repo_unwrapper_path()
   if path:
     return path
-  path = os.path.join(UTILITIES_DIR, UNWRAP_SCRIPT_NAME)
+  path = os.path.join(DATA_DIR, UNWRAP_SCRIPT_NAME)
   return path if os.path.isfile(path) else None
 
 
@@ -290,7 +293,7 @@ def github_mode():
 
 def load_unwrapper():
   """Load unwrap_self.py (from the cloned repo if the GitHub option is active, else from the
-  Utilities folder). Returns the module or None."""
+  data folder). Returns the module or None."""
   global _unwrapper, _unwrapper_path
   path = unwrapper_path()
   if path is None:
@@ -380,7 +383,7 @@ def save_config(values):
                     for k, v in items.items()}
   cfg["settings"]["output_dir"] = values["settings"]["output_dir"] or "default"
   try:
-    os.makedirs(UTILITIES_DIR, exist_ok=True)
+    os.makedirs(DATA_DIR, exist_ok=True)
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
       f.write("# settings: output_dir (default = script folder), intel yes/no,\n"
               "#   auto_unwrap yes/no, mode unwrap/relink, window_size WIDTHxHEIGHT (empty = default)\n"
@@ -415,7 +418,7 @@ def host_target():
 #  log(kind, msg) with kind in: info ok warn err step detail progress
 # ─────────────────────────────────────────────────────────────
 def find_relinker():
-  base = release_dir() or UTILITIES_DIR
+  base = release_dir() or DATA_DIR
   try:
     names = sorted(os.listdir(base))
   except OSError:
@@ -568,8 +571,49 @@ def game_targets(game_folder, with_modules=True, extra_dirs=(), executables=()):
   return targets
 
 
+def move_root_prx(app0_dir, log):
+  """On the COPY of the game (app0): move the .prx files that sit next to eboot.bin (the game root)
+  into the module folder (sce_module / sce_modules / prx), except libc.prx. The relinker and the
+  unwrap only look inside the module folders, so a module left in the root is never converted and
+  the game then fails with 'Failed to load module ... libs\\<name>.prx'. Never overwrites a file
+  that already exists in the module folder. Returns the number of files moved."""
+  try:
+    names = sorted(n for n in os.listdir(app0_dir)
+                   if n.lower().endswith(".prx") and n.lower() != "libc.prx"
+                   and os.path.isfile(os.path.join(app0_dir, n)))
+  except OSError as e:
+    log("warn", f"Cannot list the game root to find .prx files: {e}")
+    return 0
+  if not names:
+    log("info", "No .prx files next to eboot.bin: nothing to move.")
+    return 0
+  found = existing_module_dirs(app0_dir)
+  dest_name = found[0] if found else "sce_module"
+  dest = os.path.join(app0_dir, dest_name)
+  try:
+    os.makedirs(dest, exist_ok=True)
+  except OSError as e:
+    log("warn", f"Cannot create '{dest_name}': {e}")
+    return 0
+  moved = 0
+  for name in names:
+    src, dst = os.path.join(app0_dir, name), os.path.join(dest, name)
+    if os.path.exists(dst):
+      log("warn", f"{name}: a file with the same name is already in '{dest_name}': left in the game root.")
+      continue
+    try:
+      shutil.move(src, dst)
+    except OSError as e:
+      log("warn", f"{name}: move failed ({e}): left in the game root.")
+      continue
+    moved += 1
+    log("detail", f"{name} → {dest_name}/")
+  log("ok", f"{moved} .prx moved from the game root into '{dest_name}' (libc.prx stays where it is).")
+  return moved
+
+
 def get_backup_dir(game_name):
-  return os.path.join(UTILITIES_DIR, BACKUP_DIR_NAME, game_name)
+  return os.path.join(DATA_DIR, BACKUP_DIR_NAME, game_name)
 
 
 _libs_cache = {}
@@ -602,16 +646,16 @@ def _scan_libs_zip(path, wanted):
 
 
 def libs_zip_info(target):
-  """A prx-*.zip in Utilities that contains the libs folder (libs-<system> preferred over libs).
+  """A prx-*.zip in the data folder that contains the libs folder (libs-<system> preferred over libs).
   The zip is read as it is: no need to extract it. Returns None if there is none."""
-  base = release_dir() or UTILITIES_DIR
+  base = release_dir() or DATA_DIR
   try:
     zips = sorted((f for f in os.listdir(base)
                    if f.lower().startswith(LIBS_ZIP_PREFIX) and f.lower().endswith(".zip")
                    and os.path.isfile(os.path.join(base, f))), key=str.lower)
   except OSError:
     return None
-  if base != UTILITIES_DIR:  # release: prx-windows / prx-linux, the one of the target goes first
+  if base != DATA_DIR:  # release: prx-windows / prx-linux, the one of the target goes first
     tag = RELEASE_LIBS_FOR.get(target, target)
     zips.sort(key=lambda n: tag in n.lower())  # the loop below reads from the end
   for wanted in ("%s-%s" % (LIBS_DIR_NAME, TARGETS[target]["suffix"]), LIBS_DIR_NAME):
@@ -647,7 +691,7 @@ def extract_libs(info, dest, cancel):
   with open_archive(info["zip"]) as arc:
     by_name = {e.name: e for e in arc.files}
     if not arc.streams:  # 7-Zip / py7zr extract the whole archive (the libs are small): copy from there
-      base = os.path.join(UTILITIES_DIR, EXTRACT_DIR_NAME)
+      base = os.path.join(DATA_DIR, EXTRACT_DIR_NAME)
       os.makedirs(base, exist_ok=True)
       tmp = tempfile.mkdtemp(prefix="libs-", dir=base)
       try:
@@ -1029,7 +1073,7 @@ def unwrap_file(file_path, label, backup_dir, log):
   if module is None:
     where = ("the cloned GitHub repository (tools/) or " if github_mode()
              else "the downloaded release or " if release_mode() else "")
-    log("err", f"'{UNWRAP_SCRIPT_NAME}' not found in {where}the {UTILITIES_DIR_NAME} folder ({UTILITIES_DIR}).")
+    log("err", f"'{UNWRAP_SCRIPT_NAME}' not found in {where}the app data folder ({DATA_DIR}).")
     return (ST_ERROR, "unwrap_self.py missing")
 
   if backup_dir is not None:
@@ -1142,12 +1186,12 @@ def storage_choice_to_dir(picked):
 
 
 def validate_storage_target(new):
-  """Returns "" if Utilities/ can be moved to `new`, else the reason why not."""
+  """Returns "" if the data folder can be moved to `new`, else the reason why not."""
   if not STORAGE_EDITABLE:
     return "The location can only be changed in the packaged app (not from source or in portable mode)."
   if not new or not os.path.isabs(new):
     return "Enter a full folder path."
-  cur, new = os.path.realpath(UTILITIES_DIR), os.path.realpath(new)
+  cur, new = os.path.realpath(DATA_DIR), os.path.realpath(new)
   nc, cc = os.path.normcase(new), os.path.normcase(cur)
   if nc == cc:
     return "That is already the current folder."
@@ -1170,14 +1214,14 @@ def validate_storage_target(new):
   return ""
 
 
-def relocate_utilities(new, status):
-  """Moves everything in Utilities/ to `new` (an empty folder), then makes it the new location.
+def relocate_data_dir(new, status):
+  """Moves everything in the data folder to `new` (an empty folder), then makes it the new location.
   status(text, pct) reports progress. Raises RuntimeError with a readable message on failure; in that
   case the already moved items are put back. The app must be restarted afterwards."""
   problem = validate_storage_target(new)
   if problem:
     raise RuntimeError(problem)
-  old = UTILITIES_DIR
+  old = DATA_DIR
   items = [n for n in sorted(os.listdir(old)) if n.lower() != "__pycache__" and n != os.path.basename(LOCATION_FILE)]
   if os.stat(old).st_dev != os.stat(new).st_dev:  # other drive: real copy, check the space first
     status("Checking the free space…", None)
@@ -1205,7 +1249,7 @@ def relocate_utilities(new, status):
   status("Saving the new location…", 100)
   try:
     os.makedirs(os.path.dirname(LOCATION_FILE), exist_ok=True)
-    if os.path.normcase(os.path.realpath(new)) == os.path.normcase(os.path.realpath(DEFAULT_UTILITIES_DIR)):
+    if os.path.normcase(os.path.realpath(new)) == os.path.normcase(os.path.realpath(DEFAULT_DATA_DIR)):
       if os.path.isfile(LOCATION_FILE):
         os.remove(LOCATION_FILE)  # back to the default: no pointer needed
     else:
@@ -1220,7 +1264,7 @@ def relocate_utilities(new, status):
         pass
     raise RuntimeError("Could not save the new location: %s. The folder was not changed." % e)
   shutil.rmtree(os.path.join(old, "__pycache__"), ignore_errors=True)
-  if os.path.normcase(os.path.realpath(old)) != os.path.normcase(os.path.realpath(DEFAULT_UTILITIES_DIR)):
+  if os.path.normcase(os.path.realpath(old)) != os.path.normcase(os.path.realpath(DEFAULT_DATA_DIR)):
     if os.path.isdir(old) and not os.listdir(old) and not move_to_trash(old):  # old folder empty: to the trash
       try:
         os.rmdir(old)
@@ -1228,7 +1272,7 @@ def relocate_utilities(new, status):
         pass
 
 
-# what the program itself puts in Utilities/ (or looks for there): moved by migrate_legacy_utilities.
+# what the program itself puts in the data folder (or looks for there): moved by migrate_legacy_data.
 # Anything else the user left in the old folder stays where it is.
 _MIGRATE_NAMES = {"backups", "release", "source", "toolchain", "extracted", "update", "anyps5-fonts", "tools",
                   "config.ini", "userelinker.ini", "anyps5-input.ini", "unwrap_self.py",
@@ -1238,12 +1282,12 @@ _MIGRATE_HEAVY = {"release", "source", "toolchain", "extracted", "update"}  # bi
 _MIGRATE_JUNK = {"__pycache__", ".ds_store", "thumbs.db", "desktop.ini"}
 
 
-def migrate_legacy_utilities(old=None):
-  """Moves an old Utilities folder (default: <program folder>/Utilities) into UTILITIES_DIR, item by item.
+def migrate_legacy_data(old=None):
+  """Moves an old data folder (default: <program folder>/<LEGACY_DIR_NAME>, first versions) into DATA_DIR, item by item.
   Items already present in the new folder are not touched. The old folder goes to the trash only if
   nothing else is left in it. Never raises. Returns (moved, left) lists of names."""
   moved, left = [], []
-  old, new = old or LEGACY_UTILITIES_DIR, UTILITIES_DIR
+  old, new = old or LEGACY_DATA_DIR, DATA_DIR
   try:
     if os.path.abspath(old) == os.path.abspath(new) or not os.path.isdir(old):
       return moved, left
@@ -1405,13 +1449,13 @@ def do_unwrap(folder, cfg, log, cancel, holder=None):
     if not ensure_repo_unwrapper(rl, log, cancel, holder if holder is not None else {}):
       return False
   elif rl.get("relinker_source") == "release":
-    ensure_release_assets(rl, log, cancel, need=("unwrap",))  # falls back to Utilities/ if it fails
+    ensure_release_assets(rl, log, cancel, need=("unwrap",))  # falls back to the data folder if it fails
     if unwrapper_status() is None:
-      log("err", f"'{UNWRAP_SCRIPT_NAME}' not available: not in the release and not in {UTILITIES_DIR_NAME}.")
+      log("err", f"'{UNWRAP_SCRIPT_NAME}' not available: not in the release and not in the app data folder.")
       return False
   log("step", f"Unwrap · {game_name}")
   try:
-    if not log_space(space_requirements(folder, "windows", "unwrap", UTILITIES_DIR), log):
+    if not log_space(space_requirements(folder, "windows", "unwrap", DATA_DIR), log):
       log("err", "Not enough disk space for the backups: free some space and retry.")
       return False
   except OSError as e:
@@ -1629,7 +1673,7 @@ def release_paths(rl):
   url = normalize_repo_url(rl.get("repo_url", ""))
   if not url:
     return None
-  root = os.path.join(UTILITIES_DIR, RELEASE_DIR_NAME, repo_slug(url, "release"))
+  root = os.path.join(DATA_DIR, RELEASE_DIR_NAME, repo_slug(url, "release"))
   return {"url": url, "root": root, "current": os.path.join(root, RELEASE_CURRENT_NAME)}
 
 
@@ -1797,7 +1841,7 @@ def _pick_release_assets(assets, target, need):
 
 def ensure_release_assets(rl, log, cancel, target=None, need=("relinker", "libs", "unwrap", "docs")):
   """Release option: downloads from the GitHub release (latest, or the configured tag) the files
-  that are not already in Utilities/release/<repo>/<tag>/, keeping the names used in the release.
+  that are not already in <data>/release/<repo>/<tag>/, keeping the names used in the release.
   The release has no unwrap_self.py asset: it is taken from tools/ of the same tag. If GitHub
   cannot be reached, the release downloaded earlier is used. Returns True if everything required
   is available."""
@@ -1899,10 +1943,10 @@ def ensure_release_assets(rl, log, cancel, target=None, need=("relinker", "libs"
       else:
         log("warn", f"tools/{UNWRAP_SCRIPT_NAME} is not in {tag}: taken from {got} of the repository.")
     elif unwrapper_status():
-      log("warn", f"{UNWRAP_SCRIPT_NAME} not available in the repository: using the one in {UTILITIES_DIR_NAME}.")
+      log("warn", f"{UNWRAP_SCRIPT_NAME} not available in the repository: using the one in the app data folder.")
     else:
       log("err", f"{UNWRAP_SCRIPT_NAME} not found in release {tag} nor in the repository: "
-                 f"put it in the {UTILITIES_DIR_NAME} folder.")
+                 f"put it in the app data folder.")
       ok = False
   return ok
 
@@ -1939,7 +1983,7 @@ def source_paths(rl):
   if not url:
     return None
   ref = rl.get("repo_ref", "").strip()
-  root = os.path.join(UTILITIES_DIR, SOURCE_DIR_NAME, repo_slug(url, ref))
+  root = os.path.join(DATA_DIR, SOURCE_DIR_NAME, repo_slug(url, ref))
   return {"url": url, "ref": ref, "root": root, "repo": os.path.join(root, "repo"),
           "build": os.path.join(root, "build"), "info": os.path.join(root, SOURCE_INFO_NAME),
           "mark": os.path.join(root, SOURCE_CLONED_MARK)}
@@ -2012,7 +2056,7 @@ def relinker_status(rl):
     path = find_relinker()
     if path:
       return os.path.basename(path) + "  ✔", "ok"
-    return f"not found in {UTILITIES_DIR_NAME}  ✖", "err"
+    return "not found in the app data folder  ✖", "err"
   problem = source_preflight(rl)
   if problem:
     return ("invalid repository URL  ✖" if problem.startswith("Invalid") else
@@ -2054,7 +2098,7 @@ def _log_tail(holder, log, count=20):
 
 def _detect_mingw(env):
   """Windows only. The project supports ONLY WinLibs GCC 15.2.0 (see docs/dev/BUILD.md): the GUI
-  uses the copy it installed in Utilities/toolchain. Returns (cmake arguments, note); arguments are []
+  uses the copy it installed in <data>/toolchain. Returns (cmake arguments, note); arguments are []
   if it is not installed yet (the GUI then offers to download it)."""
   d = winlibs_bin()
   if not d:
@@ -2077,7 +2121,7 @@ TOOL_NAMES = {"git": "Git", "cmake": "CMake", "mingw": "MinGW-w64 GCC 15.2.0 (Wi
 WINLIBS_TAG = "15.2.0posix-14.0.0-ucrt-r7"
 WINLIBS_ZIP = "winlibs-x86_64-posix-seh-gcc-15.2.0-mingw-w64ucrt-14.0.0-r7.zip"
 WINLIBS_URL = "https://github.com/brechtsanders/winlibs_mingw/releases/download/%s/%s" % (WINLIBS_TAG, WINLIBS_ZIP)
-WINLIBS_DIR = os.path.join(UTILITIES_DIR, "toolchain", "winlibs-" + WINLIBS_TAG)
+WINLIBS_DIR = os.path.join(DATA_DIR, "toolchain", "winlibs-" + WINLIBS_TAG)
 
 
 def winlibs_bin():
@@ -2123,7 +2167,7 @@ def missing_build_tools(rl):
 
 
 def install_winlibs(log, cancel):
-  """Download the WinLibs GCC 15.2.0 zip (~270 MB) from GitHub and unpack it in Utilities/toolchain."""
+  """Download the WinLibs GCC 15.2.0 zip (~270 MB) from GitHub and unpack it in <data>/toolchain."""
   import urllib.request
   if winlibs_bin():
     return True
@@ -2422,7 +2466,7 @@ def predownload_ffmpeg(repo, build, env, log, cancel):
 def ensure_source_libs(rl, log, cancel, holder, target=None):
   """Build the 'libs' CMake target of the cloned repo (full configuration: the relinker-only
   one does not include core/libs) and collect the .prx files (+ the MinGW runtime DLLs on
-  Windows target) in Utilities/source/<repo>/libs-out. Reuses the previous build if the commit is
+  Windows target) in <data>/source/<repo>/libs-out. Reuses the previous build if the commit is
   the same. The .prx are platform-independent; `target` only decides whether the MinGW runtime
   DLLs are included in the returned info. Returns the libs info or None."""
   p = source_paths(rl)
@@ -2581,7 +2625,7 @@ def ensure_source_libs(rl, log, cancel, holder, target=None):
 
 def ensure_repo_unwrapper(rl, log, cancel, holder):
   """GitHub option active: make sure tools/unwrap_self.py of the repo is available (clone if
-  needed). Returns True if an unwrapper can be used (repo copy, or Utilities/ as fallback)."""
+  needed). Returns True if an unwrapper can be used (repo copy, or the data folder as fallback)."""
   set_active_relinker_cfg(rl)
   if rl.get("relinker_source") != "github":
     return unwrapper_status() is not None
@@ -2592,9 +2636,9 @@ def ensure_repo_unwrapper(rl, log, cancel, holder):
     log("ok", "%s taken from the repository: %s" % (UNWRAP_SCRIPT_NAME, "/".join(REPO_UNWRAP_REL)))
     return True
   if unwrapper_status():
-    log("warn", "tools/%s not found in the repository: using the one in %s." % (UNWRAP_SCRIPT_NAME, UTILITIES_DIR_NAME))
+    log("warn", "tools/%s not found in the repository: using the one in the app data folder." % UNWRAP_SCRIPT_NAME)
     return True
-  log("err", "%s not found in the repository (tools/) nor in the %s folder." % (UNWRAP_SCRIPT_NAME, UTILITIES_DIR_NAME))
+  log("err", "%s not found in the repository (tools/) nor in the app data folder." % UNWRAP_SCRIPT_NAME)
   return False
 
 
@@ -2917,8 +2961,8 @@ def validate_runtime_options(rt, rl=None):
 
 
 def find_pad_helper(rl):
-  """tools/pad_input.py in Utilities/tools or in the cloned repository, else None."""
-  candidates = [os.path.join(UTILITIES_DIR, PAD_HELPER)]
+  """tools/pad_input.py in <data>/tools or in the cloned repository, else None."""
+  candidates = [os.path.join(DATA_DIR, PAD_HELPER)]
   paths = source_paths(rl) if rl.get("relinker_source") == "github" else None
   if paths:
     candidates.append(os.path.join(paths["repo"], PAD_HELPER))
@@ -2929,7 +2973,7 @@ def find_pad_helper(rl):
 
 
 def sync_input_ini(pkg_dir, rt, log=None):
-  """Copy Utilities/anyps5-input.ini over the ini next to the game executable (pkg_dir).
+  """Copy <data>/anyps5-input.ini over the ini next to the game executable (pkg_dir).
   Called at every launch, so the game always uses the CURRENT Input tab settings."""
   if not yes(rt.get("copy_input_ini", "yes")) or not os.path.isfile(INPUT_INI_FILE):
     return False
@@ -3003,7 +3047,7 @@ def windows_shortcut_spec(exe_path, env, sync=None):
   if not env and not sync:
     return exe_path, ""
   parts = []
-  if sync:  # refresh the input ini from Utilities every time the shortcut is used
+  if sync:  # refresh the input ini from the data folder every time the shortcut is used
     parts.append(f'(if exist "{sync[0]}" copy /y "{sync[0]}" "{sync[1]}" >nul)')
   parts += [f'set "{k}={v}"' for k, v in env.items()]
   parts.append(f'"{exe_path}"')
@@ -3078,9 +3122,9 @@ def create_shortcut(pkg_dir, exe_name, target, rt, game_name, log, dest_dir=None
 
 
 # ─────────────────────────────────────────────────────────────
-#  Game given as an archive (.zip .rar), extracted into Utilities/extracted/<name>
+#  Game given as an archive (.zip .rar), extracted into <data>/extracted/<name>
 #    .zip / .tar*      Python standard library, nothing to install
-#    .rar .7z .iso...  7-Zip (7z / 7zz in the Utilities folder or in PATH); fallback: the optional
+#    .rar .7z .iso...  7-Zip (7z / 7zz in the app data folder or in PATH); fallback: the optional
 #                      python modules `rarfile` (+ UnRAR/WinRAR) and `py7zr`
 # ─────────────────────────────────────────────────────────────
 EXTRACT_DIR_NAME = "extracted"
@@ -3091,8 +3135,7 @@ ARCHIVE_EXTS = (".zip",) + ARCHIVE_TAR_EXTS + ARCHIVE_7Z_EXTS  # every format th
 GAME_ARCHIVE_EXTS = (".zip", ".rar")  # formats accepted for the GAME dump
 ARCHIVE_DIALOG_FILTER = "Game archives (%s)" % ";".join("*" + e for e in GAME_ARCHIVE_EXTS)
 ARCHIVE_HINT = ("To open .rar / .7z / .iso ... files install 7-Zip (https://www.7-zip.org: 7z or 7zz in PATH "
-                "or in the %s folder), or `pip install rarfile py7zr` (rarfile also needs UnRAR/WinRAR)."
-                % UTILITIES_DIR_NAME)
+                "or in the app data folder), or `pip install rarfile py7zr` (rarfile also needs UnRAR/WinRAR).")
 
 
 class ArchiveError(Exception):
@@ -3121,10 +3164,10 @@ def is_archive_source(path):
 
 
 def find_7z():
-  """Paths of the 7-Zip command line tools found (Utilities folder first, then PATH, then the usual
+  """Paths of the 7-Zip command line tools found (data folder first, then PATH, then the usual
   Windows install folders)."""
   found = []
-  search = UTILITIES_DIR + os.pathsep + os.environ.get("PATH", "")
+  search = DATA_DIR + os.pathsep + os.environ.get("PATH", "")
   for n in ("7zz", "7z", "7za"):  # 7za cannot read rar: it is tried last
     p = shutil.which(n, path=search)
     if p and p not in found:
@@ -3252,7 +3295,7 @@ class _RarPyArchive(_ArchiveBase):
       raise ArchiveError("python module 'rarfile' not installed")
     if os.name == "nt":
       for var in ("ProgramFiles", "ProgramFiles(x86)"):
-        for d in (os.path.join(os.environ.get(var) or "", "WinRAR"), UTILITIES_DIR):
+        for d in (os.path.join(os.environ.get(var) or "", "WinRAR"), DATA_DIR):
           p = os.path.join(d, "UnRAR.exe")
           if os.path.isfile(p):
             rarfile.UNRAR_TOOL = p
@@ -3533,10 +3576,10 @@ def scan_archive(path):
 
 
 def extract_game_archive(arc_path, log, cancel):
-  """Extracts the archive into Utilities/extracted/<name> and returns the game folder
+  """Extracts the archive into <data>/extracted/<name> and returns the game folder
   (the one that contains eboot.bin), or None on failure. If a backend opens the archive but fails
   while extracting (e.g. 7-Zip without the RAR codec on a solid .rar), the next one is tried."""
-  dest = os.path.join(UTILITIES_DIR, EXTRACT_DIR_NAME, _safe_filename(_archive_stem(arc_path)))
+  dest = os.path.join(DATA_DIR, EXTRACT_DIR_NAME, _safe_filename(_archive_stem(arc_path)))
   log("step", f"Extracting the archive · {os.path.basename(arc_path)}")
   failures = []
   try:
@@ -3566,10 +3609,10 @@ def _extract_with(arc, arc_path, dest, log, cancel):
     return None
   total = sum(e.size for e in files)
   try:
-    free = shutil.disk_usage(existing_parent(UTILITIES_DIR)).free
+    free = shutil.disk_usage(existing_parent(DATA_DIR)).free
     if free < total + total // 20:
       log("err", f"Not enough disk space to extract the archive: {format_size(total)} needed, "
-                 f"{format_size(free)} free on the drive of {UTILITIES_DIR}.")
+                 f"{format_size(free)} free on the drive of {DATA_DIR}.")
       return None
   except OSError:
     pass
@@ -3613,7 +3656,7 @@ def _extract_with(arc, arc_path, dest, log, cancel):
 
 def cleanup_extracted(folder, log):
   """Removes the temporary extraction folder created for a zip."""
-  base = os.path.join(UTILITIES_DIR, EXTRACT_DIR_NAME)
+  base = os.path.join(DATA_DIR, EXTRACT_DIR_NAME)
   try:
     rel = os.path.relpath(folder, base)
     if rel.startswith("..") or os.path.isabs(rel):
@@ -3717,10 +3760,10 @@ def space_requirements(folder, target, mode, output_base, auto=True, move=False)
     sizes = [os.path.getsize(p) for p in files if file_state(p) == "self"]
     parts.append(("backups of the originals", sum(sizes)))
     parts.append(("temporary file", max(sizes, default=0)))
-    where, reusable = UTILITIES_DIR, 0
+    where, reusable = DATA_DIR, 0
   else:
     eboot = os.path.join(folder, EXECUTABLE_NAME)
-    fonts = os.path.join(UTILITIES_DIR, FONTS_DIR_NAME)
+    fonts = os.path.join(DATA_DIR, FONTS_DIR_NAME)
     if move:
       # moved file by file: the peak is only the biggest file (same drive) or the whole game on the
       # destination drive while the source shrinks at the same time
@@ -3984,8 +4027,8 @@ def _do_relink(folder, cfg, log, cancel, holder, created, mover=None):
       check_cancel(cancel)
     relinker = find_relinker()
     if not relinker:
-      log("err", f"No '{RELINKER_PREFIX}*' found in the {UTILITIES_DIR_NAME} folder.")
-      log("detail", f"Searched in: {UTILITIES_DIR}")
+      log("err", f"No '{RELINKER_PREFIX}*' found in the app data folder.")
+      log("detail", f"Searched in: {DATA_DIR}")
       return False
     log("ok", f"Relinker: {os.path.basename(relinker)}")
 
@@ -3996,8 +4039,8 @@ def _do_relink(folder, cfg, log, cancel, holder, created, mover=None):
   else:
     libs = libs_zip_info(target)
     if not libs:
-      log("err", f"No '{LIBS_ZIP_PREFIX}*.zip' containing the '{LIBS_DIR_NAME}' folder found in the {UTILITIES_DIR_NAME} folder.")
-      log("detail", f"Put the AnyPS5 libs zip downloaded from GitHub (its name starts with '{LIBS_ZIP_PREFIX}', no need to extract it) in: {UTILITIES_DIR}")
+      log("err", f"No '{LIBS_ZIP_PREFIX}*.zip' containing the '{LIBS_DIR_NAME}' folder found in the app data folder.")
+      log("detail", f"Put the AnyPS5 libs zip downloaded from GitHub (its name starts with '{LIBS_ZIP_PREFIX}', no need to extract it) in: {DATA_DIR}")
       return False
     log("ok", f"Libraries: {os.path.basename(libs['zip'])} → {libs['name']}/ ({len(libs['entries'])} files)")
 
@@ -4049,7 +4092,7 @@ def _do_relink(folder, cfg, log, cancel, holder, created, mover=None):
       log("err", f"--executable: '{e}' does not exist in " + ("the module parent folder." if smp else "the game folder."))
       return False
   if auto and not use_source and unwrapper_status() is None:
-    log("err", f"'{UNWRAP_SCRIPT_NAME}' not found in the {UTILITIES_DIR_NAME} folder: it is required for automatic unwrap.")
+    log("err", f"'{UNWRAP_SCRIPT_NAME}' not found in the app data folder: it is required for automatic unwrap.")
     return False
   check_cancel(cancel)
 
@@ -4135,6 +4178,16 @@ def _do_relink(folder, cfg, log, cancel, holder, created, mover=None):
     log("ok", "Game copied and renamed 'app0'.")
   check_cancel(cancel)
 
+  # 3b. .prx files next to eboot.bin -> module folder (on the copy only)
+  if yes(rl.get("move_root_prx", "yes")) and not skip_modules and not smp:
+    if mover is not None:
+      log("info", "Move mode: the .prx files in the game root are left where they are "
+                  "(they are moved only when the game is copied, so the original is never changed).")
+    else:
+      log("step", "[3b] Moving the .prx files next to eboot.bin into the module folder (on the copy)")
+      move_root_prx(app0_dir, log)
+      check_cancel(cancel)
+
   # 4. Unwrap on the copy (optional)
   if auto:
     log("step", "[4] Automatic unwrap (on the copy in app0)")
@@ -4168,7 +4221,7 @@ def _do_relink(folder, cfg, log, cancel, holder, created, mover=None):
     log("err", f"Extracting '{LIBS_DIR_NAME}' failed: {e}")
     return False
   log("ok", f"'{LIBS_DIR_NAME}' extracted from {libs_label(libs)} ({n} files).")
-  fonts_src = os.path.join(UTILITIES_DIR, FONTS_DIR_NAME)
+  fonts_src = os.path.join(DATA_DIR, FONTS_DIR_NAME)
   if os.path.isdir(fonts_src):
     try:
       shutil.copytree(fonts_src, os.path.join(pkg_dir, FONTS_DIR_NAME))
@@ -4176,7 +4229,7 @@ def _do_relink(folder, cfg, log, cancel, holder, created, mover=None):
     except Exception as e:
       log("warn", f"Copying '{FONTS_DIR_NAME}' failed: {e}")
   else:
-    log("detail", f"No '{FONTS_DIR_NAME}' folder: if the game uses system fonts, add it to {UTILITIES_DIR_NAME}.")
+    log("detail", f"No '{FONTS_DIR_NAME}' folder: if the game uses system fonts, add it to the app data folder.")
   if yes(rt["copy_input_ini"]) and os.path.isfile(INPUT_INI_FILE):
     try:
       with open(INPUT_INI_FILE, encoding="utf-8-sig") as f:
@@ -4260,9 +4313,9 @@ def _do_relink(folder, cfg, log, cancel, holder, created, mover=None):
 
 
 def run_import_audit(out_exe, app0_dir, pkg_dir, rl, log, cancel, holder):
-  script = os.path.join(UTILITIES_DIR, AUDIT_SCRIPT)
+  script = os.path.join(DATA_DIR, AUDIT_SCRIPT)
   if not os.path.isfile(script):
-    log("warn", f"{UTILITIES_DIR_NAME}/{AUDIT_SCRIPT.replace(os.sep, '/')} not found: audit skipped.")
+    log("warn", f"{AUDIT_SCRIPT.replace(os.sep, '/')} not found in the app data folder: audit skipped.")
     return
   if not yes(rl["registry"]):
     log("warn", "The audit requires --registry: enable it in the options. Audit skipped.")
@@ -4292,7 +4345,7 @@ def run_import_audit(out_exe, app0_dir, pkg_dir, rl, log, cancel, holder):
     else:
       log("warn", f"Names file not found ({names}): audit without --names.")
   try:
-    code = stream_process(cmd, log, cancel, holder, "Audit", cwd=UTILITIES_DIR)
+    code = stream_process(cmd, log, cancel, holder, "Audit", cwd=DATA_DIR)
   except Cancelled:
     raise
   except Exception as e:
@@ -4313,7 +4366,7 @@ L = sys.modules[__name__]   # the logic lives in this same file
 HERE = SCRIPT_DIR
 
 # ---------- GUI update check ----------
-APP_VERSION = "1.0.7"
+APP_VERSION = "1.0.8"
 GUI_REPO_OWNER = "Lenny4250gh"
 GUI_REPO_NAME = "AnyPS5-GUI"
 GUI_RELEASES_URL = "https://github.com/%s/%s/releases/latest" % (GUI_REPO_OWNER, GUI_REPO_NAME)
@@ -4745,7 +4798,7 @@ def prepare_and_launch_update(asset, status, cancel):
     appdir = os.path.dirname(dest)
     if not os.access(appdir, os.W_OK):
       raise UpdateUnavailable("no write permission in " + appdir)
-    stage = os.path.join(L.UTILITIES_DIR, "update")
+    stage = os.path.join(L.DATA_DIR, "update")
     shutil.rmtree(stage, ignore_errors=True)
     os.makedirs(stage, exist_ok=True)
 
@@ -4770,7 +4823,7 @@ def prepare_and_launch_update(asset, status, cancel):
   if host == "macos":
     newapp = _mac_extract_app(dl, stage)
     keep = ""
-    ud = os.path.realpath(L.UTILITIES_DIR)
+    ud = os.path.realpath(L.DATA_DIR)
     if ud.startswith(os.path.realpath(bundle) + os.sep):  # settings live inside the bundle: carry them over
       keep = os.path.relpath(ud, os.path.realpath(bundle))
     fd, script = tempfile.mkstemp(prefix="anyps5-upd-", suffix=".sh")
@@ -4787,7 +4840,7 @@ def prepare_and_launch_update(asset, status, cancel):
     os.makedirs(ex, exist_ok=True)
     (_safe_extract_zip if low.endswith(".zip") else _safe_extract_tar)(dl, ex)
     payload = _single_root(ex)
-    shutil.rmtree(os.path.join(payload, L.UTILITIES_DIR_NAME), ignore_errors=True)  # never touch user data
+    shutil.rmtree(os.path.join(payload, L.LEGACY_DIR_NAME), ignore_errors=True)  # never touch user data
   else:
     payload = os.path.join(stage, "payload")
     os.makedirs(payload, exist_ok=True)
@@ -4924,6 +4977,14 @@ SCHEMA = {'Conversion': [{'type': 'flag',
                  'hint': 'SELF modules are skipped by the relinker: they must be converted first.'},
                 {'type': 'flag',
                  'section': 'relinker',
+                 'key': 'move_root_prx',
+                 'label': 'Move the .prx next to eboot.bin into sce_module (copy only)',
+                 'plat': 'all',
+                 'hint': 'Modules left in the game root are ignored by the relinker and the unwrap. On the copy '
+                         'of the game they are moved into the module folder (libc.prx excluded). Not done when '
+                         'the game is moved instead of copied: the original is never changed.'},
+                {'type': 'flag',
+                 'section': 'relinker',
                  'key': 'make_launcher',
                  'label': 'Create a shortcut named after the game (with the Runtime settings)',
                  'plat': 'all',
@@ -4975,7 +5036,7 @@ SCHEMA = {'Conversion': [{'type': 'flag',
                    'label': 'Release tag (Release source)',
                    'plat': None,
                    'hint': 'Empty = the latest release of the repository (e.g. v0.1.2 for a fixed version). '
-                           'Files are saved in Utilities/release/<repo>/<tag>/ with the names used in the release.'},
+                           'Files are saved in the app data folder, under release/<repo>/<tag>/, with the names used in the release.'},
                   {'type': 'flag',
                    'section': 'relinker',
                    'key': 'release_update',
@@ -5007,11 +5068,11 @@ SCHEMA = {'Conversion': [{'type': 'flag',
                   {'type': 'flag',
                    'section': 'relinker',
                    'key': 'repo_libs_from_repo',
-                   'label': 'Build the libs (.prx) from the repository (instead of Utilities/prx-*.zip)',
+                   'label': 'Build the libs (.prx) from the repository (instead of the prx-*.zip in the app data folder)',
                    'plat': None,
                    'hint': "ON = builds the 'libs' target (full CMake configuration: much slower, downloads "
                            'FFmpeg, needs the SDL/Vulkan build dependencies) and uses those libs instead of '
-                           'Utilities/prx-*.zip.'},
+                           'the prx-*.zip in the app data folder.'},
                   {'type': 'flag',
                    'section': 'relinker',
                    'key': 'repo_update',
@@ -5206,8 +5267,8 @@ class Api:
     self.quitting = False      # True once the user confirmed closing during an operation
     self._quit_asked = False   # a confirmation popup is already on screen
     self._upd = {"state": "idle"}  # progress of the GUI self-update
-    self._mov = {"state": "idle"}  # progress of moving the Utilities folder
-    self.relocated = False         # True once Utilities/ was moved: the app must be reopened
+    self._mov = {"state": "idle"}  # progress of moving the data folder
+    self.relocated = False         # True once the data folder was moved: the app must be reopened
 
   # ---------- closing the window ----------
   def on_closing(self):
@@ -5257,8 +5318,8 @@ class Api:
     return clean({"cfg": self.cfg, "schema": self.schema, "host": L.host_target(), "folder": self.folder,
                   "targets": {k: v["label"] for k, v in L.TARGETS.items()}, "languages": L.LANGUAGES,
                   "present_modes": L.PRESENT_MODES, "default_repo": L.DEFAULT_REPO_URL,
-                  "utilities": L.UTILITIES_DIR_NAME, "defaults": L.DEFAULTS, "input": inp, "input_name": L.INPUT_INI_NAME,
-                  "storage": {"path": L.UTILITIES_DIR, "default": L.DEFAULT_UTILITIES_DIR, "editable": L.STORAGE_EDITABLE,
+                  "defaults": L.DEFAULTS, "input": inp, "input_name": L.INPUT_INI_NAME,
+                  "storage": {"path": L.DATA_DIR, "default": L.DEFAULT_DATA_DIR, "editable": L.STORAGE_EDITABLE,
                               "problem": L.STORAGE_PROBLEM},
                   "version": APP_VERSION})
 
@@ -5326,18 +5387,18 @@ class Api:
     time.sleep(1.5)
     os._exit(0)
 
-  # ---------- storage folder (Utilities) ----------
+  # ---------- storage folder (app data) ----------
   def pick_storage(self):
-    """Folder dialog; returns the Utilities folder that would be used inside the picked folder."""
+    """Folder dialog; returns the data folder that would be used inside the picked folder."""
     res = webview.windows[0].create_file_dialog(getattr(getattr(webview, "FileDialog", None), "FOLDER", None)
                                                 or webview.FOLDER_DIALOG)
     return L.storage_choice_to_dir(res[0]) if res else None
 
   def default_storage(self):
-    return L.DEFAULT_UTILITIES_DIR
+    return L.DEFAULT_DATA_DIR
 
   def move_storage(self, path):
-    """Moves Utilities/ to `path` in a thread (progress: storage_status)."""
+    """Moves the data folder to `path` in a thread (progress: storage_status)."""
     if self.running:
       return {"ok": False, "error": "Finish or cancel the running operation first."}
     if self._mov.get("state") == "moving":
@@ -5357,7 +5418,7 @@ class Api:
     def status(text, pct):
       self._mov.update(text=text, pct=pct)
     try:
-      L.relocate_utilities(path, status)
+      L.relocate_data_dir(path, status)
     except Exception as e:
       self._mov = {"state": "failed", "text": str(e)}
       return
@@ -5428,7 +5489,6 @@ class Api:
   def status(self):
     rl, target = self.cfg["relinker"], self.cfg["relinker"]["target"]
     L.set_active_relinker_cfg(rl)
-    U = L.UTILITIES_DIR_NAME
     if L.repo_unwrapper_path(rl):
       unw = ("tools/" + L.UNWRAP_SCRIPT_NAME + " (GitHub repo)  ✔", "ok")
     elif L.unwrapper_status():
@@ -5438,12 +5498,12 @@ class Api:
     elif rl.get("relinker_source") == "release":
       unw = ("will be downloaded from the GitHub release  ⚠", "warn")
     else:
-      unw = (f"not found in {U}  ✖", "err")
+      unw = ("not found in the app data folder  ✖", "err")
     li = L.libs_info(target, rl)
     libs = ((L.libs_label(li) + "  ✔", "ok") if li else
             (("will be built from the GitHub repo  ⚠", "warn") if L.wants_built_libs(rl)
              else ("will be downloaded from the GitHub release  ⚠", "warn") if rl.get("relinker_source") == "release"
-             else (f"no {L.LIBS_ZIP_PREFIX}*.zip in {U}  ✖", "err")))
+             else (f"no {L.LIBS_ZIP_PREFIX}*.zip in the app data folder  ✖", "err")))
     rows = []
     zinfo = L.scan_archive(self.folder) if L.is_archive_source(self.folder) else None
     if zinfo and zinfo.get("error"):
@@ -5480,8 +5540,8 @@ class Api:
           rows.append(["modules", "Modules (sce_module/prx)", d + "  ✔", "ok"])
       rows.append(["dirs", "sce_sys", "present  ✔" if info["sce_sys"] else "not found  ✖",
                    "ok" if info["sce_sys"] else "err"])
-    rows += [["unwrapper", f"{U}/unwrap_self.py", *unw], ["relinker", "Relinker", *L.relinker_status(rl)],
-             ["libs", f"{U}/prx-*.zip", *libs]]
+    rows += [["unwrapper", "unwrap_self.py", *unw], ["relinker", "Relinker", *L.relinker_status(rl)],
+             ["libs", "prx-*.zip", *libs]]
     return clean(rows)
 
   def space(self):
@@ -5491,7 +5551,7 @@ class Api:
         return None
       if z.get("error"):
         return {"text": z["error"], "level": "err"}
-      free = shutil.disk_usage(L.existing_parent(L.UTILITIES_DIR)).free
+      free = shutil.disk_usage(L.existing_parent(L.DATA_DIR)).free
       need = z["size"] * 2 + 64 * 1024 * 1024  # extracted copy + game copy (rough estimate)
       return {"text": f"~{L.format_size(need)} needed (archive extraction + package) · {L.format_size(free)} free"
                       + ("  ✔" if free >= need else "  ✖  not enough space"),
@@ -5753,9 +5813,9 @@ class Api:
   def reset_input(self):
     return L.INPUT_TEMPLATE
 
-  # ---------- import tools into Utilities (Local files option) ----------
+  # ---------- import tools into the app data folder (Local files option) ----------
   def _tool_dest(self, name):
-    """(relative destination inside Utilities, None) for a file the program knows, else (None, reason)."""
+    """(relative destination inside the data folder, None) for a file the program knows, else (None, reason)."""
     low = name.lower()
     if low == L.UNWRAP_SCRIPT_NAME:
       return L.UNWRAP_SCRIPT_NAME, None
@@ -5772,7 +5832,7 @@ class Api:
     return None, "not a file the program uses"
 
   def pick_tool_files(self):
-    """Choose files to copy into Utilities/. Returns the plan: [{src, name, dest, exists, skip}]."""
+    """Choose files to copy into the data folder. Returns the plan: [{src, name, dest, exists, skip}]."""
     kind = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
     res = webview.windows[0].create_file_dialog(
       kind, allow_multiple=True,
@@ -5786,18 +5846,18 @@ class Api:
       rel, why = self._tool_dest(name)
       item = {"src": src, "name": name, "skip": why or "", "dest": rel or "", "exists": False}
       if rel:
-        dest = os.path.join(L.UTILITIES_DIR, rel)
+        dest = os.path.join(L.DATA_DIR, rel)
         item["exists"] = os.path.isfile(dest)
         try:
           if item["exists"] and os.path.samefile(src, dest):
-            item["skip"] = "already in the Utilities folder"
+            item["skip"] = "already in the app data folder"
         except OSError:
           pass
       plan.append(item)
     return plan
 
   def import_tool_files(self, plan, replace):
-    """Copy the files of the plan into Utilities/. Existing ones are overwritten only if `replace`."""
+    """Copy the files of the plan into the data folder. Existing ones are overwritten only if `replace`."""
     done, kept, errors = [], [], []
     for it in plan or []:
       if it.get("skip") or not it.get("dest"):
@@ -5805,7 +5865,7 @@ class Api:
       rel, why = self._tool_dest(os.path.basename(it["src"]))  # never trust the destination coming from the page
       if not rel:
         continue
-      dest = os.path.join(L.UTILITIES_DIR, rel)
+      dest = os.path.join(L.DATA_DIR, rel)
       if os.path.isfile(dest) and not replace:
         kept.append(rel)
         continue
@@ -5821,7 +5881,7 @@ class Api:
         errors.append(f"{rel}: {e}")
     L._unwrapper = None  # unwrap_self.py may have been replaced: reload it on next use
     L._libs_cache.clear()
-    for item in [("ok", f"Imported into {L.UTILITIES_DIR_NAME}: " + ", ".join(done)) if done else None,
+    for item in [("ok", "Imported into the app data folder: " + ", ".join(done)) if done else None,
                  ("info", "Kept existing: " + ", ".join(kept)) if kept else None,
                  ("err", "Import failed: " + "; ".join(errors)) if errors else None]:
       if item:
@@ -5917,7 +5977,7 @@ class Api:
       body = input_text.rstrip() + "\n"
       has = any(__import__("re").split(r"[#;]", l, 1)[0].strip() for l in body.splitlines())
       try:
-        os.makedirs(L.UTILITIES_DIR, exist_ok=True)
+        os.makedirs(L.DATA_DIR, exist_ok=True)
         if has:
           with open(L.INPUT_INI_FILE, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(body)
@@ -5979,9 +6039,9 @@ def report_crash():
 
 def main():
   hide_own_console()
-  if UTILITIES_DIR != LEGACY_UTILITIES_DIR:  # before Api(): it reads config.ini
-    migrate_legacy_utilities()  # <program folder>/Utilities (first versions)
-    migrate_legacy_utilities(INTERIM_UTILITIES_DIR)  # <user data>/Utilities (previous build)
+  if DATA_DIR != LEGACY_DATA_DIR:  # before Api(): it reads config.ini
+    migrate_legacy_data()  # <program folder>/<LEGACY_DIR_NAME> (first versions)
+    migrate_legacy_data(INTERIM_DATA_DIR)  # <user data>/<LEGACY_DIR_NAME> (previous build)
   _html = load_embedded_ui()
   _src = {"html": _html} if _html else {"url": find_ui()}
   api = Api()
