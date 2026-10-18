@@ -108,6 +108,7 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 - **Audit:** runs `import_audit.py` (if present) after the relink.
 
 > <img src="docs/screenshots/1.png" width="600" alt="Convert Page">
+> <img src="docs/screenshots/2.png" width="600" alt="Convert Page 2">
 
 **Play a game**
 - **Launch** a converted game with your current settings, or **create a shortcut** that starts it with the right variables.
