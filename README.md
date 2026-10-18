@@ -115,9 +115,8 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 > <img src="docs/screenshots/3.png" width="600" alt="Play Page">
 
 **Settings**
-- **Conversion settings**
-> <img src="docs/screenshots/8.png" width="600" alt="Conversion settings">
 
+- **Game and modules, Converion, Source build**
 - **Runtime settings:** Language, GPU, present mode, fonts, tracing and more, passed to the game as environment variables.
 > <img src="docs/screenshots/7.png" width="600" alt="Runtime settings">
 
