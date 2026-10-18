@@ -48,7 +48,13 @@ The GUI does **not** do the conversion itself: it drives the official AnyPS5 too
    - Windows (PowerShell): `Get-FileHash .\AnyPS5_GUI-windows.exe -Algorithm SHA256`
    - Linux: `sha256sum AnyPS5_GUI-linux`
    - macOS: `shasum -a 256 AnyPS5_GUI-macos.zip`
-4. Run it. The first time it creates a folder in your user data folder (so it survives updates), where it keeps the downloaded tools (relinker, libs, `unwrap_self.py`). You can move it from **Settings → Storage**. To keep everything next to the program instead, put an empty file named `portable` next to it.
+4. Run it. The first time it creates an `AnyPS5_GUI` folder in your user data folder (so it survives updates), where it keeps the downloaded tools (relinker, libs, `unwrap_self.py`), `config.ini`, backups and so on. You can move it from **Settings → Storage**. To keep everything next to the program instead, put an empty file named `portable` next to it (in that mode the folder is called `Utilities/`).
+
+   | System  | Default app folder                          |
+   | ------- | ------------------------------------------- |
+   | Windows | `%APPDATA%\AnyPS5_GUI` (Roaming)            |
+   | macOS   | `~/Library/Application Support/AnyPS5_GUI`  |
+   | Linux   | `~/.local/share/AnyPS5_GUI`                 |
 
 All three files are built automatically by GitHub Actions on real Windows, macOS and Linux machines, straight from the source in this repository. You can inspect the [workflow](.github/workflows/build.yml) and the [build runs](https://github.com/Lenny4250gh/AnyPS5-GUI/actions).
 
@@ -131,7 +137,7 @@ The relinker, libs and `unwrap_self.py` are chosen in **Advanced: where the tool
 
 | Source | What it does |
 | ------ | ------------ |
-| **Local files (manual)** | Uses the files you provide. Press **Import files…** and pick `unwrap_self.py`, `relinker-*` and `prx-*.zip` (optionally `import_audit.py` and `pad_input.py`): they are copied into `Utilities/`. If a file already exists you are asked whether to replace it. |
+| **Local files (manual)** | Uses the files you provide. Press **Import files…** and pick `unwrap_self.py`, `relinker-*` and `prx-*.zip` (optionally `import_audit.py` and `pad_input.py`): they are copied into the app folder (see [Download](#download-no-build-needed)). If a file already exists you are asked whether to replace it. |
 | **Release from GitHub repo (auto-update)** | Downloads the latest release (or a tag you choose) of a GitHub repository (**Download now**). |
 | **Build from GitHub source (auto-update)** | Clones the repository and builds it (**Build now**); needs git, CMake and a C/C++ compiler. |
 
@@ -157,7 +163,7 @@ The **Repository URL** field is not tied to AnyPS5. You can point the GUI at a *
 Each repository gets its own folder, so switching between the official repo and a fork does not mix files:
 
 ```
-Utilities/
+AnyPS5_GUI/              (the app folder)
 ├── release/<repo>/<tag>/    files downloaded from a GitHub release
 ├── source/<repo>-<hash>/    clone + CMake build of a repository
 └── ...                      files imported manually (Local source)
@@ -176,7 +182,7 @@ The GUI asks the GitHub API for the release (`latest`, or the tag you set) and l
 | `USAGE.md`, `INPUT_MAPPING.md`, `release-notes.md` | no | Small documentation files, downloaded if present. |
 | `unwrap_self.py` | no (see below) | Not read from the assets. |
 
-`unwrap_self.py` is **not** a release asset: it is downloaded from `tools/unwrap_self.py` **at the same tag** of the repository. If that tag does not contain it, the GUI falls back to the default branch (and warns you); if it is not there either, it falls back to the copy in `Utilities/`.
+`unwrap_self.py` is **not** a release asset: it is downloaded from `tools/unwrap_self.py` **at the same tag** of the repository. If that tag does not contain it, the GUI falls back to the default branch (and warns you); if it is not there either, it falls back to the copy in the app folder.
 
 Downloads are verified against the SHA-256 that GitHub publishes for each asset. If GitHub cannot be reached, the release already downloaded is reused. GitHub allows about 60 API requests per hour without a token: set the `GITHUB_TOKEN` (or `GH_TOKEN`) environment variable to raise the limit.
 
@@ -201,14 +207,14 @@ The GUI runs `git clone --recurse-submodules --depth 1` (adding `--branch <ref>`
 - A CMake target that produces the relinker executable, by default named **`relinker`** (or set your own in *CMake target*). The GUI finds the built executable by looking for a file whose name contains the target name. If the target does not exist and you did not set one, it builds everything and searches again.
 - Support for the CMake option **`-DANYPS5_RELINKER_ONLY=ON`**, which the GUI passes automatically so the relinker is built without SDL, Vulkan and FFmpeg. (If you pass your own `-DANYPS5_RELINKER_ONLY=…` in the extra arguments, yours wins.)
 - The AnyPS5 folder layout: the folders `core/`, `3rdparty/`, `cmake/` and `tools/` are expected. A missing one is only a warning, but a very different layout probably will not work.
-- **`tools/unwrap_self.py`**, used for the Unwrap step (the cloned copy replaces the one in `Utilities/`).
+- **`tools/unwrap_self.py`**, used for the Unwrap step (the cloned copy replaces the one in the app folder).
 - Optional: `tools/pad_input.py` (controller helper) and `tools/import_audit.py` (audit after relink), picked up from the clone if present.
 
 If you also enable **Build the libs from the repository**, the repo must have a CMake target **`libs`** whose output goes to `<build>/core/libs/libs/*.prx`. Only the `.prx` files that match the folder names under `core/libs/prx/` are kept, the same selection as the official `tools/package_release.py`.
 
 The build is remembered by **commit and target**: if the commit did not change and you did not change the target, the existing relinker is reused and nothing is rebuilt.
 
-**Tools needed to build.** `git`, `cmake` and a C/C++ compiler must be in your `PATH` (on Debian/Ubuntu: `sudo apt install git cmake build-essential`). On Windows the project supports only the MinGW-w64 GCC 15.2.0 (WinLibs, with Ninja) toolchain, and the GUI can install git, CMake and that toolchain for you with one click (the toolchain is about 270 MB, saved in `Utilities/toolchain`). Visual Studio cannot link this project.
+**Tools needed to build.** `git`, `cmake` and a C/C++ compiler must be in your `PATH` (on Debian/Ubuntu: `sudo apt install git cmake build-essential`). On Windows the project supports only the MinGW-w64 GCC 15.2.0 (WinLibs, with Ninja) toolchain, and the GUI can install git, CMake and that toolchain for you with one click (the toolchain is about 270 MB, saved in `toolchain/` inside the app folder). Visual Studio cannot link this project.
 
 ### Quick checklist for a fork
 
