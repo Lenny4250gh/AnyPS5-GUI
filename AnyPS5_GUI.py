@@ -208,7 +208,7 @@ PRESENT_MODES = ["", "fifo_latest_ready", "mailbox", "immediate"]
 # default option values (all saved in config.ini as strings)
 DEFAULTS = {
   "settings": {"output_dir": "", "intel": "no", "auto_unwrap": "yes", "mode": "relink", "notify": "yes",
-               "keep_game": "yes", "window_size": ""},
+               "keep_game": "yes", "window_size": "", "open_sections": ""},
   "relinker": {
     "target": "windows", "rosetta": "no", "gui": "no", "diagnostics": "no",
     "fixed_base": "", "unused_filter": "0", "registry": "yes", "rpath": "",
@@ -1662,7 +1662,8 @@ def fetch_release_info(owner, repo, tag):
     assets.append({"name": a.get("name", ""), "url": a.get("browser_download_url", ""),
                    "size": int(a.get("size") or 0),
                    "sha256": digest.split(":", 1)[1].lower() if digest.lower().startswith("sha256:") else ""})
-  return {"tag": data.get("tag_name", ""), "assets": [a for a in assets if a["name"] and a["url"]]}
+  return {"tag": data.get("tag_name", ""), "notes": data.get("body") or "",
+          "assets": [a for a in assets if a["name"] and a["url"]]}
 
 
 def _download_file(url, dest, size, sha256, log, cancel, label, quiet=False):
@@ -4267,7 +4268,7 @@ L = sys.modules[__name__]   # the logic lives in this same file
 HERE = SCRIPT_DIR
 
 # ---------- GUI update check ----------
-APP_VERSION = "1.0.5.1"
+APP_VERSION = "1.0.6"
 GUI_REPO_OWNER = "Lenny4250gh"
 GUI_REPO_NAME = "AnyPS5-GUI"
 GUI_RELEASES_URL = "https://github.com/%s/%s/releases/latest" % (GUI_REPO_OWNER, GUI_REPO_NAME)
@@ -4280,9 +4281,11 @@ def _version_tuple(v):
 def check_gui_update():
   """{'version', 'current'} if a newer release exists on GitHub, else None. Never raises."""
   try:
-    tag = L.fetch_release_info(GUI_REPO_OWNER, GUI_REPO_NAME, "")["tag"]
+    info = L.fetch_release_info(GUI_REPO_OWNER, GUI_REPO_NAME, "")
+    tag = info["tag"]
     if _version_tuple(tag) > _version_tuple(APP_VERSION):
-      return {"version": tag, "current": APP_VERSION, "packaged": bool(getattr(sys, "frozen", False))}
+      return {"version": tag, "current": APP_VERSION, "packaged": bool(getattr(sys, "frozen", False)),
+              "notes": (info.get("notes") or "")[:6000]}
   except Exception:
     pass  # offline, rate limit, no release yet: stay silent
   return None
@@ -4661,6 +4664,18 @@ def _mac_extract_app(dl, stage):
     if root.count(os.sep) - out.count(os.sep) >= 2:
       dirs[:] = []
   raise OSError("no .app found in the downloaded file")
+
+
+class _PausableCancel(threading.Event):
+  """Cancel flag that blocks the downloading thread while `paused` is set (used by the GUI update)."""
+  def __init__(self):
+    super().__init__()
+    self.paused = threading.Event()
+
+  def is_set(self):
+    while self.paused.is_set() and not super().is_set():
+      time.sleep(0.1)
+    return super().is_set()
 
 
 def prepare_and_launch_update(asset, status, cancel):
@@ -5217,7 +5232,7 @@ class Api:
     """Download the release asset for this system, replace the app and restart it."""
     if self.running:
       return {"ok": False, "error": "Finish or cancel the running operation first."}
-    if self._upd.get("state") in ("downloading", "installing"):
+    if self._upd.get("state") in ("downloading", "installing", "paused"):
       return {"ok": True}
     self._upd = {"state": "downloading", "pct": 0, "text": "Looking for the release…"}
     threading.Thread(target=self._update_worker, daemon=True).start()
@@ -5225,6 +5240,20 @@ class Api:
 
   def update_status(self):
     return clean(self._upd)
+
+  def pause_update(self):
+    c = getattr(self, "_upd_cancel", None)
+    if c is not None and self._upd.get("state") == "downloading":
+      c.paused.set()
+      self._upd["state"] = "paused"
+    return {"ok": True}
+
+  def resume_update(self):
+    c = getattr(self, "_upd_cancel", None)
+    if c is not None and self._upd.get("state") == "paused":
+      self._upd.update(state="downloading", text="Resuming…")
+      c.paused.clear()
+    return {"ok": True}
 
   def _update_worker(self):
     def status(**k):
@@ -5234,7 +5263,8 @@ class Api:
       asset = pick_gui_asset(info["assets"])
       if not asset:
         raise UpdateUnavailable("the release has no file for this system")
-      prepare_and_launch_update(asset, status, threading.Event())
+      self._upd_cancel = _PausableCancel()
+      prepare_and_launch_update(asset, status, self._upd_cancel)
     except UpdateUnavailable as e:
       status(state="failed", fallback=True, text="Automatic update not available: %s." % e)
       return
@@ -5293,6 +5323,16 @@ class Api:
     import webbrowser
     webbrowser.open(GUI_RELEASES_URL)  # fixed URL: nothing coming from the UI is opened
     return True
+
+  def open_link(self, url):
+    """Opens a link of the release notes in the browser (https only)."""
+    import webbrowser
+    from urllib.parse import urlparse
+    u = urlparse(str(url or ""))
+    if u.scheme == "https" and u.netloc:
+      webbrowser.open(u.geturl())
+      return True
+    return False
 
   def open_origin_page(self):
     import webbrowser

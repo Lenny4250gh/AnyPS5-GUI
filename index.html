@@ -39,7 +39,7 @@ body[data-bg=none] #bg{display:none}
 #in{max-width:66em;margin:0 auto}
 h1{font-weight:300;font-size:2.3em;margin:0;letter-spacing:-.01em}
 #in{position:relative}
-.ver{position:absolute;top:.9em;right:0;font-size:.8em;font-weight:400;letter-spacing:.04em;color:var(--dim);opacity:.8}
+.ver{font-size:.8em;font-weight:400;letter-spacing:.04em;color:var(--dim);opacity:.8}
 h1 .gui{font-size:.45em;font-weight:500;letter-spacing:.12em;opacity:.65;vertical-align:.55em;margin-left:.15em}
 .tagline{color:var(--dim);font-size:.8em;margin:.2em 0 1em}
 .card{background:var(--glass);border:1px solid var(--line);border-radius:1.1em;padding:.9em 1.2em 1em;margin-top:.8em;
@@ -72,7 +72,7 @@ input:focus,textarea:focus{border-color:var(--ring);box-shadow:0 0 0 .1em var(--
 input:disabled{opacity:.4}
 .b,.opt,.chk,.sw{all:unset;box-sizing:border-box;cursor:pointer;transition:background .14s,box-shadow .14s}
 .b{display:inline-flex;align-items:center;justify-content:center;padding:.45em 1.1em;border-radius:2em;background:var(--glass2);border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
-.b.ic{display:inline-flex;align-items:center;gap:.6em}.b.ic .bi{display:flex;align-items:center;height:1em;flex:none}.bi svg{width:1.35em;height:1.35em;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;display:block}
+.b.ic{display:inline-flex;align-items:center;gap:.6em}.b.ico{padding:0;width:2.4em;height:2.4em;border-radius:50%}.b.ic .bi{display:flex;align-items:center;height:1em;flex:none}.bi svg{width:1.35em;height:1.35em;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;display:block}
 .bt{display:flex;flex-direction:column;line-height:1.15}.bt small{font-size:.66em;color:var(--dim)}
 .hrow:has([data-k="play"]){align-items:stretch}
 .hrow:has([data-k="play"]){margin:1.2em 0 1.1em}
@@ -88,8 +88,8 @@ input:disabled{opacity:.4}
 .opt i{width:1.05em;height:1.05em;border-radius:50%;border:1.5px solid var(--dim);position:relative;flex:none}
 .opt i{transition:border-color .22s}.opt i::after{content:"";position:absolute;inset:.2em;border-radius:50%;background:var(--ring);transform:scale(0);opacity:0;transition:transform .26s var(--ease),opacity .18s}.opt[aria-checked=true] i{border-color:var(--ring)}.opt[aria-checked=true] i::after{transform:scale(1);opacity:1}
 .opt small{color:var(--dim)}
-.chk{display:flex;gap:.7em;align-items:flex-start;padding:.3em .6em;border-radius:.7em;width:100%}
-.chk .box{width:1.1em;height:1.1em;border-radius:.3em;border:1.5px solid var(--dim);flex:none;margin-top:.15em;text-align:center;line-height:1em;font-size:.8em;position:relative;overflow:hidden;transition:border-color .22s}
+.chk{display:flex;gap:.7em;align-items:center;padding:.3em .6em;border-radius:.7em;width:100%}
+.chk .box{width:1.1em;height:1.1em;border-radius:.3em;border:1.5px solid var(--dim);flex:none;margin-top:0;text-align:center;line-height:1em;font-size:.8em;position:relative;overflow:hidden;transition:border-color .22s}
 .chk .box::before{content:"";position:absolute;inset:0;background:var(--ring);transform:scale(0);opacity:0;transition:transform .26s var(--ease),opacity .18s}
 .chk[aria-checked=true] .box::before{transform:scale(1);opacity:1}
 .chk[aria-checked=true] .box{border-color:var(--ring)}.chk .box{transition:border-color .22s,transform .16s var(--ease)}.chk:active .box{transform:scale(.86)}
@@ -98,6 +98,17 @@ input:disabled{opacity:.4}
 .sw{display:block;width:1.9em;height:1.9em;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}
 .sw[aria-checked=true]{box-shadow:inset 0 0 0 1px rgba(0,0,0,.35),0 0 0 .15em var(--bg),0 0 0 .28em var(--text)}
 .sw:focus-visible{outline:2px solid var(--text);outline-offset:.3em}
+.sw.cus{background:conic-gradient(#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)}
+.cpkdiv{align-self:stretch;width:1px;margin:.2em .5em;background:var(--line)}
+.cpkdot{display:inline-block;width:1.1em;height:1.1em;margin-right:.55em;border-radius:50%;background:conic-gradient(#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)}
+.cpk{margin:.7em .6em 0;display:flex;flex-direction:column;gap:.8em;max-width:24em}
+.cpks{position:relative;height:9.5em;border-radius:.6em;border:0;cursor:crosshair;touch-action:none;outline:none;background-image:linear-gradient(to top,#000,rgba(0,0,0,0)),linear-gradient(to right,#fff,rgba(255,255,255,0));background-size:calc(100% + 2px) calc(100% + 2px);background-position:center;background-repeat:no-repeat}
+.cpks::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);pointer-events:none}
+.cpkh{position:relative;height:.9em;margin:.3em .6em;border-radius:1em;cursor:pointer;touch-action:none;outline:none;background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)}
+.cpks i,.cpkh i{position:absolute;width:1.3em;height:1.3em;border-radius:50%;border:.15em solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.45),0 .1em .4em rgba(0,0,0,.5);transform:translate(-50%,-50%);pointer-events:none}
+.cpkh i{top:50%}
+.cpks:focus-visible,.cpkh:focus-visible{box-shadow:0 0 0 .15em var(--ring)}
+.cpkr{display:flex;align-items:center;gap:.7em}.cpkp{width:2em;height:2em;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.35);flex:none}.cpkx{font:400 .85em Consolas,"Cascadia Mono","DejaVu Sans Mono",monospace;color:var(--dim)}
 #pb{height:.3em;border-radius:1em;background:rgba(255,255,255,.12);overflow:hidden;margin:.9em 0 0}
 #pb i{display:block;height:100%;width:0;background:var(--ring);transition:width .2s}
 #pb.ind i{width:30%;animation:ind 1.2s ease-in-out infinite}
@@ -111,8 +122,11 @@ input:disabled{opacity:.4}
 .dlg,.cfm{background:rgba(30,32,35,.62);border:1px solid var(--line);border-radius:1.2em;padding:1.2em 1.4em;display:flex;flex-direction:column;
  -webkit-backdrop-filter:blur(28px) saturate(150%);backdrop-filter:blur(28px) saturate(150%);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 2em 5em #000a}
 .cfm{width:min(32em,88vw)}.cfm h2{font-weight:300;margin:0 0 .4em}.cfm p{color:var(--dim);margin:0 0 .8em;white-space:pre-line}
-.dlg{width:min(54em,94vw);height:min(82vh,46em)}.dlg h2{font-weight:300;margin:0 0 .6em}
-.dbody{flex:1;overflow:auto;margin:.8em 0 .8em -.35em;padding:.3em .5em .3em .35em}
+.dlg{width:min(60em,94vw);height:min(82vh,46em)}.dlg h2{font-weight:300;margin:0 0 .6em}
+.dlg .tabs{flex-wrap:nowrap;gap:.4em;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;padding:.35em .45em;margin:.8em -.45em 0}
+.dlg .tabs::-webkit-scrollbar{display:none}
+.dlg .tabs .b{flex:1 0 auto;justify-content:center;text-align:center;padding:.4em .75em;font-size:.95em;white-space:nowrap;gap:.45em}.dlg .tabs .bi svg{width:1.15em;height:1.15em}
+.dbody{flex:1;overflow:auto;margin:.2em 0 .8em -.35em;padding:.3em .5em .3em .35em}
 .si{margin-top:.5em}.si .sl{display:block;color:var(--text);font-size:.9em;margin:0 .6em .2em}
 .si input{width:100%}
 .stg{margin-top:1.2em}.stg .sl{color:var(--dim);font-size:.8em;letter-spacing:.02em;margin:0 0 .4em .2em}
@@ -125,11 +139,13 @@ input:disabled{opacity:.4}
 .cbtn .car{color:var(--dim);font-size:.8em;transition:transform .15s}.cmb.open .car{transform:rotate(180deg)}
 .cpop{position:absolute;left:0;right:0;top:calc(100% + .3em);max-height:15em;overflow:auto;z-index:5;background:rgba(24,26,29,.97);border:1px solid var(--line);border-radius:.8em;padding:.3em;box-shadow:0 .8em 2em #000a}
 .cpop[hidden]{display:none}
+.card:has(.cmb.open){position:relative;z-index:20}
+.cpop{background:rgb(24,26,29)}
 .copt{display:flex;justify-content:space-between;gap:1em;padding:.4em .7em;border-radius:.5em;cursor:pointer}
 .copt:hover,.copt.on{background:rgba(255,255,255,.14)}.copt[aria-selected=true]{font-weight:600}
 .copt small{color:var(--dim)}
 textarea{width:100%;height:34vh;resize:none}
-.legal{color:var(--dim);font-size:.65em;margin:1.2em 0 0;max-width:60em}
+.legal{color:var(--dim);font-size:.65em;margin:3em auto 0;max-width:88em;text-align:center;text-wrap:balance}
 .legal a{color:inherit;text-decoration:underline;cursor:pointer}.legal a:hover{color:var(--text)}
 .legal+.legal{margin-top:.4em}
 #toast{position:fixed;left:50%;bottom:5vh;transform:translateX(-50%);background:rgba(44,46,50,.72);border:1px solid var(--line);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);padding:.6em 1.5em;border-radius:2em;opacity:0;pointer-events:none;transition:opacity .2s;max-width:70vw;text-align:center;box-shadow:0 .5em 2em #000a;z-index:30}
@@ -158,6 +174,25 @@ textarea{width:100%;height:34vh;resize:none}
 .modal.out .dlg,.modal.out .cfm{animation:dOut .18s ease-in both}
 .updm{z-index:30}.updm .cfm{width:min(34em,90vw);align-items:center;text-align:center}
 .updm svg{width:min(17em,70%);height:auto;color:var(--accent,#fff);margin:.2em 0 .6em}
+.updm .rnb .rni{display:block;max-width:100%;height:auto;margin:.5em 0;border-radius:.5em;background:rgba(255,255,255,.04)}
+.updm .ucol{display:flex;flex-direction:column;align-items:center;width:100%;min-width:0}
+.updm .rn{width:100%;text-align:left;margin-top:.8em;border:1px solid var(--line);border-radius:.7em;background:rgba(0,0,0,.25);overflow:hidden}
+.updm .rnh{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:.6em;width:100%;padding:.5em .9em;font-size:.9em;cursor:pointer;border-radius:.7em}
+.updm .rnh::after{content:"▾";color:var(--dim);transition:transform .2s}.updm .rn.open .rnh::after{transform:rotate(180deg)}
+.updm .rnh:focus-visible{box-shadow:inset 0 0 0 .12em var(--ring)}
+.updm .rnb{display:none;max-height:11em;overflow:auto;padding:.1em .9em .7em;font-size:.85em;color:var(--dim);line-height:1.45}.updm .rn.open .rnb{display:block}
+@media (min-width:900px){
+ .updm .cfm.wide{width:min(64em,94vw);display:grid;grid-template-columns:minmax(0,33em) minmax(0,1fr);column-gap:1.4em;align-items:stretch;text-align:left}
+ .updm .cfm.wide .ucol{text-align:center}
+ .updm .rn{margin-top:0;contain:size;display:flex;flex-direction:column;min-height:0}
+ .updm .rnh{flex:none;cursor:default;border-bottom:1px solid var(--line);border-radius:0}.updm .rnh::after{display:none}
+ .updm .rnb,.updm .rn.open .rnb{display:block;flex:1 1 0;min-height:0;max-height:none;overflow:auto;padding-top:.4em}
+}
+.updm .rnb a.rnl{color:var(--text);text-decoration:underline;text-underline-offset:.15em;text-decoration-color:rgba(255,255,255,.4);cursor:pointer;word-break:break-word;transition:text-decoration-color .14s,color .14s}
+.updm .rnb a.rnl:hover{text-decoration-color:currentColor}.updm .rnb a.rnl:active{opacity:.7}
+.updm .rnb a.rnl:focus-visible{outline:none;border-radius:.2em;box-shadow:0 0 0 .12em var(--ring)}
+.updm .rnb h4{margin:.7em 0 .2em;font-size:1em;color:var(--text)}.updm .rnb p{margin:.2em 0}.updm .rnb ul{margin:.2em 0;padding-left:1.2em}
+.updm .bi svg{width:1.35em;height:1.35em;margin:0;color:inherit}
 .updm h2{font-size:1.5em}.updm .row{display:flex;gap:.7em;flex-wrap:wrap;justify-content:center;margin-top:.9em}
 .updm .b.pri:focus-visible{box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}/* the auto-focus ring is the same white as the button and made it look bigger */
 .updm .ubar{width:100%;height:.4em;border-radius:1em;background:var(--line);overflow:hidden;margin:.9em 0 .6em}
@@ -230,7 +265,7 @@ input[type=text]:focus,input:not([type]):focus,textarea:focus,.prow input[type=n
 .pdn{stroke:rgba(255,255,255,.3);stroke-width:1.3;stroke-linecap:round}.pdn.act{stroke:var(--ring)}
 .pdp{fill:var(--dim);cx:0;cy:0}.pdp.act{fill:var(--ring);filter:drop-shadow(0 0 3px rgba(255,255,255,.6))}
 .prow{display:flex;align-items:center;gap:.7em;margin-top:.4em}.prow .sl2{min-width:14em;font-size:.85em}.prow input{width:7em;flex:none}.prow small{color:var(--dim)}
-.adv summary{cursor:pointer;color:var(--dim);font-size:.8em;letter-spacing:.02em}.advb{overflow:hidden}.advi{padding-top:.6em}
+.adv summary{cursor:pointer;color:var(--dim);font-size:.8em;letter-spacing:.02em}.advb{overflow:hidden;margin:0 -.6em -.6em;padding:0 .6em .6em}.advi{padding-top:.6em}
 .prow input[type=range]{flex:1;min-width:8em;width:auto;accent-color:var(--ring);cursor:default;margin:0}
 .prow input[type=number]{width:5.2em;text-align:right;background:rgba(0,0,0,.35);color:var(--text);border:1px solid var(--line);border-radius:.6em;padding:.3em .5em;font:400 .85em Consolas,"Cascadia Mono","DejaVu Sans Mono",monospace;outline:none}
 .prow input[type=number]:focus{border-color:var(--ring)}
@@ -273,13 +308,34 @@ body:not([data-bubble=off]) .pi:active,body:not([data-bubble=off]) .rst:active{t
 body.noring .b:focus-visible{box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 0 .12em transparent!important}
 body.noring :is(.opt,.chk,.sw,.pm,.pi,.rst):focus-visible{box-shadow:none!important;outline:none!important}
 body.noring .cmb:not(.open) .cbtn:focus-visible{border-color:var(--line)!important;box-shadow:none!important}
+#hd{display:flex;align-items:flex-start;justify-content:space-between;gap:1em;flex-wrap:wrap}
+#top{margin-top:.7em}#topbtn{display:flex;gap:.6em}#topbtn .b{padding:.4em .95em;flex-direction:row-reverse}
+.readyrow{display:flex;align-items:center;justify-content:space-between;gap:.8em;flex-wrap:wrap;margin-top:.8em;padding:.5em .6em .5em 1em;border-radius:.9em;border:1px solid var(--line);background:var(--glass)}
+.card>.readyrow{margin-top:0;padding:0 0 .6em;border:0;border-radius:0;background:none}
+.card>.readyrow+.adv{border-top:1px solid var(--line);padding-top:.6em}
+.card>.step+.adv{border-top:1px solid var(--line);margin-top:.9em;padding-top:.6em}
+.ready{font-size:.9em}
+.ready.ok{color:var(--ok)}.ready.err{color:var(--err)}
+.step h3{color:var(--text);font-size:.95em;font-weight:400;margin:0 0 .6em}
+.adv summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:.6em;padding:.15em 0 .05em}
+.adv summary::-webkit-details-marker{display:none}
+.adv summary::after{content:"";flex:none;width:.5em;height:.5em;margin:-.15em .35em 0 0;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(45deg);transition:transform .25s var(--ease)}
+.adv.op summary::after{transform:translateY(.2em) rotate(-135deg)}
+.adv summary{transition:color .2s ease-out}
+.adv summary:hover{color:var(--text)}
+#log{border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom:0}
+#logbar .card{margin-top:0;border-top-left-radius:0;border-top-right-radius:0;border-top-color:rgba(255,255,255,.08)}
+.rh{display:flex;align-items:center;justify-content:space-between;gap:.8em;flex-wrap:wrap}.rh h3{margin:0;line-height:1.4;display:flex;align-items:center;min-height:2.2em}
+.card:has(>.rh){padding-top:.75em;padding-bottom:.75em}.rh .hrow{margin-top:0}
+.sum{margin:.7em 0 0;color:var(--dim);font-size:.88em}
 </style></head><body data-bg="grid" class="intro">
 <div id="bg" aria-hidden="true"><i></i><i></i><i></i></div>
 <div id="page"><div id="in">
- <h1>AnyPS5 <small class="gui">GUI</small></h1><small class="ver" id="ver"></small><p class="tagline">Unwrap SELF → ELF  ·  Convert PS5 game to PC  ·  Runtime and input</p>
+ <div id="hd"><div><h1>AnyPS5 <small class="gui">GUI</small></h1><p class="tagline">Unwrap SELF → ELF  ·  Convert PS5 game to PC  ·  Runtime and input</p></div><div id="top" class="hrow"><small class="ver" id="ver"></small><span id="topbtn"></span></div></div>
  <div id="cards"></div>
  <div id="pb" role="progressbar"><i></i></div>
  <div id="log" role="log" aria-live="polite" tabindex="0" data-nav="1" aria-label="Log"></div>
+ <div id="logbar"></div>
 <p class="legal">AnyPS5 GUI is an unofficial, independent tool. It is not affiliated with, endorsed by or sponsored by Sony Interactive Entertainment. PlayStation and PS5 are trademarks of Sony Interactive Entertainment. Use it only with games you legally own; do not use it to obtain or share pirated content.</p>
 <p class="legal">Originally part of the project <a href="#" id="origin">Lenny4250gh/AnyPS5-GUI</a>. Released under GPL-2.0-only.</p>
 </div></div>
@@ -294,21 +350,38 @@ const LABEL={import_audit:"Import audit (checks that every import resolves)",unu
 const UIDEF={accent:"#ffffff",bg:"grid",bubble:true},HEX=/^#[0-9a-f]{6}$/i,COLORS=[["White","#ffffff"],["Mint","#3ec9a7"],["Amber","#ffb454"],["Rose","#ff6b9a"],["Violet","#a78bfa"],["Lime","#b6e35a"]],
  BGS=[["grid","Soft grid"],["accent","Orbs in main color"],["none","None"]];
 let ui={...UIDEF};
+let pkOpen=false,pk={h:210,s:.7,v:1};
+let pkIn=false,pkClose=null,pkAnim=false;
+function pkHide(){if(!pkOpen)return;pkOpen=false;const e=document.querySelector(".cpk"),fin=()=>{pkClose&&pkClose()};
+ if(!e||!e.animate||matchMedia("(prefers-reduced-motion: reduce)").matches){fin();return}
+ const h=e.offsetHeight;e.style.overflow="hidden";const a=e.animate([{height:h+"px",opacity:1,marginTop:".7em"},{height:"0px",opacity:0,marginTop:"0px"}],{duration:220,easing:"cubic-bezier(.2,.8,.2,1)"});
+ e.style.height="0px";e.style.opacity="0";e.style.marginTop="0px";a.onfinish=a.oncancel=fin}
+document.addEventListener("pointerdown",e=>{pkIn=!!(e.target.closest&&e.target.closest(".cpk,[data-k=swcustom]"))},true);
+document.addEventListener("click",()=>{if(!pkOpen||pkIn)return;setTimeout(()=>{if(pkOpen&&pkClose)pkHide()},0)});
+const clamp01=x=>Math.max(0,Math.min(1,x)),
+ hsv2hex=(h,s,v)=>{const f=n=>{const k=(n+h/60)%6;return Math.round(255*(v-v*s*Math.max(0,Math.min(k,4-k,1))))};return"#"+[5,3,1].map(n=>f(n).toString(16).padStart(2,"0")).join("")},
+ hex2hsv=c=>{const[r,g,b]=[1,3,5].map(i=>parseInt(c.substr(i,2),16)/255),mx=Math.max(r,g,b),d=mx-Math.min(r,g,b);let h=0;if(d){h=mx==r?((g-b)/d)%6:mx==g?(b-r)/d+2:(r-g)/d+4;h=(h*60+360)%360}return{h,s:mx?d/mx:0,v:mx}};
 function applyUI(u){const c=HEX.test(u.accent)?u.accent.toLowerCase():UIDEF.accent,[r,g,b]=[1,3,5].map(i=>parseInt(c.substr(i,2),16)/255),st=document.documentElement.style;
  st.setProperty("--ring",c);st.setProperty("--blue",c);st.setProperty("--mag",c);st.setProperty("--on",(.299*r+.587*g+.114*b)>.55?"#0b0c0e":"#ffffff");
  document.body.dataset.bg=BGS.some(x=>x[0]==u.bg)?u.bg:UIDEF.bg;document.body.dataset.bubble=(u.bubble===false||u.bubble==="false")?"off":"on"}
-let S,cfg,status=[],space=null,running=false,log=[],pct="idle",folder="",poller=null,view="convert",vAnim="",advOpen={st:1,ut:1};
+let S,cfg,status=[],space=null,running=false,log=[],pct="idle",folder="",poller=null,view="convert",vAnim="",advOpen={};
 const TI={err:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/>',warn:'<path d="M12 3.8 21.5 20h-19z"/><path d="M12 10v4.5M12 17.5h.01"/>',ok:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.5"/>'};
 function toast(t,l){const e=$("#toast");e.textContent="";if(TI[l]){const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 24 24");s.setAttribute("class","ti "+l);s.innerHTML=TI[l];e.append(s)}e.append(el("span","",t));e.className="on "+(l||"");clearTimeout(toast.t);toast.t=setTimeout(()=>e.className="",l=="err"?6000:3000)}
 // ---------- widgets ----------
 const dis=(e,off)=>{if(off){e.setAttribute("aria-disabled","true");delete e.dataset.nav}else{e.removeAttribute("aria-disabled");e.dataset.nav=1}return e};
-const ICON={pad:'<svg viewBox="0 0 24 24"><path d="M7 8.5h10a4 4 0 0 1 4 4v1.5a3 3 0 0 1-5.2 2l-1.3-1.5h-5L8.2 16A3 3 0 0 1 3 14v-1.5a4 4 0 0 1 4-4z"/><path d="M8.2 11v3M6.7 12.5h3"/><path d="M15.5 11.6h.01M17.6 13.4h.01"/></svg>',
+const ICON={tcv:'<svg viewBox="0 0 24 24"><path d="M4 8h13M13.5 4.5 17 8l-3.5 3.5"/><path d="M20 16H7M10.5 12.5 7 16l3.5 3.5"/></svg>',tbd:'<svg viewBox="0 0 24 24"><path d="M8.5 8 4.5 12l4 4M15.5 8l4 4-4 4M13.5 5.5l-3 13"/></svg>',tdk:'<svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="2.8"/><path d="M5 6v6c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V6M5 12v6c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-6"/></svg>',tpl:'<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>',tpt:'<svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 1 0 0 16c1.4 0 2-.9 2-1.8 0-1.3-1-1.7-1-2.9 0-1 .8-1.8 1.9-1.8H17a3 3 0 0 0 3-3C20 6.9 16.4 4 12 4z"/><path d="M8 11h.01M11 8h.01M15 8.5h.01"/></svg>',pad:'<svg viewBox="0 0 24 24"><path d="M7 8.5h10a4 4 0 0 1 4 4v1.5a3 3 0 0 1-5.2 2l-1.3-1.5h-5L8.2 16A3 3 0 0 1 3 14v-1.5a4 4 0 0 1 4-4z"/><path d="M8.2 11v3M6.7 12.5h3"/><path d="M15.5 11.6h.01M17.6 13.4h.01"/></svg>',
  tune:'<svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>',
+ download:'<svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>',
+ pause:'<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>',
+ play:'<svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg>',
+ ext:'<svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
  link:'<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
  kbd:'<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M7 10h.01M10.5 10h.01M14 10h.01M17.5 10h.01M7 14h10"/></svg>',
+ folder:'<svg viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>',
  reset:'<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4.5v4h4"/></svg>',
  imp:'<svg viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg>',
- exp:'<svg viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M5 19h14"/></svg>'};
+ exp:'<svg viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M5 19h14"/></svg>',
+ folder:'<svg viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>'};
 function btn(label,fn,o={}){const b=el("button","b"+(o.pri?" pri":"")+(o.icon?" ic":""));b.dataset.k=o.k||label;
  if(o.icon){const i=el("span","bi");i.innerHTML=ICON[o.icon];b.append(i)}
  const t=el("span","bt");t.append(el("span","",label));if(o.sub)t.append(el("small","",o.sub));b.append(t);
@@ -357,35 +430,48 @@ window.confirmQuit=async()=>{
 function setMain(sec,key,val){cfg[sec][key]=val;api("set_cfg",{[sec]:{[key]:val}});renderCards();refresh()}
 function foldAnim(d,sm,wb,key){let an=null;const rm=()=>matchMedia("(prefers-reduced-motion:reduce)").matches;
  sm.addEventListener("click",e=>{e.preventDefault();if(an){an.cancel();an=null}
-  const op=d.open,set=v=>{d.open=v;advOpen[key]=v?1:0};
+  const op=d.open,set=v=>{d.open=v;advOpen[key]=v?1:0;saveAdv()};d.classList.toggle("op",!op);
   if(rm()){set(!op);return}
   if(op){const h=wb.offsetHeight;wb.style.overflow="hidden";an=wb.animate([{height:h+"px",opacity:1},{height:"0px",opacity:0}],{duration:240,easing:"cubic-bezier(.2,.8,.2,1)"});
    an.onfinish=an.oncancel=()=>{an=null;set(false)}}
   else{set(true);const h=wb.offsetHeight;an=wb.animate([{height:"0px",opacity:0},{height:h+"px",opacity:1}],{duration:300,easing:"cubic-bezier(.2,.8,.2,1)"});an.onfinish=an.oncancel=()=>{an=null}}})}
+async function copyLog(){const t=log.map(x=>x[1]).join("\n");if(!t.trim())return toast("The log is empty.","warn");
+ let ok=false;try{await navigator.clipboard.writeText(t);ok=true}catch(e){}
+ if(!ok){const a=document.createElement("textarea");a.value=t;a.style.cssText="position:fixed;left:-9999px;top:0";document.body.append(a);a.select();try{ok=document.execCommand("copy")}catch(e){}a.remove()}
+ toast(ok?"Log copied to the clipboard":"Could not copy the log",ok?"ok":"err")}
 let prevSrc=null,prevRel=null;
-function renderCards(){const root=$("#cards"),a=document.activeElement,fk=a&&root.contains(a)&&a.dataset.k;root.textContent="";
+function saveAdv(){const v=Object.keys(advOpen).filter(k=>advOpen[k]).join(",")||"none";cfg.settings.open_sections=v;api("set_cfg",{settings:{open_sections:v}})}
+const M=/module|executable|sce-module/i,plat=(p,T)=>!p||p=="all"||(p=="win"&&T=="windows")||(p=="nowin"&&T!="windows")||(p=="host"&&T==S.host),
+ FRIEND=[["--to-rosetta","Run on Apple silicon (Rosetta)"],["--windows-gui","Hide the console window"],["--autorun","Start the game when the conversion ends"],["--lazy-binding","Faster start (lazy binding)"],["--registry","Write registry files"],["--rpath","Extra library search path"]],
+ CUSTOM=[["Language","Runtime","language ANYPS5_LANGUAGE"],["Present mode","Runtime","present vsync fifo wayland"],["Keys and mouse","Input","keys mouse controller keyboard deadzone ini"],["Main color","Appearance","accent theme color custom picker wheel"],["Background","Appearance","animated bubble hover"],["Storage folder","Storage","config data move"],["Target system","Conversion","windows linux macos"]];
+function cfgSet(sec,k,x){cfg[sec][k]=x;api("set_cfg",{[sec]:{[k]:x}});renderCards();refresh()}
+function renderTop(){const t=$("#topbtn");t.textContent="";
+ t.append(btn("Settings",()=>openSettings("Appearance"),{k:"gear",icon:"tune",tip:"Settings (Ctrl+K to search them all)"}))}
+function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$("#cards"),a=document.activeElement,fk=a&&root.contains(a)&&a.dataset.k;root.textContent="";
  const s=cfg.settings,r=cfg.relinker,rel=s.mode=="relink",gh=r.relinker_source=="github",rls=r.relinker_source=="release";
  const card=(t,...k)=>{const c=el("section","card");c.append(el("h3","",t),...k);root.append(c);return c};
- const fold=(key,t,...k)=>{const c=el("section","card"),d=document.createElement("details"),sm=document.createElement("summary");d.className="adv";d.open=!!advOpen[key];d.ontoggle=()=>{advOpen[key]=d.open?1:0};sm.textContent=t;const wb=el("div","advb"),wi=el("div","advi");wi.append(...k);wb.append(wi);d.append(sm,wb);foldAnim(d,sm,wb,key);c.append(d);root.append(c);return c};
+ const fold=(key,t,...k)=>{const c=el("section","card"),d=document.createElement("details"),sm=document.createElement("summary");d.className="adv";d.open=!!advOpen[key];d.classList.toggle("op",d.open);d.ontoggle=()=>{advOpen[key]=d.open?1:0};sm.textContent=t;const wb=el("div","advb"),wi=el("div","advi");wi.append(...k);wb.append(wi);d.append(sm,wb);foldAnim(d,sm,wb,key);c.append(d);root.append(c);return c};
  const tabs=hrow(btn("Convert a game",()=>{if(view!="convert"){view="convert";vAnim="L"}renderCards()},{k:"vc"}),btn("Play a game",()=>{if(view!="play"){view="play";vAnim="R"}renderCards()},{k:"vp"}));tabs.children[view=="play"?1:0].classList.add("sel");root.append(tabs);
- const logb=()=>[el("span","sp"),btn("Export log…",()=>api("save_log",log.map(x=>x[1]).join("\n")),{k:"exp"}),btn("Clear log",()=>{log=[];$("#log").textContent=""},{k:"clr"})];
+ const logb=()=>[el("span","sp"),btn("Export log…",()=>api("save_log",log.map(x=>x[1]).join("\n")),{k:"exp"}),btn("Copy log",copyLog,{k:"cpy",tip:"Copy the whole log to the clipboard."}),btn("Clear log",()=>{log=[];$("#log").textContent=""},{k:"clr"})];
   const mkopts=()=>btn("AnyPS5 settings…",()=>openSettings(),{k:"opts",icon:"tune",tip:"Conversion, Source build, Runtime, Input and Appearance settings."});
  if(view=="play"){card("Play a converted game",note("Choose the game's executable (eboot.exe, eboot.elf or eboot). It starts with the current settings you have now. You don't need the PS5 folder, and the converted folder can be anywhere."),
    hrow(btn("Launch game",playExe,{k:"play",icon:"pad",sub:"With your current settings",tip:"Pick the game executable: it starts with the current settings currently set (language, present mode, GPU…)."}),
     btn("Create shortcut…",shortcutExe,{k:"mkshort",icon:"link",sub:"With your current settings",tip:"Pick the game executable and create a shortcut that keeps the current settings set right now."})),
-   note("A shortcut keeps the settings it was created with: after changing them, create it again."))}else{
+   note("A shortcut keeps the settings it was created with: after changing them, create it again."));
+  card("Game settings",combo("Language (ANYPS5_LANGUAGE)",[["","(default: English US)"],...S.languages.map(([n,x])=>[String(n),natv(x),String(n)])],()=>String(cfg.runtime.language).trim(),x=>cfgSet("runtime","language",x),"lang"),
+   combo("Present mode",S.present_modes.map(x=>[x,x||"(default)"]),()=>cfg.runtime.present_mode,x=>cfgSet("runtime","present_mode",x),"present",{hint:"Empty = fifo (vsync). If the window is off-screen (Wayland, Linux) try fifo_latest_ready."}),hrow(btn("Open runtime settings (GPU, fonts…)",()=>openSettings("Runtime"),{k:"rt",icon:"tune"}),btn("Open input settings (keys and mouse)",()=>openSettings("Input"),{k:"keys",icon:"kbd"})));}else{
  card("1. Select the game folder",hrow(field("folder",()=>folder,async v=>{folder=await api("set_folder",v);refresh()},"Paste the path (folder or .zip / .rar) or use Browse… / Archive…",{label:"Game folder",live:v=>api("set_folder",v)}),
   btn("Browse…",async()=>{const p=await api("pick_folder");if(p){folder=p;renderCards();refresh()}},{k:"browse"}),
   btn("Archive…",async()=>{const p=await api("pick_archive");if(p){folder=p;renderCards();refresh()}},{k:"browsezip",tip:"Select a game packed as .zip or .rar: it is extracted automatically (.rar needs 7-Zip installed)."})),note("Paste the path of a folder or of a .zip or .rar, or use Browse… / Archive… (e.g. PPSAxxxxx or PPSAxxxxx.rar)"));
  const st=el("div","stat");[["eboot","eboot.bin"],["modules","Modules (sce_module/prx)"],["dirs","sce_sys"],["unwrapper","unwrap_self.py"],["relinker","Relinker"],["libs","prx-*.zip (libs zip file)"],["space","Disk space needed"]]
-  .forEach(([k,t])=>{const v=el("span","","—");v.id="st-"+k;st.append(el("span","",t),v)});fold("st","Requirements check",st);
+  .forEach(([k,t])=>{const v=el("span","","—");v.id="st-"+k;st.append(el("span","",t),v)});{const rw=el("div","readyrow"),rd=el("span","ready");rd.id="ready";rd.textContent="Checking…";rw.append(rd,btn("Open game and module settings",()=>openSettings("Game and modules"),{k:"os1",icon:"tune",tip:"Game and modules tab: --module-dir, --executable, --sce-module-path, unwrap of modules…"}));fold("st","Requirements check (details)",st).prepend(rw)}
  const m=card("2. Choose what to do",radio("Convert to PC  —  builds the package with the executable for your system",rel,()=>setMain("settings","mode","relink"),"m2"),
   radio("Unwrap only  —  eboot.bin and modules (SELF → ELF, with backup)",!rel,()=>setMain("settings","mode","unwrap"),"m1"));
  {const ind=el("div","ind"),tg=(k,sec,key,l,h)=>check(l,h,()=>yes(cfg[sec][key]),v=>setMain(sec,key,v?"yes":"no"),k);
   ind.append(hrow(el("span","lbl","System:"),...Object.entries(S.targets).map(([k,v])=>radio(v.split(" (")[0],r.target==k,()=>setMain("relinker","target",k),"t"+k))),
    tg("auto","settings","auto_unwrap","Automatic unwrap before the conversion","Works on the copy: the original is not touched."),
    tg("intel","settings","intel","Intel processor (--to-intel) · all targets"),
-   tg("keep","settings","keep_game","Keep PS5 game","ON = copy · OFF = safe move: each file is deleted from the source once copied."),
+   tg("keep","settings","keep_game","Keep the original PS5 game (copy instead of move)","ON = copy · OFF = safe move: each file is deleted from the source once copied."),
    hrow(el("span","lbl","Output folder:"),field("out",()=>s.output_dir,v=>setMain("settings","output_dir",v),"Empty = program folder",{label:"Output folder"}),
     btn("Browse…",async()=>{const p=await api("pick_output");if(p)setMain("settings","output_dir",p)},{k:"outb"}),btn("Default",()=>setMain("settings","output_dir",""),{k:"outd"})),
    note("Empty = program folder. A '<GAME>-<OS>' folder will be created."));
@@ -393,7 +479,7 @@ function renderCards(){const root=$("#cards"),a=document.activeElement,fk=a&&roo
   const setR=(r,anim)=>{wr.classList.toggle("gone",!r);wr.inert=!r;if(anim){wr.classList.add("mov");clearTimeout(wr._t);wr._t=setTimeout(()=>wr.classList.remove("mov"),450)}};
   setR(fromRel);if(fromRel!==rel)requestAnimationFrame(()=>requestAnimationFrame(()=>setR(rel,1)));
   m.append(wr)}
- m.append(check("Notify when an operation finishes or fails","Shows an in-app message and a system notification (Windows / macOS / Linux).",()=>yes(s.notify),v=>setMain("settings","notify",v?"yes":"no"),"notify"));
+ m.append(check("Notify when an operation finishes or fails","Shows an in-app message and a system notification (Windows / macOS / Linux).",()=>yes(s.notify),v=>setMain("settings","notify",v?"yes":"no"),"notify"));m.append(hrow(btn("Open conversion settings",()=>openSettings("Conversion"),{k:"os2",icon:"tune",tip:"Conversion tab: all relinker flags (--to-rosetta, --rpath, --lazy-binding…)"})));
  const src=gh?"github":rls?"release":"prebuilt",from=prevSrc||src;prevSrc=src;
  const SHOW={prebuilt:{repo:0,dl:0,build:0,imp:1},release:{repo:1,dl:1,build:0,imp:0},github:{repo:1,dl:0,build:1,imp:0}},vzs=[];
  const vz=(key,node,row)=>{const w=el("div",row?"vzr":"vz");if(row){const i=el("div","vzin");i.append(node);w.append(i)}else w.append(node);
@@ -406,18 +492,21 @@ function renderCards(){const root=$("#cards"),a=document.activeElement,fk=a&&roo
     return}
    w.classList.toggle("gone",g);if(anim){w.classList.add("mov");clearTimeout(w._t);w._t=setTimeout(()=>w.classList.remove("mov"),450)}};
   set(from);vzs.push(()=>set(src,1));return w};
- const ut=fold("ut","Advanced: where the tools come from",hrow(el("span","lbl","Source:"),radio("Local files (manual)",!gh&&!rls,()=>setMain("relinker","relinker_source","prebuilt"),"s1"),radio("Release from GitHub repo (auto-update)",rls,()=>setMain("relinker","relinker_source","release"),"s3"),radio("Build from GitHub source (auto-update)",gh,()=>setMain("relinker","relinker_source","github"),"s2")),
+ const ut=fold("ut","Tools and updates: where they come from",hrow(el("span","lbl","Source:"),radio("Local files (manual)",!gh&&!rls,()=>setMain("relinker","relinker_source","prebuilt"),"s1"),radio("Release from GitHub repo (auto-update)",rls,()=>setMain("relinker","relinker_source","release"),"s3"),radio("Build from GitHub source (auto-update)",gh,()=>setMain("relinker","relinker_source","github"),"s2")),
   vz("repo",hrow(el("span","lbl","Repository:"),field("repo",()=>r.repo_url,v=>setMain("relinker","repo_url",v||S.default_repo),"",{label:"Repository"}),
    btn("Default",()=>setMain("relinker","repo_url",S.default_repo),{k:"repodef"}),vz("dl",btn("Download now",()=>act("download"),{k:"dl"})),vz("build",btn("Build now",()=>act("build"),{k:"build"}))),1),
   vz("imp",hrow(el("span","lbl",""),btn("Import files…",importTools,{k:"imptools",tip:"Copy unwrap_self.py, relinker-*, prx-*.zip (and import_audit.py / pad_input.py) into the Utilities folder."}),el("span","muted","unwrap_self.py · relinker-* · prx-*.zip")),1),
   note("Used by unwrap, libs and relink. Local files: the files you import (or put) in the Utilities folder. Release: latest GitHub release. Build: compiles the repository with CMake. Branch/tag and CMake target: AnyPS5 settings → Source build."));
   if(from!==src)requestAnimationFrame(()=>requestAnimationFrame(()=>vzs.forEach(f=>f())));
-  const act1=hrow(btn("▶  Start",()=>act("start"),{pri:1,k:"start"}),btn("■  Stop",()=>api("cancel"),{k:"stop",off:1}),btn("↺  Restore backup",()=>act("restore"),{k:"restore"}),mkopts(),...logb());act1.style.marginTop=".9em";act1.style.alignItems="stretch";root.append(act1)}
+  const sc=S.schema.Conversion.find(it=>/autorun/.test(it.label||"")),ar=sc&&yes(cfg[sc.section][sc.key]),
+  sumT="Will do: "+(rel?"convert for "+String(S.targets[r.target]||r.target).split(" (")[0]:"unwrap only")+" · "+(yes(s.keep_game)?"copy the game (original kept)":"move the game (original deleted)")+(rel&&ar?" · start the game afterwards":""),
+  act1=el("div","step");act1.append(el("h3","","3. Start"),hrow(btn(rel?"▶  Convert game":"▶  Unwrap files",()=>act("start"),{pri:1,k:"start"}),btn("■  Stop",()=>api("cancel"),{k:"stop",off:1}),btn("↺  Restore backup",()=>act("restore"),{k:"restore"})),el("p","sum",sumT));ut.prepend(act1);ut.querySelector(".advi").append(hrow(btn("Open tools and updates settings",()=>openSettings("Source build"),{k:"os3",icon:"tune",tip:"Source build tab: release tag, branch, CMake, update checks"}),btn("Open storage settings",()=>openSettings("Storage"),{k:"os4",icon:"folder",tip:"Storage tab: where tools, builds, backups and settings are kept"})));root.append(ut);
+  const res=el("section","card step");{const rh=el("div","rh");rh.append(el("h3","","Log"),hrow(...logb().slice(1)));res.append(rh)}lbar.append(res)}
 
- if(view=="play"){const foot=hrow(mkopts(),...logb());foot.style.marginTop=".9em";foot.style.alignItems="stretch";root.append(foot)}
+ if(view=="play"){const res=el("section","card step"),rh=el("div","rh");rh.append(el("h3","","Log"),hrow(...logb().slice(1)));res.append(rh);lbar.append(res)}
  const n=root.querySelector(`[data-k="${fk}"]`);if(fk&&n&&n.dataset.nav)n.focus();applyStatus();setRunning(running);
  if(vAnim){const nm=vAnim=="R"?"vinR":"vinL";vAnim="";[...root.children].slice(1).forEach((c,i)=>{c.style.animation=nm+" .38s var(--ease) both";c.style.animationDelay=(i*.06)+"s"})}}
-function applyStatus(){status.forEach(([k,,v,lv])=>{const e=$("#st-"+k);if(e){e.textContent=v;e.className=lv=="muted"?"muted-c":lv}});
+function applyStatus(){const rd=$("#ready");if(rd){const bad=status.filter(x=>/^(err|bad|fail)/.test(String(x[3])));rd.className="ready "+(!status.length?"":bad.length?"err":"ok");rd.textContent=!status.length?"Checking…":bad.length?"✖ Not ready, missing: "+bad.map(x=>{const e=$("#st-"+x[0]);return e&&e.previousSibling?e.previousSibling.textContent:x[0]}).join(", ")+" (see Requirements check)":"✔ Ready to convert"}status.forEach(([k,,v,lv])=>{const e=$("#st-"+k);if(e){e.textContent=v;e.className=lv=="muted"?"muted-c":lv}});
  const e=$("#st-space");if(e){e.textContent=space?space.text:"—";e.className=space?space.level:"muted-c"}}
 function setRunning(b){running=b;const t=$('[data-k="stop"]');if(t)dis(t,!b);["start","restore","play"].forEach(k=>{const e=$(`#cards [data-k="${k}"]`);e&&dis(e,b&&k!="play")})}
 // ---------- settings dialog (tabs like the Tk version) ----------
@@ -541,21 +630,27 @@ function padEditor(get,set,redraw,root){const c={get,set,redraw,root},top=(y)=>(
  const ex=el("div","pgrp");ex.append(el("span","sl","Extras"));["ToggleMouse","ToggleFullscreen"].forEach(a=>ex.append(padChip(c,a,PAD_LABEL[a],"st",null)));
  const row=el("div","padrow");row.append(grp("Left stick","LeftStick"),grp("Right stick","RightStick"),ex);
  const box=el("div","");box.append(note("Click a button, then press the key, mouse button or wheel direction to use. + adds an alternate input, × goes back to the default (shown dimmed on each button). Keys are saved by physical position on the keyboard, so a key keeps working whatever the layout. Controllers you plug in always work and are not affected."),wrap,row,padSettings(c));return box}
-const RESETX={"Conversion":[["relinker","target"]],"Source build":[],"Runtime":[["runtime","language"],["runtime","present_mode"]]};
+const tabItems=t=>t=="Game and modules"?S.schema.Conversion.filter(it=>M.test(it.label||"")):t=="Conversion"?S.schema.Conversion.filter(it=>!M.test(it.label||"")):(S.schema[t]||[]);
+const RESETX={"Game and modules":[],"Conversion":[["relinker","target"]],"Source build":[],"Runtime":[["runtime","language"],["runtime","present_mode"]]};
 function storageDone(path){const m=el("div","modal updm"),b=el("div","cfm");b.setAttribute("role","alertdialog");b.setAttribute("aria-modal","true");m.done=()=>{};
  const go=btn("Close the app",()=>api("force_quit"),{pri:1,k:"st-quit"});
  b.append(el("h2","","Storage folder moved"),el("p","","Everything is now in:\n"+path+"\n\nClose the app and open it again to use the new folder."),hrow(go));
  m.append(b);document.body.append(m);go.focus()}
-function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.runtime}};let tab=t0||"Conversion",inText=S.input,inMsg="",inMode="visual",A={...ui},stPath=S.storage.path,stMsg="",stBusy=0;
- const m=el("div","modal"),d=el("div","dlg"),body=el("div","dbody"),tabs=el("div","hrow");d.setAttribute("role","dialog");m.append(d);m.done=()=>{applyUI(ui);closeM(m)};
+function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.runtime}};let sq="",srchEl=null,tab=t0||"Conversion",inText=S.input,inMsg="",inMode="visual",A={...ui},stPath=S.storage.path,stMsg="",stBusy=0;
+ const m=el("div","modal"),d=el("div","dlg"),body=el("div","dbody"),tabs=el("div","hrow tabs");d.setAttribute("role","dialog");m.append(d);m.done=()=>{applyUI(ui);closeM(m)};
  const plat=(p,T)=>!p||p=="all"||(p=="win"&&T=="windows")||(p=="nowin"&&T!="windows")||(p=="host"&&T==S.host);
  const item=it=>{const T=D.relinker.target,off=!plat(it.plat,T),tag=it.plat&&it.plat!="all"?TAG[it.plat]:null,lab=LABEL[it.key]||it.label,v=()=>D[it.section][it.key],set=x=>{D[it.section][it.key]=x;draw()},w=el("div","si");
   if(it.type=="flag")w.append(check(lab,it.hint,()=>yes(v()),x=>set(x?"yes":"no"),it.key,{off,tag}));
   else if(it.type=="text"){const l=el("span","sl",lab);if(tag)l.append(el("span","tag",tag));w.append(l,field(it.key,v,x=>{D[it.section][it.key]=x},"",{off,label:lab}));if(it.hint)w.append(note(it.hint))}
   else{const l=el("span","sl",lab);if(tag)l.append(el("span","tag",tag));w.append(l,hrow(...it.values.map(x=>radio(x,v()==x,()=>set(x),it.key+x))));if(it.hint)w.append(note(it.hint))}return w};
- let shown=null;
+ let shown=null;const searchBody=()=>{const q=sq.trim().toLowerCase(),hits=[];
+  Object.entries(S.schema).forEach(([tn,its])=>its.forEach(it=>{const lab=LABEL[it.key]||it.label||"";if((lab+" "+(it.key||"")+" "+(it.hint||"")).toLowerCase().includes(q))hits.push([tn=="Conversion"&&M.test(it.label||"")?"Game and modules":tn,it])}));
+  hits.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);const cus=CUSTOM.filter(c=>(c[0]+" "+c[2]).toLowerCase().includes(q));
+  if(!hits.length&&!cus.length){body.append(note("Nothing found for \""+sq+"\"."));return}
+  cus.forEach(c=>body.append(hrow(el("span","lbl",c[0]),btn("Open "+c[1],()=>{sq="";srchEl.value="";tab=c[1];draw()},{k:"go"+c[0]}),el("span","muted","in tab "+c[1]))));
+  let last="";hits.forEach(([tn,it])=>{if(tn!=last){last=tn;body.append(el("span","sl","Tab: "+tn))}body.append(item(it))})};
  function draw(){if(shown!==tab){shown=tab;body.classList.remove("tin");void body.offsetWidth;body.classList.add("tin")}const a=document.activeElement,fk=a&&d.contains(a)&&a.dataset.k,top=body.scrollTop;if(tab!="Input"||inMode!="visual")PADL=null;tabs.textContent="";body.textContent="";
-  ["Conversion","Source build","Runtime","Input","Appearance","Storage"].forEach(t=>{const b=btn(t,()=>{tab=t;draw()},{k:"tab"+t});if(t==tab)b.classList.add("sel");tabs.append(b)});
+  ["Game and modules","Conversion","Source build","Storage","Runtime","Input","Appearance"].forEach(t=>{const b=btn(t,()=>{sq="";if(srchEl)srchEl.value="";tab=t;draw()},{k:"tab"+t,icon:({"Game and modules":"pad","Conversion":"tcv","Source build":"tbd","Storage":"tdk","Runtime":"tpl","Input":"kbd","Appearance":"tpt"})[t]});if(t==tab&&!sq.trim())b.classList.add("sel");tabs.append(b)});if(sq.trim()){searchBody();body.scrollTop=top;return}
   if(tab=="Conversion"){body.append(hrow(el("span","lbl","Target system"),...Object.entries(S.targets).map(([k,v])=>radio(v.split(" (")[0],D.relinker.target==k,()=>{D.relinker.target=k;draw()},"T"+k))),
     note("macOS: x86-64 Mach-O (runs through Rosetta on Apple silicon). settings that do not fit the selected target system are disabled."))}
   if(tab=="Runtime"){body.append(note("Environment variables used by the 'Launch game' button (always the current ones) and saved into shortcuts when they are created (after changing them, create the shortcut again)."),
@@ -563,8 +658,25 @@ function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.ru
     combo("Present mode",S.present_modes.map(x=>[x,x||"(default)"]),()=>D.runtime.present_mode,x=>{D.runtime.present_mode=x;draw()},"present",{hint:"Empty = fifo (vsync). If the window is off-screen (Wayland, Linux) try fifo_latest_ready."}))}
   if(tab=="Appearance"){const setA=(k,v)=>{A[k]=v;applyUI(A);draw()},
     sw=el("div","si"),sl=el("span","sl","Main color"),row=hrow(...COLORS.map(([n,h])=>{const b=el("button","sw");b.dataset.k="sw"+h;b.dataset.nav=1;b.title=n;b.setAttribute("aria-label",n);b.setAttribute("role","radio");
-      b.setAttribute("aria-checked",A.accent.toLowerCase()==h);b.style.background=h;b.onclick=()=>setA("accent",h);return b}));
+      b.setAttribute("aria-checked",A.accent.toLowerCase()==h);b.style.background=h;b.onclick=()=>setA("accent",h);return b}),el("span","cpkdiv"),(()=>{const c=el("button","b"+(pkOpen||!COLORS.some(x=>x[1]==A.accent.toLowerCase())?" sel":""));c.dataset.k="swcustom";c.dataset.nav=1;c.title="Custom color picker";c.setAttribute("aria-label","Custom color picker");c.setAttribute("aria-expanded",pkOpen);
+      c.append(el("span","cpkdot"),document.createTextNode("Custom"));c.onclick=()=>{if(pkOpen)pkHide();else{pkOpen=true;pkAnim=true;draw()}};return c})());
     row.style.padding=".45em .6em";sw.append(sl,row);
+    pkClose=draw;
+    if(pkOpen){const cur=HEX.test(A.accent)?A.accent.toLowerCase():UIDEF.accent;if(hsv2hex(pk.h,pk.s,pk.v)!=cur){const n=hex2hsv(cur);pk={h:(n.s==0||n.v==0)?pk.h:n.h,s:n.s,v:n.v}}
+      const d=el("div","cpk"),sv=el("div","cpks"),sk=el("i"),hu=el("div","cpkh"),hk=el("i"),r=el("div","cpkr"),pv=el("span","cpkp"),hl=el("span","cpkx");
+      sv.append(sk);hu.append(hk);r.append(pv,hl);d.append(sv,hu,r);
+      sv.tabIndex=0;sv.dataset.k="pksv";sv.setAttribute("role","slider");sv.setAttribute("aria-label","Saturation and brightness (arrow keys)");
+      hu.tabIndex=0;hu.dataset.k="pkhue";hu.setAttribute("role","slider");hu.setAttribute("aria-label","Hue (arrow keys)");
+      const upd=init=>{const x=init===true?cur:hsv2hex(pk.h,pk.s,pk.v);if(init!==true){A.accent=x;applyUI(A)}sv.style.backgroundColor=hsv2hex(pk.h,1,1);
+        sk.style.left=pk.s*100+"%";sk.style.top=(1-pk.v)*100+"%";sk.style.background=x;hk.style.left=pk.h/360*100+"%";hk.style.background=hsv2hex(pk.h,1,1);pv.style.background=x;hl.textContent=x};
+      const drag=(t,fn)=>{let on=false;t.onpointerdown=e=>{on=true;t.setPointerCapture(e.pointerId);t.focus();fn(e);e.preventDefault()};t.onpointermove=e=>{if(on)fn(e)};t.onpointerup=t.onpointercancel=()=>{if(on){on=false;draw()}}};
+      drag(sv,e=>{const b=sv.getBoundingClientRect();pk.s=clamp01((e.clientX-b.left)/b.width);pk.v=1-clamp01((e.clientY-b.top)/b.height);upd()});
+      drag(hu,e=>{const b=hu.getBoundingClientRect();pk.h=clamp01((e.clientX-b.left)/b.width)*359.99;upd()});
+      sv.onkeydown=e=>{const st=e.shiftKey?.1:.02,m={ArrowLeft:["s",-st],ArrowRight:["s",st],ArrowUp:["v",st],ArrowDown:["v",-st]}[e.key];if(!m)return;pk[m[0]]=clamp01(pk[m[0]]+m[1]);upd();e.preventDefault()};
+      hu.onkeydown=e=>{const st=e.shiftKey?20:4,m={ArrowLeft:-st,ArrowDown:-st,ArrowRight:st,ArrowUp:st}[e.key];if(m==null)return;pk.h=(pk.h+m+360)%360;upd();e.preventDefault()};
+      sv.onkeyup=hu.onkeyup=e=>{if(e.key.startsWith("Arrow"))draw()};
+      upd(true);sw.append(d);
+      if(pkAnim){pkAnim=false;if(d.animate&&!matchMedia("(prefers-reduced-motion: reduce)").matches){d.style.overflow="hidden";requestAnimationFrame(()=>{const h=d.offsetHeight,a=d.animate([{height:"0px",opacity:0,marginTop:"0px"},{height:h+"px",opacity:1,marginTop:".7em"}],{duration:260,easing:"cubic-bezier(.2,.8,.2,1)"});a.onfinish=a.oncancel=()=>{d.style.overflow=""}})}}}
     const hx=el("div","si");hx.append(el("span","sl","Custom color (hex)"),field("hex",()=>A.accent,v=>{v=(v[0]=="#"?v:"#"+v).toLowerCase();if(HEX.test(v))setA("accent",v);else toast("Use a color like #ffffff","warn")},"#ffffff",{label:"Custom color (hex)",live:v=>{v=(v[0]=="#"?v:"#"+v);if(HEX.test(v)){A.accent=v.toLowerCase();applyUI(A)}}}));
     const bg=el("div","si");bg.append(el("span","sl","Animated background"),hrow(...BGS.map(([k,l])=>radio(l,A.bg==k,()=>setA("bg",k),"bg"+k))),note("Animation stops automatically if your system asks for reduced motion."));
     const bb=el("div","si");bb.append(el("span","sl","Buttons"),check("Bubble animation on hover","Buttons grow slightly when the pointer is over them.",()=>A.bubble!==false&&A.bubble!=="false",v=>setA("bubble",v),"bubble"));
@@ -600,9 +712,9 @@ function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.ru
    const vis=inMode=="visual",sw=hrow(el("span","lbl","View"),radio("Controller",vis,()=>{inMode="visual";draw()},"vwv"),radio("Text file",!vis,()=>{inMode="text";PADL=null;draw()},"vwt"));
    if(vis)body.append(sw,padEditor(()=>inText,v=>{inText=v},draw,body),tools,mg);
    else{const t=el("textarea");t.value=inText;t.dataset.nav=1;t.dataset.k="ta";t.spellcheck=false;t.oninput=()=>inText=t.value;body.append(sw,note("Edit "+S.input_name+" (keyboard and mouse)."),t,tools,mg)}}
-  else(S.schema[tab]||[]).forEach(it=>body.append(item(it)));
+  else tabItems(tab).forEach(it=>body.append(item(it)));
   if(RESETX[tab]){const label=tab==="Source build"?"source build":tab.toLowerCase(),
-     keys=()=>[...(S.schema[tab]||[]).filter(it=>it.key).map(it=>[it.section,it.key]),...RESETX[tab]];
+     keys=()=>[...tabItems(tab).filter(it=>it.key).map(it=>[it.section,it.key]),...RESETX[tab]];
    body.append(hrow(btn("Reset "+label+" settings",()=>{
      keys().forEach(([sec,k])=>{if(S.defaults&&S.defaults[sec]&&k in S.defaults[sec])D[sec][k]=S.defaults[sec][k]});
      toast("Defaults restored. Press Save and close to apply them.","ok");draw()},{k:"reset"+tab,icon:"reset",tip:"Puts every option of this section back to its default. Nothing is saved until Save and close."}),
@@ -621,8 +733,8 @@ function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.ru
   const r=await api("save_settings",vals,inText,w);if(r&&r.error)return toast(r.error,"err");
   closeM(m);
   try{for(const s in vals)Object.assign(cfg[s]||(cfg[s]={}),vals[s]);if(w)S.input=inText;ui={...A};try{await api("set_ui",ui)}catch(e){}renderCards();refresh();toast("Settings saved","ok")}catch(e){toast("Settings saved","ok")}}
- d.append(el("h2","","AnyPS5 Settings"),tabs,body,(()=>{const f=hrow(el("span","sp"),btn("Cancel",()=>{applyUI(ui);closeM(m)},{k:"cancel"}),btn("Save and close",save,{pri:1,k:"save"}));f.style.justifyContent="flex-end";return f})());
- document.body.append(m);draw();tabs.firstChild.focus()}
+ srchEl=field("search",()=>sq,v=>{sq=v;draw()},"Search settings… e.g. language, rpath, deadzone",{label:"Search settings",live:v=>{sq=v;draw()}});d.append(el("h2","","AnyPS5 Settings"),srchEl,tabs,body,(()=>{const f=hrow(el("span","sp"),btn("Cancel",()=>{applyUI(ui);closeM(m)},{k:"cancel"}),btn("Save and close",save,{pri:1,k:"save"}));f.style.justifyContent="flex-end";return f})());
+ document.body.append(m);draw();srchEl.focus()}
 // ---------- log / run ----------
 function addLine([k,t]){const l=$("#log"),I={ok:"✔ ",warn:"⚠ ",err:"✖ ",info:"ℹ ",detail:"    ",step:"▸ ",progress:"… "};
  if(k=="progress"&&l.lastChild&&l.lastChild.dataset.pr)l.lastChild.remove();const d=el("div",k,(I[k]||"")+t);if(k=="progress")d.dataset.pr=1;l.append(d);l.scrollTop=l.scrollHeight}
@@ -663,7 +775,7 @@ function nav(k,e){const a=document.activeElement,inp=a.tagName=="INPUT",ta=a.tag
   if(inp&&!(d<0?a.selectionStart==0&&a.selectionEnd==0:a.selectionStart==a.value.length))return;if(ta)return;
   if(a.cyc)a.cyc(d);else hmove(d);stop()}
  else if(k=="Enter"){if(ta)return;if(inp){a.blur();a.focus()}else if(a.dataset&&a.dataset.nav)a.click();stop()}}
-addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()=="a"&&document.activeElement.id=="log"){const r=document.createRange();r.selectNodeContents($("#log"));const g=getSelection();g.removeAllRanges();g.addRange(r);e.preventDefault();return}
+addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()=="k"&&!topModal()){e.preventDefault();openSettings();return}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()=="a"&&document.activeElement.id=="log"){const r=document.createRange();r.selectNodeContents($("#log"));const g=getSelection();g.removeAllRanges();g.addRange(r);e.preventDefault();return}
  const m={ArrowUp:"Up",ArrowDown:"Down",ArrowLeft:"Left",ArrowRight:"Right",Enter:"Enter",Escape:"Escape"}[e.key];if(m)nav(m,e);
  else if(e.key==" "){const a=document.activeElement;if(a.dataset&&a.dataset.nav&&!["INPUT","TEXTAREA"].includes(a.tagName)&&a.id!="log"){a.click();e.preventDefault()}}});
 const UPD_SVG='<svg viewBox="0 0 260 150" aria-hidden="true"><g fill="none" stroke="currentColor"><rect x="30" y="16" width="190" height="108" rx="14" stroke-opacity=".4" fill="currentColor" fill-opacity=".05" stroke-width="2"/><path d="M30 40h190" stroke-opacity=".25" stroke-width="2"/></g><g fill="currentColor"><circle cx="46" cy="28" r="3.2" fill-opacity=".5"/><circle cx="58" cy="28" r="3.2" fill-opacity=".35"/><circle cx="70" cy="28" r="3.2" fill-opacity=".25"/><rect x="50" y="56" width="74" height="7" rx="3.5" fill-opacity=".2"/><rect x="50" y="72" width="108" height="7" rx="3.5" fill-opacity=".14"/><rect x="50" y="88" width="62" height="7" rx="3.5" fill-opacity=".14"/><path d="M232 30v10M227 35h10M20 104v8M16 108h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" opacity=".5"/></g><circle class="pulse" cx="196" cy="100" r="30" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="196" cy="100" r="30" fill="#111312" stroke="currentColor" stroke-width="2.5"/><g class="bob" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M196 85v22M185 97l11 11 11-11"/></g><path d="M184 118h24" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg>';
@@ -672,26 +784,53 @@ function checkUpdate(){api("check_update").then(u=>{if(!u)return;
  m.done=()=>{};  // Esc and clicks outside do nothing: the update cannot be dismissed
  const art=el("div","");art.innerHTML=UPD_SVG;
  const h2=el("h2","","Update required"),
-  p=el("p","","Version "+u.version+" is available (you have "+u.current+"). To keep using AnyPS5 GUI you need to update."),
+  p=el("p",""),
+  rn=(()=>{const t=(u.notes||"").trim();if(!t)return null;const d=el("div","rn"),sm=el("button","rnh","Release notes · "+u.version),bd=el("div","rnb");sm.type="button";sm.onclick=()=>{if(!matchMedia("(min-width:900px)").matches)d.classList.toggle("open")};let ul=null;
+   const OK=/^https:\/\/([\w-]+\.)*(github\.com|githubusercontent\.com)\//,
+    img=(src,alt)=>{const i=el("img","rni");i.alt=alt||"";i.loading="lazy";i.onerror=()=>{i.style.display="none"};i.src=src;return i},
+    vid=src=>{const v=el("video","rni");v.controls=true;v.muted=true;v.preload="metadata";v.src=src;return v},
+    lnk=(url,label)=>{const a=el("a","rnl",label);a.href=url;a.title=url;a.onclick=e=>{e.preventDefault();api("open_link",url)};return a},
+    inl=(txt,par)=>{const re=/\[([^\]]+)\]\((https?:\/\/[^)\s]+)[^)]*\)|(https?:\/\/[^\s<>)\]]*[^\s<>)\].,;:!?])/g;let i=0,m;
+     while(m=re.exec(txt)){if(m.index>i)par.append(txt.slice(i,m.index));par.append(lnk(m[2]||m[3],m[1]||m[3]));i=re.lastIndex}
+     if(i<txt.length)par.append(txt.slice(i))},
+    media=l=>{const out=[];let m;const reI=/<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi,reV=/<video\b[^>]*?\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi,reM=/!\[([^\]]*)\]\(([^)\s]+)[^)]*\)/g;
+     while(m=reI.exec(l)){const a=/\balt\s*=\s*["']([^"']*)["']/i.exec(m[0]);if(OK.test(m[1]))out.push(img(m[1],a&&a[1]))}
+     while(m=reV.exec(l))if(OK.test(m[1]))out.push(vid(m[1]));
+     while(m=reM.exec(l))if(OK.test(m[2]))out.push(img(m[2],m[1]));
+     if(!out.length&&/^https:\/\/github\.com\/user-attachments\/assets\/\S+$/.test(l)){const i=img(l,"");i.onerror=()=>i.replaceWith(vid(l));out.push(i)}
+     if(!out.length)return /<(img|video)\b/i.test(l);out.forEach(x=>bd.append(x));return true};
+   t.split(/\r?\n/).forEach(raw=>{if(media(raw.trim())){ul=null;return}const l=raw.trim().replace(/\*\*|`/g,"");if(!l){ul=null;return}
+    let m;if(m=l.match(/^#{1,6}\s*(.+)$/)){ul=null;const h=el("h4");inl(m[1],h);bd.append(h)}
+    else if(m=l.match(/^[-*+]\s+(.+)$/)){if(!ul){ul=el("ul");bd.append(ul)}const li=el("li");inl(m[1],li);ul.append(li)}
+    else{ul=null;const q=el("p");inl(l,q);bd.append(q)}});
+   d.append(sm,bd);return d})(),
   st=el("p","st"),bar=el("div","ubar"),fill=el("i"),row=el("div","row"),
-  tiny=el("p","muted tiny","The app downloads the new version, replaces the current one and restarts by itself. Settings and the Utilities folder are kept.");
+  tiny=el("p","muted tiny","The app downloads the new version, replaces the current one and restarts by itself.\nSettings and the Utilities folder are kept.");
  bar.append(fill);bar.hidden=true;
  const show=(txt,warn)=>{st.textContent=txt||"";st.className="st"+(warn?" warn":"")};
- let go,page;
- const busy=()=>{row.hidden=true;bar.hidden=false;tiny.hidden=true},
-  fail=t=>{bar.hidden=true;row.hidden=false;tiny.hidden=false;show(t,1);go.querySelector(".bt span").textContent="Try again";go.focus()},
-  start=()=>{busy();show("Starting…");fill.style.width="0";bar.classList.remove("ind");
+ let go,page,phase="idle",last="",timer=null;
+ const setGo=(l,ic)=>{go.querySelector(".bt span").textContent=l;go.querySelector(".bi").innerHTML=ICON[ic]},
+  lock=on=>{go.setAttribute("aria-disabled",on?"true":"false");go.style.opacity=on?".55":""},
+  fail=t=>{clearInterval(timer);phase="idle";lock(false);bar.hidden=true;tiny.hidden=false;show(t,1);setGo("Try again","download");go.focus()},
+  start=()=>{phase="run";bar.hidden=false;tiny.hidden=true;setGo("Pause","pause");show("Starting…");fill.style.width="0";bar.classList.remove("ind");
    api("start_update").then(r=>{if(r&&r.ok===false)return fail(r.error);
-    const t=setInterval(()=>api("update_status").then(s=>{if(!s)return;show(s.text||"");
+    timer=setInterval(()=>api("update_status").then(s=>{if(!s)return;
+     if(s.state=="downloading"&&phase=="run")last=s.text||"";
+     if(phase!="paused")show(s.text||"");
+     if(s.state=="installing"||s.state=="restarting"){phase="install";lock(true);setGo("Pause","pause")}
      if(s.pct==null||s.state=="installing"){bar.classList.add("ind")}else{bar.classList.remove("ind");fill.style.width=Math.max(0,Math.min(100,s.pct))+"%"}
      if(s.state=="restarting"){bar.classList.remove("ind");fill.style.width="100%"}
-     if(s.state=="failed"){clearInterval(t);fail(s.text)}}).catch(()=>{}),400)}).catch(e=>fail("Update failed: "+e))};
- go=btn("Update now",start,{pri:1,k:"upd-go"});page=btn("Open release page",()=>api("open_release_page"),{k:"upd-page"});
+     if(s.state=="failed"){fail(s.text)}}).catch(()=>{}),400)}).catch(e=>fail("Update failed: "+e))},
+  toggle=()=>{if(phase=="idle")start();
+   else if(phase=="run"){phase="paused";setGo("Resume","play");show("Paused"+(last?" · "+last:""));api("pause_update")}
+   else if(phase=="paused"){phase="run";setGo("Pause","pause");show("Resuming…");api("resume_update")}};
+ go=btn("Update now",toggle,{pri:1,k:"upd-go",icon:"download"});page=btn("Open release page",()=>api("open_release_page"),{k:"upd-page",icon:"ext"});
  row.append(go,page);
  if(u.packaged===false){row.append(btn("Continue anyway",()=>closeM(m),{k:"upd-skip"}));tiny.textContent="You are running from the Python script: the automatic update only works on the packaged app. Download the new version from the release page."}
- b.append(art,h2,p,st,bar,row,tiny);m.append(b);document.body.append(m);go.focus()}).catch(()=>{})}
+ p.append("Version "+u.version+" is available (you have "+u.current+").",document.createElement("br"),"To keep using AnyPS5 GUI you need to update.");
+ const col=el("div","ucol");col.append(art,h2,p,st,bar,row,tiny);b.append(col,...(rn?[rn]:[]));if(rn)b.classList.add("wide");m.append(b);document.body.append(m);go.focus()}).catch(()=>{})}
 document.getElementById("origin").onclick=e=>{e.preventDefault();api("open_origin_page")};
 // ---------- start ----------
 (async()=>{if(!window.pywebview)await new Promise(r=>addEventListener("pywebviewready",r,{once:true}));
- S=await api("get_state");if(S.version)$("#ver").textContent="v"+S.version;ui={...UIDEF,...(S.ui||{})};if(ui.bg=="orbs")ui.bg="accent";applyUI(ui);cfg=S.cfg;folder=S.folder;renderCards();await refresh();const f=$('[data-k="folder"]');f&&f.focus();checkUpdate()})();
+ S=await api("get_state");if(S.version)$("#ver").textContent="v"+S.version;ui={...UIDEF,...(S.ui||{})};if(ui.bg=="orbs")ui.bg="accent";applyUI(ui);renderTop();cfg=S.cfg;{const o=cfg.settings.open_sections;if(o)advOpen=Object.fromEntries(o.split(",").filter(x=>x&&x!="none").map(k=>[k,1]))}folder=S.folder;renderCards();await refresh();const f=$('[data-k="folder"]');f&&f.focus();checkUpdate()})();
 </script></body></html>
