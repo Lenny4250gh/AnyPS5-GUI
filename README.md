@@ -88,20 +88,20 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 - **Options:** all relinker options, each marked with the systems it applies to. Options that do not fit the selected target are disabled automatically.
 - **Audit:** runs `import_audit.py` (if present) after the relink.
 
-<img src="docs/screenshots/1.png" width="600" alt="Convert Page">
-<img src="docs/screenshots/2.png" width="600" alt="Convert Page 2">
+> <img src="docs/screenshots/1.png" width="600" alt="Convert Page">
+> <img src="docs/screenshots/2.png" width="600" alt="Convert Page 2">
 
 **Play a game**
 - **Launch** a converted game with your current settings, or **create a shortcut** that starts it with the right variables.
 
-<img src="docs/screenshots/3.png" width="600" alt="Play Page">
+> <img src="docs/screenshots/3.png" width="600" alt="Play Page">
 
 **Settings**
 - **Conversion settings**
-<img src="docs/screenshots/8.png" width="600" alt="Conversion settings">
+> <img src="docs/screenshots/8.png" width="600" alt="Conversion settings">
 
 - **Runtime settings:** Language, GPU, present mode, fonts, tracing and more, passed to the game as environment variables.
-<img src="docs/screenshots/7.png" width="600" alt="Runtime settings">
+> <img src="docs/screenshots/7.png" width="600" alt="Runtime settings">
 
 - **Storage:** see where the app keeps its tools, builds, backups and `config.ini`, and move everything to another folder with one click.
 - Any section of the settings can be exported as a shareable file.
@@ -112,18 +112,18 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 **Input**
 - Visual controller editor: click a button, then press a key, mouse button or wheel direction. Alternate inputs supported.
 
-<img src="docs/screenshots/4.png" width="600" alt="Input mapping">
+> <img src="docs/screenshots/4.png" width="600" alt="Input mapping">
 
 - Stick deadzones and mouse-as-stick settings (sensitivity, curve, smoothing, decay).
-<img src="docs/screenshots/5.png" width="600" alt="Input deadzones and mouse settings">
+> <img src="docs/screenshots/5.png" width="600" alt="Input deadzones and mouse settings">
 
 - Import / export your settings, or edit `anyps5-input.ini` directly in text view (with validity check).
-<img src="docs/screenshots/6.png" width="600" alt="Input deadzones and mouse settings">
+> <img src="docs/screenshots/6.png" width="600" alt="Input deadzones and mouse settings">
 
 **Appearance**
 - Choose the main color (presets or custom hex) and the animated background (soft grid, orbs or none). It stops automatically if your system asks for reduced motion.
 
-<img src="docs/screenshots/9.png" width="600" alt="Appearance settings">
+> <img src="docs/screenshots/9.png" width="600" alt="Appearance settings">
 
 ### Where the tools come from
 
