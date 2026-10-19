@@ -348,11 +348,27 @@ def unwrapper_status():
 # ─────────────────────────────────────────────────────────────
 #  Config
 # ─────────────────────────────────────────────────────────────
+def first_run_defaults():
+  """(target, intel, rosetta) that fit this computer, used only when there is no config file yet:
+  target = the host system · intel on for Intel CPUs · rosetta on for Apple silicon (implies intel)."""
+  target, intel, rosetta = host_target(), "no", "no"
+  try:
+    c = cpu_info()
+    if c["arch"] == "apple":  # Apple silicon (or an x86 process under Rosetta)
+      target, rosetta = "macos", "yes"
+    elif c["vendor"] == "intel":
+      intel = "yes"
+  except Exception:
+    pass
+  return target, intel, rosetta
+
+
 def load_config():
   cfg = configparser.ConfigParser(interpolation=None)
   source = CONFIG_FILE
   if not os.path.isfile(CONFIG_FILE) and os.path.isfile(LEGACY_CONFIG_FILE):
     source = LEGACY_CONFIG_FILE  # migrate settings from the old name
+  first_run = not os.path.isfile(source)  # no config yet: pick the options that fit this computer
   try:
     cfg.read(source, encoding="utf-8")
   except Exception:
@@ -367,6 +383,8 @@ def load_config():
     s["output_dir"] = ""
   if s["mode"] not in ("unwrap", "relink"):
     s["mode"] = "relink"
+  if first_run:
+    values["relinker"]["target"], values["settings"]["intel"], values["relinker"]["rosetta"] = first_run_defaults()
   if values["relinker"]["target"] not in TARGETS:
     values["relinker"]["target"] = "windows"
   if values["relinker"]["relinker_source"] not in RELINKER_SOURCES:
@@ -411,6 +429,210 @@ def host_target():
   if sys.platform == "darwin":
     return "macos"
   return "linux"
+
+
+# ── CPU compatibility check ──
+# AnyPS5 runs the game natively and relies on what the PS5's Zen 2 CPU offers without checking.
+CPU_REQUIRED = (("avx2", "AVX2"), ("fma", "FMA"), ("f16c", "F16C"), ("bmi1", "BMI1"),
+                ("bmi2", "BMI2"), ("lzcnt", "LZCNT"), ("movbe", "MOVBE"))
+_CPU_INFO = None
+
+
+def _sysctl(name):
+  try:
+    return subprocess.run(["sysctl", "-n", name], capture_output=True, text=True, timeout=5).stdout.strip()
+  except Exception:
+    return ""
+
+
+def cpu_info():
+  """{arch, vendor ('amd'/'intel'/'other'), name, features:set of CPU_REQUIRED keys or None if unknown, rosetta}."""
+  global _CPU_INFO
+  if _CPU_INFO is not None:
+    return _CPU_INFO
+  import platform
+  machine = platform.machine().lower()
+  info = {"arch": "x64" if machine in ("x86_64", "amd64", "x64") else machine,
+          "vendor": "other", "name": "", "features": None, "rosetta": False}
+  try:
+    if sys.platform == "darwin":
+      info["rosetta"] = _sysctl("sysctl.proc_translated") == "1"
+      if info["rosetta"] or machine.startswith("arm"):
+        info["arch"] = "apple"
+        info["name"] = _sysctl("machdep.cpu.brand_string") or "Apple silicon"
+      else:
+        text = " ".join(_sysctl(k) for k in ("machdep.cpu.features", "machdep.cpu.leaf7_features",
+                                             "machdep.cpu.extfeatures")).lower().split()
+        info["features"] = {k for k, _ in CPU_REQUIRED if k in text}
+        info["name"] = _sysctl("machdep.cpu.brand_string")
+        info["vendor"] = "intel" if "intel" in info["name"].lower() else "other"
+    elif os.name == "nt":
+      import ctypes
+      import winreg
+      with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0") as k:
+        v = winreg.QueryValueEx(k, "VendorIdentifier")[0]
+        info["name"] = winreg.QueryValueEx(k, "ProcessorNameString")[0].strip()
+      info["vendor"] = "amd" if "AMD" in v else "intel" if "Intel" in v else "other"
+      # Windows only reports AVX2 (feature 40). Every x86 CPU with AVX2 from Haswell/Excavator on also has
+      # FMA, F16C, BMI1/2, LZCNT and MOVBE, so AVX2 stands for the whole set.
+      if ctypes.windll.kernel32.IsProcessorFeaturePresent(40):
+        info["features"] = {k for k, _ in CPU_REQUIRED}
+      else:
+        info["features"] = set()
+    else:
+      flags, vendor, name = set(), "", ""
+      with open("/proc/cpuinfo", encoding="utf-8", errors="replace") as f:
+        for line in f:
+          key, _, val = line.partition(":")
+          key, val = key.strip(), val.strip()
+          if key == "flags" and not flags:
+            flags = set(val.split())
+          elif key == "vendor_id" and not vendor:
+            vendor = val
+          elif key == "model name" and not name:
+            name = val
+      if flags:
+        flags.add("lzcnt") if "abm" in flags else None  # lzcnt is reported as abm
+        info["features"] = {k for k, _ in CPU_REQUIRED if k in flags}
+      info["vendor"] = "amd" if "AMD" in vendor else "intel" if "Intel" in vendor else "other"
+      info["name"] = name
+  except Exception:
+    pass
+  _CPU_INFO = info
+  return info
+
+
+def cpu_status(target, intel, rosetta):
+  """(text, level) for the requirements list. level: ok / warn / err / muted."""
+  c = cpu_info()
+  name = c["name"] or c["arch"]
+  if c["arch"] == "apple":
+    if target == "macos" and rosetta:
+      return (f"{name}  ✔  Rosetta (--to-rosetta on)", "ok")
+    return (f"{name}  ⚠  Apple silicon: use the macOS target with --to-rosetta", "warn")
+  if c["arch"] != "x64":
+    return (f"{c['arch']}  ✖  not supported: AnyPS5 needs an x86-64 CPU", "err")
+  if c["features"] is None:
+    return (f"{name}  (extensions could not be read)", "muted")
+  missing = [t for k, t in CPU_REQUIRED if k not in c["features"]]
+  if missing:
+    return (f"{name}  ✖  missing {', '.join(missing)}: AnyPS5 stops at start", "err")
+  if c["vendor"] == "intel":
+    if intel or rosetta:
+      return (f"{name}  ✔  Intel, --to-intel on (titles that generate AMD-only code at runtime may still fail)", "ok")
+    return (f"{name}  ⚠  Intel: turn on --to-intel (titles that generate AMD-only code at runtime may still fail)", "warn")
+  return (f"{name}  ✔  {', '.join(t for _, t in CPU_REQUIRED)}", "ok")
+
+
+_GPU_INFO = None
+_SOFT_GPU = re.compile(r"llvmpipe|lavapipe|swiftshader|softpipe|software rasterizer|microsoft basic render", re.I)
+
+
+def _run_text(cmd, timeout=15):
+  try:
+    kw = {"creationflags": 0x08000000} if os.name == "nt" else {}
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, errors="replace", **kw).stdout
+  except Exception:
+    return ""
+
+
+def gpu_info():
+  """[{name, software, vendor ('amd'/'nvidia'/'intel'/'other')}] from Vulkan; falls back to the OS list."""
+  global _GPU_INFO
+  if _GPU_INFO is not None:
+    return _GPU_INFO
+  names = []
+  if shutil.which("vulkaninfo"):
+    out = _run_text(["vulkaninfo", "--summary"])
+    names = [m.strip() for m in re.findall(r"deviceName\s*=\s*(.+)", out)]
+  vulkan = bool(names)
+  if not names:
+    if os.name == "nt":
+      out = _run_text(["powershell", "-NoProfile", "-Command",
+                       "(Get-CimInstance Win32_VideoController).Name"])
+      names = [x.strip() for x in out.splitlines() if x.strip()]
+    elif sys.platform == "darwin":
+      out = _run_text(["system_profiler", "SPDisplaysDataType"])
+      names = [m.strip() for m in re.findall(r"Chipset Model:\s*(.+)", out)]
+    else:
+      out = _run_text(["lspci"])
+      names = [l.split(": ", 1)[1].strip() for l in out.splitlines()
+               if re.search(r"VGA|3D|Display", l) and ": " in l]
+  gpus, seen = [], set()
+  for n in names:
+    if n in seen:
+      continue
+    seen.add(n)
+    low = n.lower()
+    vendor = ("amd" if re.search(r"amd|radeon|advanced micro", low) else
+              "nvidia" if re.search(r"nvidia|geforce|rtx|gtx|quadro", low) else
+              "intel" if "intel" in low else "other")
+    gpus.append({"name": n, "software": bool(_SOFT_GPU.search(n)), "vendor": vendor})
+  _GPU_INFO = {"gpus": gpus, "vulkan": vulkan}
+  return _GPU_INFO
+
+
+def gpu_status(selected=""):
+  """(text, level) for the requirements list. `selected` is the ANYPS5_GPU filter (part of the device name)."""
+  info = gpu_info()
+  gpus = info["gpus"]
+  if sys.platform.startswith("linux"):
+    import ctypes.util
+    if not ctypes.util.find_library("vulkan"):
+      return ("Vulkan loader (libvulkan.so.1) not found  ✖  install your distribution's Vulkan loader and GPU driver", "err")
+  if not gpus:
+    return ("no GPU found  (install the Vulkan driver / vulkan-tools to detect it)", "warn")
+  hw = [g for g in gpus if not g["software"]]
+  sel = selected.strip().lower()
+  if sel:
+    hit = [g for g in gpus if sel in g["name"].lower()]
+    if not hit:
+      return (f"ANYPS5_GPU “{selected.strip()}” matches no device: {'; '.join(g['name'] for g in gpus)}", "err")
+    if hit[0]["software"]:
+      return (f"{hit[0]['name']}  ⚠  software renderer selected: the title runs, but very slowly", "warn")
+    return (f"{hit[0]['name']}  ✔  (selected with ANYPS5_GPU)", "ok")
+  if not hw:
+    return (f"{gpus[0]['name']}  ⚠  software renderer (no GPU driver): the title runs, but very slowly", "warn")
+  names = "; ".join(g["name"] for g in hw)
+  text = names + ("" if info["vulkan"] else "  (Vulkan not verified)")
+  if len(hw) > 1:
+    return (text + "  ⚠  several GPUs: set ANYPS5_GPU to pick one", "warn")
+  tip = ""
+  if os.name == "nt" and hw[0]["vendor"] == "amd":
+    tip = "  · if the first run ends in DEVICE_LOST, run again (driver cache: %LOCALAPPDATA%\\AMD\\VkCache)"
+  return (text + "  ✔" + tip, "ok" if info["vulkan"] else "muted")
+
+
+DIRECT_MEMORY_MIB = 13824  # USAGE.md: up to this much direct memory is committed per title on Windows
+
+
+def memory_status():
+  """(text, level) for Windows: free commit (RAM + page file) against the title's direct memory. None elsewhere."""
+  if os.name != "nt":
+    return None
+  try:
+    import ctypes
+
+    class MEMORYSTATUSEX(ctypes.Structure):
+      _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                  ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                  ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+                  ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                  ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+    m = MEMORYSTATUSEX()
+    m.dwLength = ctypes.sizeof(m)
+    if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m)):
+      return None
+  except Exception:
+    return None
+  mib = 1024 * 1024
+  limit, free, ram = m.ullTotalPageFile // mib, m.ullAvailPageFile // mib, m.ullTotalPhys // mib
+  base = f"RAM {ram} MiB · commit limit {limit} MiB · {free} MiB free to commit"
+  if limit < DIRECT_MEMORY_MIB:
+    return (base + f"  ✖  below the {DIRECT_MEMORY_MIB} MiB direct memory: increase the page file", "err")
+  if free < DIRECT_MEMORY_MIB:
+    return (base + f"  ⚠  less than {DIRECT_MEMORY_MIB} MiB: close other programs or increase the page file", "warn")
+  return (base + "  ✔", "ok")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -3706,10 +3928,25 @@ def game_name_from_exe(path):
   return name
 
 
+def missing_runtime_dlls(pkg_dir, target):
+  """MinGW runtime DLLs absent from <pkg>/libs on Windows (error 126 at start). [] if fine or not applicable."""
+  libs = os.path.join(pkg_dir, LIBS_DIR_NAME)
+  if target != "windows" or not os.path.isdir(libs):
+    return []
+  names = {n.lower() for n in os.listdir(libs)}
+  if not any(n.endswith(".prx") for n in names):
+    return []
+  return [d for d in MINGW_RUNTIME_DLLS if d.lower() not in names]
+
+
 def launch_game(pkg_dir, target, cfg, exe=None, log=None):
   exe = exe or os.path.join(pkg_dir, TARGETS[target]["exe"])
   if not os.path.isfile(exe):
     raise FileNotFoundError(exe)
+  missing = missing_runtime_dlls(pkg_dir, target)
+  if missing:
+    raise OSError(f"{LIBS_DIR_NAME}/ lacks {', '.join(missing)} (every library would fail with error 126): "
+                  "copy them from the mingw64/bin of the toolchain that built the libs, or use the release libs.")
   sync_input_ini(pkg_dir, cfg["runtime"], log)  # always start with the current input settings
   env = dict(os.environ)
   env.update(runtime_env(cfg["runtime"], target, pkg_dir))
@@ -4344,6 +4581,9 @@ def run_import_audit(out_exe, app0_dir, pkg_dir, rl, log, cancel, holder):
       cmd += ["--names", names]
     else:
       log("warn", f"Names file not found ({names}): audit without --names.")
+  json_path = os.path.join(out_dir, stem + ".audit.json")
+  _remove_quiet(json_path)
+  cmd += ["--json", json_path]
   try:
     code = stream_process(cmd, log, cancel, holder, "Audit", cwd=DATA_DIR)
   except Cancelled:
@@ -4354,6 +4594,225 @@ def run_import_audit(out_exe, app0_dir, pkg_dir, rl, log, cancel, holder):
   meaning = {0: "nothing blocks loading", 1: "there are 'absent' imports or missing libraries",
              2: "an input is not readable"}.get(code, "")
   log("ok" if code == 0 else "warn", f"Audit finished with code {code}: {meaning}")
+  summary = summarize_audit(json_path)
+  if summary:
+    log("ok" if code == 0 else "warn", summary)
+
+
+def _audit_find(node, key):
+  """First value stored under `key` anywhere in the audit JSON (case-insensitive)."""
+  if isinstance(node, dict):
+    for k, v in node.items():
+      if str(k).lower() == key:
+        return v
+    for v in node.values():
+      r = _audit_find(v, key)
+      if r is not None:
+        return r
+  elif isinstance(node, list):
+    for v in node:
+      r = _audit_find(v, key)
+      if r is not None:
+        return r
+  return None
+
+
+def summarize_audit(json_path):
+  """One readable line from import_audit's --json: implemented / stub / absent / module. '' if unreadable."""
+  try:
+    with open(json_path, encoding="utf-8") as f:
+      data = json.load(f)
+  except Exception:
+    return ""
+  counts = {}
+  for key in ("implemented", "stub", "absent", "module"):
+    v = _audit_find(data, key)
+    if isinstance(v, (list, dict)):
+      v = len(v)
+    if isinstance(v, int) and not isinstance(v, bool):
+      counts[key] = v
+  if not counts:
+    return ""
+  text = (f"Audit: {counts.get('implemented', 0)} implemented, {counts.get('stub', 0)} stub "
+          f"(load, but throw when called), {counts.get('absent', 0)} absent "
+          f"(the game will not load), {counts.get('module', 0)} from the title's own modules.")
+  if counts.get("absent"):
+    names = _audit_find(data, "absent")
+    if isinstance(names, list):
+      shown = [str(n.get("name") or n.get("nid") or n) if isinstance(n, dict) else str(n) for n in names[:8]]
+      text += " Absent: " + ", ".join(shown) + (" …" if len(names) > 8 else "")
+  return text
+
+
+# ─────────────────────────────────────────────────────────────
+#  Exit codes, log reading and the test report (GAME_TESTING.md, "Reporting a result")
+# ─────────────────────────────────────────────────────────────
+EXIT_CODES = {
+  0: "the game closed normally",
+  124: "the time cap ended the run (timeout)",
+  126: "a library could not be loaded (a MinGW DLL or a .prx is missing)",
+  127: "a required file was not found",
+  134: "uncaught exception or abort() in the title",
+  137: "the process was killed (SIGKILL, often out of memory)",
+  139: "segmentation fault: the title touched memory it cannot access",
+  216: "Windows refused to start the file (an ELF output was built without --windows)",
+  193: "Windows tried to load a PS5 module as a DLL (a game .prx is in libs/)",
+  0xC0000005: "access violation: the title or AnyPS5 touched invalid memory",
+  0xC0000409: "uncaught exception or abort() (the log ends with FATAL: abort())",
+  0xC000013A: "the process was closed with Ctrl+C or its console was closed",
+  0xC0000142: "a DLL failed to initialize (error 126/193 territory: check libs/)",
+  0xC0000135: "a required DLL was not found",
+}
+
+
+def normalize_exit_code(code):
+  """Popen reports a signal as -N on POSIX (shells show 128+N) and a signed value on Windows."""
+  if code is None:
+    return None
+  if code < 0:
+    return (code & 0xFFFFFFFF) if os.name == "nt" else 128 - code
+  return code
+
+
+def explain_exit_code(code):
+  """Plain-language text for an exit code of the title."""
+  code = normalize_exit_code(code)
+  if code is None:
+    return "still running"
+  text = EXIT_CODES.get(code)
+  shown = f"0x{code:08x}" if code > 0xFFFF else str(code)
+  if text is None:
+    text = "the title stopped with an error: check the last log lines" if code else "ok"
+  return f"{shown}: {text}"
+
+
+def battery_status():
+  """'AC', 'battery' or '' when unknown (GAME_TESTING.md: a run on battery can look like a regression)."""
+  try:
+    if os.name == "nt":
+      import ctypes
+
+      class SPS(ctypes.Structure):
+        _fields_ = [("AC", ctypes.c_ubyte), ("Flag", ctypes.c_ubyte), ("Pct", ctypes.c_ubyte),
+                    ("Sav", ctypes.c_ubyte), ("Life", ctypes.c_ulong), ("Full", ctypes.c_ulong)]
+      s = SPS()
+      if ctypes.windll.kernel32.GetSystemPowerStatus(ctypes.byref(s)):
+        return {0: "battery", 1: "AC"}.get(s.AC, "")
+    elif sys.platform == "darwin":
+      out = _run_text(["pmset", "-g", "batt"])
+      return "AC" if "AC Power" in out else "battery" if "Battery Power" in out else ""
+    else:
+      base = "/sys/class/power_supply"
+      online, has_bat = None, False
+      for n in os.listdir(base):
+        p = os.path.join(base, n)
+        kind = open(os.path.join(p, "type")).read().strip()
+        if kind == "Mains":
+          online = online or open(os.path.join(p, "online")).read().strip() == "1"
+        elif kind == "Battery":
+          has_bat = True
+      if online:
+        return "AC"
+      return "battery" if has_bat else "AC"  # no battery at all: a desktop on mains
+  except Exception:
+    pass
+  return ""
+
+
+def analyze_log(text):
+  """Facts read from a run log: GPU, presents per 10 s, milestones and what stopped the title."""
+  gpu = re.findall(r"Selected GPU name=(.+)", text)
+  presents = [int(n) for n in re.findall(r"\[present\]\s+(\d+)\s+presents over 10 s", text)]
+  stop = [l.strip() for l in text.splitlines()
+          if re.search(r"FATAL:|terminate called|what\(\)|presentation failed|ASSERT|VK_ERROR_DEVICE_LOST|"
+                       r"vkAllocateMemory.*-2|sceSystemServiceLoadExec: execv failed", l)]
+  levels = re.findall(r"Level has started:\s*(.+)", text)
+  notes = []
+  if gpu and _SOFT_GPU.search(gpu[-1]):
+    notes.append("a software renderer was selected: very slow, set ANYPS5_GPU to the real GPU")
+  if presents and presents[-1] == 0:
+    notes.append("no frames in the last 10 s: the title stalled (try one input, then check again)")
+  if any("DEVICE_LOST" in l for l in stop):
+    notes.append("device lost: on AMD the first run can fail while shaders compile, run again with warm caches")
+  if any("vkAllocateMemory" in l for l in stop):
+    notes.append("the GPU ran out of memory")
+  if any("execv failed" in l for l in stop):
+    notes.append("an executable lost its permission bits: run chmod +x on it")
+  return {"gpu": gpu[-1].strip() if gpu else "", "presents": presents, "stop": stop[-3:],
+          "level": levels[-1].strip() if levels else "", "notes": notes}
+
+
+def title_info(pkg_dir):
+  """(title ID, content version) from <pkg>/app0/sce_sys/param.json; empty strings if unreadable."""
+  try:
+    with open(os.path.join(pkg_dir, "app0", "sce_sys", "param.json"), encoding="utf-8-sig") as f:
+      j = json.load(f)
+    return str(j.get("titleId", "")), str(j.get("contentVersion", ""))
+  except Exception:
+    return "", ""
+
+
+def runtime_vars_text(cfg, target, pkg_dir):
+  env = runtime_env(cfg["runtime"], target, pkg_dir)
+  return "\n".join(f"{k}={v}" for k, v in sorted(env.items())) or "(none)"
+
+
+def build_report(cfg, target, game, pkg_dir, log_text, exit_code=None, tail=None):
+  """Plain text with the points 1-8 of GAME_TESTING.md, filled in as far as the GUI knows them.
+  Unknown fields stay empty. Measured data and the automatic reading are kept apart."""
+  import platform
+  import datetime
+  c = cpu_info()
+  g = gpu_info()
+  tid, ver = title_info(pkg_dir) if pkg_dir else ("", "")
+  guest_log = ""
+  for name in ("anyps5.log", "run.log"):
+    p = os.path.join(pkg_dir or "", name)
+    if os.path.isfile(p):
+      try:
+        with open(p, encoding="utf-8", errors="replace") as f:
+          guest_log = f.read()
+        break
+      except OSError:
+        pass
+  source = guest_log or log_text
+  facts = analyze_log(source)
+  gpu_line = facts["gpu"] or "; ".join(x["name"] for x in g["gpus"] if not x["software"]) or ""
+  lines = source.splitlines()[-tail:] if tail else source.splitlines()
+  mem = memory_status()
+  rt = cfg["runtime"]
+  bar = "=" * 60
+  def head(t):
+    return [bar, t.upper(), bar]
+  out = [
+    "AnyPS5 TEST REPORT",
+    "",
+    *head("Measured data"),
+    f"1. Build: GUI {APP_VERSION}; relinker commit/PR: (fill in)",
+    f"2. Title: {tid or '(fill in)'}  content version {ver or '(fill in)'}  ({game or 'unknown'})",
+    f"3. Host: CPU {c['name'] or c['arch']} ({c['vendor']}); OS {platform.platform()}; "
+    f"GPU {gpu_line or '(fill in)'}; driver (fill in); power {battery_status() or '(fill in)'}; "
+    f"display refresh rate (fill in)",
+    f"   Target: {target}" + (f"; {mem[0]}" if mem and os.name == 'nt' else ""),
+    "4. Command and variables:",
+    runtime_vars_text(cfg, target, pkg_dir or ""),
+    f"   --to-intel: {yn(yes(cfg['settings']['intel']))}; caches: (empty / warm)",
+    f"5. How far it got: {facts['level'] or '(fill in)'}",
+    f"   Exit code: {explain_exit_code(exit_code) if exit_code is not None else '(fill in)'}",
+    f"6. Presents per 10 s: {', '.join(map(str, facts['presents'][-6:])) or '(none in the log)'}",
+    "7. Runs / duration: (fill in)",
+    f"8. Date: {datetime.date.today().isoformat()}",
+    "",
+    *head(f"Full log ({len(lines)} lines)" + ("" if guest_log else " - GUI log, the title's own output is not captured")),
+    *lines,
+    "",
+  ]
+  if guest_log and log_text.strip():
+    out += [*head(f"GUI log ({len(log_text.splitlines())} lines)"), *log_text.splitlines(), ""]
+  out += head("Automatic reading (generated, not measured)")
+  out += [f"- {n}" for n in facts["notes"]] or ["- nothing unusual found in the log"]
+  out += [f"- stop line: {s}" for s in facts["stop"]]
+  return "\n".join(out) + "\n"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -4366,7 +4825,7 @@ L = sys.modules[__name__]   # the logic lives in this same file
 HERE = SCRIPT_DIR
 
 # ---------- GUI update check ----------
-APP_VERSION = "1.0.8"
+APP_VERSION = "1.0.9"
 GUI_REPO_OWNER = "Lenny4250gh"
 GUI_REPO_NAME = "AnyPS5-GUI"
 GUI_RELEASES_URL = "https://github.com/%s/%s/releases/latest" % (GUI_REPO_OWNER, GUI_REPO_NAME)
@@ -4878,12 +5337,6 @@ def prepare_and_launch_update(asset, status, cancel):
 # Options schema (generated from the old SettingsDialog; if you add options, update it here)
 SCHEMA = {'Conversion': [{'type': 'flag',
                  'section': 'relinker',
-                 'key': 'rosetta',
-                 'label': '--to-rosetta (RDSEED→RDRAND, CLWB→NOP, RDPID→0)',
-                 'plat': 'nowin',
-                 'hint': 'Implies --to-intel. Not compatible with Windows. For macOS on Apple silicon.'},
-                {'type': 'flag',
-                 'section': 'relinker',
                  'key': 'gui',
                  'label': '--windows-gui (GUI subsystem)',
                  'plat': 'win',
@@ -5264,6 +5717,8 @@ class Api:
     self.cancel_ev = threading.Event()
     self.holder = {}
     self.game_proc = None
+    self.game_exit = None      # exit code of the last game that ended
+    self.game_pkg = ""         # folder of the last started game
     self.quitting = False      # True once the user confirmed closing during an operation
     self._quit_asked = False   # a confirmation popup is already on screen
     self._upd = {"state": "idle"}  # progress of the GUI self-update
@@ -5476,14 +5931,28 @@ class Api:
     self.folder = (path or "").strip().strip('"')
     return self.folder
 
-  def save_log(self, text):
+  def make_report(self, log_text):
+    """Test report (GAME_TESTING.md points 1-8) as plain text; the UI saves it to a file."""
+    cfg = {sec: dict(v) for sec, v in self.cfg.items()}
+    target = cfg["relinker"]["target"]
+    pkg = self.game_pkg
+    game = ""
+    if not pkg and self.folder:
+      game = self.game_name()
+      pkg = L.package_dir(cfg["settings"]["output_dir"] or L.SCRIPT_DIR, game, target)
+    elif pkg:
+      game = os.path.basename(pkg.rstrip("/\\"))
+    return L.build_report(cfg, target, game, pkg, log_text or "", self.game_exit)
+
+  def save_log(self, text, filename="anyps5-log.txt"):
     kind = getattr(getattr(webview, "FileDialog", None), "SAVE", None) or webview.SAVE_DIALOG
-    res = webview.windows[0].create_file_dialog(kind, save_filename="anyps5-log.txt")
+    res = webview.windows[0].create_file_dialog(kind, save_filename=filename)
     if res:
       path = res if isinstance(res, str) else res[0]
       with open(path, "w", encoding="utf-8") as f:
         f.write(text)
-    return True
+      return True
+    return False
 
   # ---------- status ----------
   def status(self):
@@ -5542,7 +6011,16 @@ class Api:
                    "ok" if info["sce_sys"] else "err"])
     rows += [["unwrapper", "unwrap_self.py", *unw], ["relinker", "Relinker", *L.relinker_status(rl)],
              ["libs", "prx-*.zip", *libs]]
+    rows.append(["cpu", "CPU", *L.cpu_status(target, L.yes(self.cfg["settings"]["intel"]), L.yes(rl["rosetta"]))])
+    rows.append(["gpu", "GPU", *L.gpu_status(self.cfg.get("runtime", {}).get("gpu", ""))])
+    mem = L.memory_status()
+    if mem and target == "windows":
+      rows.append(["memory", "Memory", *mem])
     return clean(rows)
+
+  def gpu_names(self):
+    """Detected hardware GPUs (lowercase), offered as suggestions in the ANYPS5_GPU field."""
+    return [g["name"].lower() for g in L.gpu_info()["gpus"] if not g["software"]]
 
   def space(self):
     if L.is_archive_source(self.folder):
@@ -5749,6 +6227,7 @@ class Api:
     try:
       self.game_proc = L.launch_game(pkg, target, cfg, exe=path, log=lambda k, m: self.q.put((k, m)))
       self.q.put(("ok", f"Game started (PID {self.game_proc.pid}) from {pkg}"))
+      self.game_pkg, self.game_exit = pkg, None
     except OSError as e:
       self.q.put(("err", f"Unable to launch the game: {e}"))
       return False
@@ -5779,6 +6258,7 @@ class Api:
     try:
       self.game_proc = L.launch_game(pkg, target, cfg, log=log)
       log("ok", f"Game started (PID {self.game_proc.pid}) from {pkg}")
+      self.game_pkg, self.game_exit = pkg, None
     except FileNotFoundError:
       log("err", f"Run the Relink for this game first. Expected: {pkg}")
     except OSError as e:
@@ -5787,6 +6267,11 @@ class Api:
 
   def poll(self):
     lines, pct = [], "keep"
+    p = self.game_proc
+    if p is not None and self.game_exit is None and p.poll() is not None:
+      self.game_exit = L.normalize_exit_code(p.returncode)
+      self.q.put(("ok" if self.game_exit == 0 else "warn",
+                  "Game ended, exit code " + L.explain_exit_code(self.game_exit)))
     while not self.q.empty():
       k, m = self.q.get()
       if k == "percent":

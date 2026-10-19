@@ -41,7 +41,7 @@ h1{font-weight:300;font-size:2.3em;margin:0;letter-spacing:-.01em}
 #in{position:relative}
 .ver{font-size:.8em;font-weight:400;letter-spacing:.04em;color:var(--dim);opacity:.8}
 h1 .gui{font-size:.45em;font-weight:500;letter-spacing:.12em;opacity:.65;vertical-align:.55em;margin-left:.15em}
-.tagline{color:var(--dim);font-size:.8em;margin:.2em 0 1em}
+.tagline{color:var(--dim);font-size:.8em;margin:.2em 0 2.2em}
 .card{background:var(--glass);border:1px solid var(--line);border-radius:1.1em;padding:.9em 1.2em 1em;margin-top:.8em;
  -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 .6em 2em rgba(0,0,0,.3)}
 .card h3{font-weight:400;font-size:.8em;color:var(--dim);margin:0 0 .6em;letter-spacing:.02em}
@@ -70,7 +70,7 @@ h1 .gui{font-size:.45em;font-weight:500;letter-spacing:.12em;opacity:.65;vertica
 input[type=text],input:not([type]),textarea{background:rgba(0,0,0,.35);color:var(--text);border:1px solid var(--line);border-radius:.6em;padding:.4em .7em;font:400 .85em Consolas,"Cascadia Mono","DejaVu Sans Mono",monospace;outline:none}
 input:focus,textarea:focus{border-color:var(--ring);box-shadow:0 0 0 .1em var(--ring)}
 input:disabled{opacity:.4}
-.b,.opt,.chk,.sw{all:unset;box-sizing:border-box;cursor:pointer;transition:background .14s,box-shadow .14s}
+.b,.opt,.chk,.sw{all:unset;box-sizing:border-box;cursor:pointer;transition:background .14s,box-shadow .14s,opacity .28s ease}
 .b{display:inline-flex;align-items:center;justify-content:center;padding:.45em 1.1em;border-radius:2em;background:var(--glass2);border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
 .b.ic{display:inline-flex;align-items:center;gap:.6em}.b.ico{padding:0;width:2.4em;height:2.4em;border-radius:50%}.b.ic .bi{display:flex;align-items:center;height:1em;flex:none}.bi svg{width:1.35em;height:1.35em;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;display:block}
 .bt{display:flex;flex-direction:column;line-height:1.15}.bt small{font-size:.66em;color:var(--dim)}
@@ -83,6 +83,10 @@ input:disabled{opacity:.4}
 .b.sel{background:rgba(255,255,255,.28)}
 .b:focus-visible,.opt:focus-visible,.chk:focus-visible{box-shadow:0 0 0 .12em var(--ring)}
 [aria-disabled=true]{opacity:.35;cursor:not-allowed}
+/* titles of disabled text boxes / combo boxes dim like the other disabled options */
+.si .sl{transition:opacity .28s ease}
+.si:has(>input[aria-disabled=true],>.cmb [aria-disabled=true],>.cbtn[aria-disabled=true])>.sl,
+.si.cmb:has(>.cbtn[aria-disabled=true])>.sl{opacity:.35}
 .opt{display:flex;align-items:center;gap:.6em;padding:.25em .6em;border-radius:.7em}
 .opt:hover,.chk:hover{background:rgba(255,255,255,.06)}
 .opt i{width:1.05em;height:1.05em;border-radius:50%;border:1.5px solid var(--dim);position:relative;flex:none}
@@ -220,7 +224,7 @@ body.intro #pb{animation-delay:.36s}body.intro #log{animation-delay:.4s}
 .b{transition:background .14s,box-shadow .14s,transform .14s var(--ease)}
 body:not([data-bubble=off]) .b:active:not([aria-disabled=true]){transform:scale(.96)}
 /* Buttons: soft "bubble" pop on hover, squish on press */
-.b{transition:background .14s,box-shadow .14s,filter .14s,transform .22s cubic-bezier(.34,1.56,.64,1)}
+.b{transition:background .14s,box-shadow .14s,filter .14s,opacity .28s ease,transform .22s cubic-bezier(.34,1.56,.64,1)}
 body:not([data-bubble=off]) .b:hover:not([aria-disabled=true]){transform:scale(1.045)}
 body:not([data-bubble=off]) .b:active:not([aria-disabled=true]){transform:scale(.95);transition-duration:.1s}
 /* Focus: border and ring fade in/out smoothly instead of snapping */
@@ -328,6 +332,20 @@ body.noring .cmb:not(.open) .cbtn:focus-visible{border-color:var(--line)!importa
 .rh{display:flex;align-items:center;justify-content:space-between;gap:.8em;flex-wrap:wrap}.rh h3{margin:0;line-height:1.4;display:flex;align-items:center;min-height:2.2em}
 .card:has(>.rh){padding-top:.75em;padding-bottom:.75em}.rh .hrow{margin-top:0}
 .sum{margin:.7em 0 0;color:var(--dim);font-size:.88em}
+/* Hover on text boxes, number boxes, text areas and combo boxes: they brighten (no growing, so wide fields never overflow) */
+input[type=text],input:not([type]),textarea,.prow input[type=number],.cbtn{
+ transition:border-color .18s ease-out,box-shadow .18s ease-out,background .18s ease-out,transform .22s cubic-bezier(.34,1.56,.64,1)}
+input[type=text]:not(:focus):not([aria-disabled=true]):hover,
+input:not([type]):not(:focus):not([aria-disabled=true]):hover,
+textarea:not(:focus):hover,
+.prow input[type=number]:not(:focus):hover,
+.cbtn:not([aria-disabled=true]):not(:focus-visible):hover{
+ border-color:rgba(255,255,255,.4);
+ background:rgba(255,255,255,.08);
+ box-shadow:0 0 0 .1em rgba(255,255,255,.1)}
+.cmb.open .cbtn:hover{background:rgba(255,255,255,.08)}
+/* the small ring appears slightly on hover, then turns full color on focus */
+@media (prefers-reduced-motion:reduce){input,textarea,.cbtn{transition:none!important}}
 </style></head><body data-bg="grid" class="intro">
 <div id="bg" aria-hidden="true"><i></i><i></i><i></i></div>
 <div id="page"><div id="in">
@@ -368,7 +386,12 @@ let S,cfg,status=[],space=null,running=false,log=[],pct="idle",folder="",poller=
 const TI={err:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/>',warn:'<path d="M12 3.8 21.5 20h-19z"/><path d="M12 10v4.5M12 17.5h.01"/>',ok:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.5"/>'};
 function toast(t,l){const e=$("#toast");e.textContent="";if(TI[l]){const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 24 24");s.setAttribute("class","ti "+l);s.innerHTML=TI[l];e.append(s)}e.append(el("span","",t));e.className="on "+(l||"");clearTimeout(toast.t);toast.t=setTimeout(()=>e.className="",l=="err"?6000:3000)}
 // ---------- widgets ----------
-const dis=(e,off)=>{if(off){e.setAttribute("aria-disabled","true");delete e.dataset.nav}else{e.removeAttribute("aria-disabled");e.dataset.nav=1}return e};
+const disMem={};
+const dis=(e,off)=>{const k=e.dataset.k,o=!!off,
+ apply=v=>{if(v){e.setAttribute("aria-disabled","true");delete e.dataset.nav}else{e.removeAttribute("aria-disabled");e.dataset.nav=1}},
+ prev=k!=null?disMem[k]:undefined;if(k!=null)disMem[k]=o;
+ // when the state changed since the last render, paint the old state first and switch after two frames so the opacity fades
+ if(prev!==undefined&&prev!==o){apply(prev);requestAnimationFrame(()=>requestAnimationFrame(()=>apply(o)))}else apply(o);return e};
 const ICON={tcv:'<svg viewBox="0 0 24 24"><path d="M4 8h13M13.5 4.5 17 8l-3.5 3.5"/><path d="M20 16H7M10.5 12.5 7 16l3.5 3.5"/></svg>',tbd:'<svg viewBox="0 0 24 24"><path d="M8.5 8 4.5 12l4 4M15.5 8l4 4-4 4M13.5 5.5l-3 13"/></svg>',tdk:'<svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="2.8"/><path d="M5 6v6c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V6M5 12v6c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-6"/></svg>',tpl:'<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>',tpt:'<svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 1 0 0 16c1.4 0 2-.9 2-1.8 0-1.3-1-1.7-1-2.9 0-1 .8-1.8 1.9-1.8H17a3 3 0 0 0 3-3C20 6.9 16.4 4 12 4z"/><path d="M8 11h.01M11 8h.01M15 8.5h.01"/></svg>',pad:'<svg viewBox="0 0 24 24"><path d="M7 8.5h10a4 4 0 0 1 4 4v1.5a3 3 0 0 1-5.2 2l-1.3-1.5h-5L8.2 16A3 3 0 0 1 3 14v-1.5a4 4 0 0 1 4-4z"/><path d="M8.2 11v3M6.7 12.5h3"/><path d="M15.5 11.6h.01M17.6 13.4h.01"/></svg>',
  tune:'<svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>',
  download:'<svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>',
@@ -435,11 +458,13 @@ function foldAnim(d,sm,wb,key){let an=null;const rm=()=>matchMedia("(prefers-red
   if(op){const h=wb.offsetHeight;wb.style.overflow="hidden";an=wb.animate([{height:h+"px",opacity:1},{height:"0px",opacity:0}],{duration:240,easing:"cubic-bezier(.2,.8,.2,1)"});
    an.onfinish=an.oncancel=()=>{an=null;set(false)}}
   else{set(true);const h=wb.offsetHeight;an=wb.animate([{height:"0px",opacity:0},{height:h+"px",opacity:1}],{duration:300,easing:"cubic-bezier(.2,.8,.2,1)"});an.onfinish=an.oncancel=()=>{an=null}}})}
+async function makeReport(){const t=await api("make_report",log.map(x=>x[1]).join("\n"));
+ const ok=await api("save_log",t,"anyps5-report.txt");if(ok)toast("Report exported","ok")}
 async function copyLog(){const t=log.map(x=>x[1]).join("\n");if(!t.trim())return toast("The log is empty.","warn");
  let ok=false;try{await navigator.clipboard.writeText(t);ok=true}catch(e){}
  if(!ok){const a=document.createElement("textarea");a.value=t;a.style.cssText="position:fixed;left:-9999px;top:0";document.body.append(a);a.select();try{ok=document.execCommand("copy")}catch(e){}a.remove()}
  toast(ok?"Log copied to the clipboard":"Could not copy the log",ok?"ok":"err")}
-let prevSrc=null,prevRel=null;
+let prevSrc=null,prevRel=null,prevWin=null;
 function saveAdv(){const v=Object.keys(advOpen).filter(k=>advOpen[k]).join(",")||"none";cfg.settings.open_sections=v;api("set_cfg",{settings:{open_sections:v}})}
 const M=/module|executable|sce-module/i,plat=(p,T)=>!p||p=="all"||(p=="win"&&T=="windows")||(p=="nowin"&&T!="windows")||(p=="host"&&T==S.host),
  FRIEND=[["--to-rosetta","Run on Apple silicon (Rosetta)"],["--windows-gui","Hide the console window"],["--autorun","Start the game when the conversion ends"],["--lazy-binding","Faster start (lazy binding)"],["--registry","Write registry files"],["--rpath","Extra library search path"]],
@@ -452,7 +477,7 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
  const card=(t,...k)=>{const c=el("section","card");c.append(el("h3","",t),...k);root.append(c);return c};
  const fold=(key,t,...k)=>{const c=el("section","card"),d=document.createElement("details"),sm=document.createElement("summary");d.className="adv";d.open=!!advOpen[key];d.classList.toggle("op",d.open);d.ontoggle=()=>{advOpen[key]=d.open?1:0};sm.textContent=t;const wb=el("div","advb"),wi=el("div","advi");wi.append(...k);wb.append(wi);d.append(sm,wb);foldAnim(d,sm,wb,key);c.append(d);root.append(c);return c};
  const tabs=hrow(btn("Convert a game",()=>{if(view!="convert"){view="convert";vAnim="L"}renderCards()},{k:"vc"}),btn("Play a game",()=>{if(view!="play"){view="play";vAnim="R"}renderCards()},{k:"vp"}));tabs.children[view=="play"?1:0].classList.add("sel");root.append(tabs);
- const logb=()=>[el("span","sp"),btn("Export log…",()=>api("save_log",log.map(x=>x[1]).join("\n")),{k:"exp"}),btn("Copy log",copyLog,{k:"cpy",tip:"Copy the whole log to the clipboard."}),btn("Clear log",()=>{log=[];$("#log").textContent=""},{k:"clr"})];
+ const logb=()=>[el("span","sp"),btn("Export report…",makeReport,{k:"rep",tip:"Saves a report file with the test info of GAME_TESTING.md (host, GPU, variables, exit code), the automatic reading and the FULL log. Ready to attach on Discord or GitHub."}),btn("Clear log",()=>{log=[];$("#log").textContent=""},{k:"clr"})];
   const mkopts=()=>btn("AnyPS5 settings…",()=>openSettings(),{k:"opts",icon:"tune",tip:"Conversion, Source build, Runtime, Input and Appearance settings."});
  if(view=="play"){card("Play a converted game",note("Choose the game's executable (eboot.exe, eboot.elf or eboot). It starts with the current settings you have now. You don't need the PS5 folder, and the converted folder can be anywhere."),
    hrow(btn("Launch game",playExe,{k:"play",icon:"pad",sub:"With your current settings",tip:"Pick the game executable: it starts with the current settings currently set (language, present mode, GPU…)."}),
@@ -463,14 +488,20 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
  card("1. Select the game folder",hrow(field("folder",()=>folder,async v=>{folder=await api("set_folder",v);refresh()},"Paste the path (folder or .zip / .rar) or use Browse… / Archive…",{label:"Game folder",live:v=>api("set_folder",v)}),
   btn("Browse…",async()=>{const p=await api("pick_folder");if(p){folder=p;renderCards();refresh()}},{k:"browse"}),
   btn("Archive…",async()=>{const p=await api("pick_archive");if(p){folder=p;renderCards();refresh()}},{k:"browsezip",tip:"Select a game packed as .zip or .rar: it is extracted automatically (.rar needs 7-Zip installed)."})),note("Paste the path of a folder or of a .zip or .rar, or use Browse… / Archive…"));
- const st=el("div","stat");[["eboot","eboot.bin"],["modules","Modules (sce_module/prx)"],["dirs","sce_sys"],["unwrapper","unwrap_self.py"],["relinker","Relinker"],["libs","prx-*.zip (libs zip file)"],["space","Disk space needed"]]
+ const st=el("div","stat");[["eboot","eboot.bin"],["modules","Modules (sce_module/prx)"],["dirs","sce_sys"],["unwrapper","unwrap_self.py"],["relinker","Relinker"],["libs","prx-*.zip (libs zip file)"],["cpu","CPU (AVX2, Intel/AMD)"],["space","Disk space needed"]]
   .forEach(([k,t])=>{const v=el("span","","—");v.id="st-"+k;st.append(el("span","",t),v)});{const rw=el("div","readyrow"),rd=el("span","ready");rd.id="ready";rd.textContent="Checking…";rw.append(rd,btn("Open game and module settings",()=>openSettings("Game and modules"),{k:"os1",icon:"tune",tip:"Game and modules tab: --module-dir, --executable, --sce-module-path, unwrap of modules…"}));fold("st","Requirements check (details)",st).prepend(rw)}
  const m=card("2. Choose what to do",radio("Convert to PC  —  builds the package with the executable for your system",rel,()=>setMain("settings","mode","relink"),"m2"),
   radio("Unwrap only  —  eboot.bin and modules (SELF → ELF, with backup)",!rel,()=>setMain("settings","mode","unwrap"),"m1"));
  {const ind=el("div","ind"),tg=(k,sec,key,l,h)=>check(l,h,()=>yes(cfg[sec][key]),v=>setMain(sec,key,v?"yes":"no"),k);
+  const hideR=r.target=="windows",fromHide=prevWin===null?hideR:prevWin;prevWin=hideR;
+  const rosEl=el("div","vzr"),rosIn=el("div","vzin");
+  rosIn.append(tg("rosetta","relinker","rosetta","Apple silicon via Rosetta (--to-rosetta) · Linux / macOS","Implies --to-intel. Not available with the Windows system."));rosEl.append(rosIn);
+  const setRos=(h,anim)=>{rosEl.classList.toggle("gone",h);rosEl.inert=h;if(anim){rosEl.classList.add("mov");clearTimeout(rosEl._t);rosEl._t=setTimeout(()=>rosEl.classList.remove("mov"),450)}};
+  setRos(fromHide);if(fromHide!==hideR)requestAnimationFrame(()=>requestAnimationFrame(()=>setRos(hideR,1)));
   ind.append(hrow(el("span","lbl","System:"),...Object.entries(S.targets).map(([k,v])=>radio(v.split(" (")[0],r.target==k,()=>setMain("relinker","target",k),"t"+k))),
    tg("auto","settings","auto_unwrap","Automatic unwrap before the conversion","Works on the copy: the original is not touched."),
    tg("intel","settings","intel","Intel processor (--to-intel) · all targets"),
+   rosEl,
    tg("keep","settings","keep_game","Keep the original PS5 game (copy instead of move)","ON = copy · OFF = safe move: each file is deleted from the source once copied."),
    hrow(el("span","lbl","Output folder:"),field("out",()=>s.output_dir,v=>setMain("settings","output_dir",v),"Empty = program folder",{label:"Output folder"}),
     btn("Browse…",async()=>{const p=await api("pick_output");if(p)setMain("settings","output_dir",p)},{k:"outb"}),btn("Default",()=>setMain("settings","output_dir",""),{k:"outd"})),
@@ -646,7 +677,7 @@ function padEditor(get,set,redraw,root){const c={get,set,redraw,root},top=(y)=>(
  const row=el("div","padrow");row.append(grp("Left stick","LeftStick"),grp("Right stick","RightStick"),ex);
  const box=el("div","");box.append(note("Click a button, then press the key, mouse button or wheel direction to use. + adds an alternate input, × goes back to the default (shown dimmed on each button). Keys are saved by physical position on the keyboard, so a key keeps working whatever the layout. Controllers you plug in always work and are not affected."),wrap,row,padSettings(c));return box}
 const tabItems=t=>t=="Game and modules"?S.schema.Conversion.filter(it=>M.test(it.label||"")):t=="Conversion"?S.schema.Conversion.filter(it=>!M.test(it.label||"")):(S.schema[t]||[]);
-const RESETX={"Game and modules":[],"Conversion":[["relinker","target"]],"Source build":[],"Runtime":[["runtime","language"],["runtime","present_mode"]]};
+const RESETX={"Game and modules":[],"Conversion":[["relinker","target"],["relinker","rosetta"]],"Source build":[],"Runtime":[["runtime","language"],["runtime","present_mode"]]};
 function storageDone(path){const m=el("div","modal updm"),b=el("div","cfm");b.setAttribute("role","alertdialog");b.setAttribute("aria-modal","true");m.done=()=>{};
  const go=btn("Close the app",()=>api("force_quit"),{pri:1,k:"st-quit"});
  b.append(el("h2","","Storage folder moved"),el("p","","Everything is now in:\n"+path+"\n\nClose the app and open it again to use the new folder."),hrow(go));
@@ -656,7 +687,7 @@ function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.ru
  const plat=(p,T)=>!p||p=="all"||(p=="win"&&T=="windows")||(p=="nowin"&&T!="windows")||(p=="host"&&T==S.host);
  const item=it=>{const T=D.relinker.target,off=!plat(it.plat,T),tag=it.plat&&it.plat!="all"?TAG[it.plat]:null,lab=LABEL[it.key]||it.label,v=()=>D[it.section][it.key],set=x=>{D[it.section][it.key]=x;draw()},w=el("div","si");
   if(it.type=="flag")w.append(check(lab,it.hint,()=>yes(v()),x=>set(x?"yes":"no"),it.key,{off,tag}));
-  else if(it.type=="text"){const l=el("span","sl",lab);if(tag)l.append(el("span","tag",tag));w.append(l,field(it.key,v,x=>{D[it.section][it.key]=x},"",{off,label:lab}));if(it.hint)w.append(note(it.hint))}
+  else if(it.type=="text"){const l=el("span","sl",lab);if(tag)l.append(el("span","tag",tag));w.append(l,field(it.key,v,x=>{D[it.section][it.key]=x},"",{off,label:lab}));if(it.key==="gpu")Promise.resolve(api("gpu_names")).then(n=>{const inp=w.querySelector('input[data-k="gpu"]');if(!inp||!n||!n.length)return;const dl=el("datalist");dl.id="gpuNames";n.forEach(x=>{const o=el("option");o.value=x;dl.append(o)});w.append(dl);inp.setAttribute("list","gpuNames")}).catch(()=>{});if(it.hint)w.append(note(it.hint))}
   else{const l=el("span","sl",lab);if(tag)l.append(el("span","tag",tag));w.append(l,hrow(...it.values.map(x=>radio(x,v()==x,()=>set(x),it.key+x))));if(it.hint)w.append(note(it.hint))}return w};
  let shown=null;const searchBody=()=>{const q=sq.trim().toLowerCase(),hits=[];
   Object.entries(S.schema).forEach(([tn,its])=>its.forEach(it=>{const lab=LABEL[it.key]||it.label||"";if((lab+" "+(it.key||"")+" "+(it.hint||"")).toLowerCase().includes(q))hits.push([tn=="Conversion"&&M.test(it.label||"")?"Game and modules":tn,it])}));
