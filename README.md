@@ -45,6 +45,8 @@ What you get besides "a window instead of a command line":
 - **Safe unwrap.** Original files are backed up, with a *Restore backup* button.
 - **Runtime settings and shortcuts.** GPU, language, present mode, fonts, tracing and more, passed to the game as environment variables, or saved in a shortcut.
 - **Self-updating.** The app checks this repository's latest release and can replace itself and restart.
+- **Checks your computer.** The requirements list also tells you if your CPU (AVX2 and the other extensions AnyPS5 needs, Intel/AMD/Apple silicon), your GPU (Vulkan, software renderers, several GPUs) or, on Windows, your memory and page file are likely to cause trouble.
+- **One-click test report.** *Export report…* saves a file with your system info, runtime variables, exit code, an automatic reading of the log and the full log, ready to attach to a Discord message or a GitHub issue.
 
 ## Download (no build needed)
 
@@ -89,7 +91,7 @@ The first versions kept a `Utilities/` folder next to the program. On startup th
 ## Quick start
 
 1. Open the app and go to **Convert a game**.
-2. Check the **requirements**: the app tells you what is missing and can download the tools for you.
+2. Check the **requirements**: the app tells you what is missing (tools, CPU, GPU, memory) and can download the tools for you. On the first run it already picks the system, `--to-intel` and `--to-rosetta` options that fit your computer.
 3. Pick your game folder (your own dump), or a `.zip` / `.rar` of it: archives are extracted automatically.
 4. Run **Unwrap** if your files are decrypted SELF/fSELF, then **Relink**. The result is a `<GAME>-<system>` package next to the game.
 5. Go to **Play a game** and press **Launch**, or create a shortcut.
@@ -102,27 +104,38 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 - **Unwrap:** already-decrypted SELF/fSELF → ELF, using the official `unwrap_self.py` (the original files are backed up, with a *Restore backup* button).
 - **Relink:** builds the `<GAME>-<system>` package (app0 + libs + executable) for Windows, Linux or macOS.
 - **Game archives:** the game can be a folder or a `.zip` / `.rar` (`.rar` needs 7-Zip installed).
-- **Requirements check:** shows what is missing before you start, and downloads the tools for you when needed.
+- **Requirements check:** shows what is missing before you start, and downloads the tools for you when needed. It also checks:
+  - **CPU:** x86-64 with AVX2, FMA, F16C, BMI1/2, LZCNT and MOVBE. Apple silicon is reported (use the macOS system with `--to-rosetta`) and Intel CPUs are reminded to turn on `--to-intel`.
+  - **GPU:** detected through Vulkan. Warns about software renderers (very slow), a missing Vulkan loader on Linux, several GPUs (choose one with `ANYPS5_GPU`) or an `ANYPS5_GPU` value that matches nothing.
+  - **Memory (Windows):** free commit (RAM + page file) against the direct memory a title can commit.
+- **First-run defaults:** without a config file, the system is set to your own, `--to-intel` is on for Intel CPUs and `--to-rosetta` is on for Apple silicon.
+- **Rosetta:** the *Apple silicon via Rosetta (--to-rosetta)* option sits under the system choice and is hidden when the Windows system is selected.
 - **Tools source:** choose where the relinker, libs and `unwrap_self.py` come from (see [below](#where-the-tools-come-from)).
 - **Options:** all relinker options, each marked with the systems it applies to. Options that do not fit the selected target are disabled automatically.
-- **Audit:** runs `import_audit.py` (if present) after the relink.
+- **Audit:** runs `import_audit.py` (if present) after the relink and logs a one-line summary: how many imports are implemented, stubbed (load but throw when called) or absent (the game will not load), plus the first absent names.
 
 > <img src="docs/screenshots/1.png" width="600" alt="Convert Page">
 > <img src="docs/screenshots/2.png" width="600" alt="Convert Page 2">
 
 **Play a game**
 - **Launch** a converted game with your current settings, or **create a shortcut** that starts it with the right variables.
+- **Exit code explained:** when the game ends, the log shows its exit code in plain words (missing library, segmentation fault, access violation, timeout…).
+- **Launch protection (Windows):** if the MinGW runtime DLLs are missing from `libs/`, the game is not started and you get a clear message instead of error 126 on every library.
 
 > <img src="docs/screenshots/3.png" width="600" alt="Play Page">
 
 **Settings**
 
-- **Game and modules, Converion, Source build**
+- **Game and modules, Conversion, Source build**
 - **Runtime settings:** Language, GPU, present mode, fonts, tracing and more, passed to the game as environment variables.
 > <img src="docs/screenshots/7.png" width="600" alt="Runtime settings">
 
+- **ANYPS5_GPU** suggests the GPUs detected on your computer.
 - **Storage:** see where the app keeps its tools, builds, backups and `config.ini`, and move everything to another folder with one click.
 - Any section of the settings can be exported as a shareable file.
+
+**Test report**
+- **Export report…** (below the log) saves a text file with the points of `GAME_TESTING.md`: GUI build, title ID and content version, CPU, OS, GPU, power source, system, runtime variables, `--to-intel`, how far the game got, exit code and presents per 10 s. It also contains the full log (the title's own `anyps5.log` / `run.log` when present) and an automatic reading of it (software renderer, stalled title, device lost, GPU out of memory, missing permissions). Measured data and the automatic reading are kept apart. Fields the GUI cannot know are left as *(fill in)*.
 
 **Updates**
 - The app checks the latest release of this repository and, when a newer one exists, can download it for your system, replace itself and restart.
@@ -262,8 +275,8 @@ When running from source on Linux, pywebview needs a WebKitGTK or Qt backend, se
 
 ## Support
 
-- Problems with **this GUI** (it doesn't open, a button does nothing, a wrong option): open an [issue](https://github.com/Lenny4250gh/AnyPS5-GUI/issues). Please include your OS, the GUI version and any error shown.
-- Problems with **AnyPS5 itself** (a game doesn't start, crashes, missing library functions): this GUI cannot fix them. Ask in the official [AnyPS5 Discord](https://discord.gg/BHFztBPUe) or in the [Game bring-up discussions](https://github.com/boykopovar/AnyPS5/discussions/categories/game-bring-up), and read the [usage guide](https://github.com/boykopovar/AnyPS5/blob/main/docs/user/USAGE.md).
+- Problems with **this GUI** (it doesn't open, a button does nothing, a wrong option): open an [issue](https://github.com/Lenny4250gh/AnyPS5-GUI/issues). Please include your OS, the GUI version and any error shown, and attach the file from **Export report…** if it is about a game.
+- Problems with **AnyPS5 itself** (a game doesn't start, crashes, missing library functions): this GUI cannot fix them. Attach the report from **Export report…** and ask in the official [AnyPS5 Discord](https://discord.gg/BHFztBPUe) or in the [Game bring-up discussions](https://github.com/boykopovar/AnyPS5/discussions/categories/game-bring-up), and read the [usage guide](https://github.com/boykopovar/AnyPS5/blob/main/docs/user/USAGE.md).
 
 ## License
 
