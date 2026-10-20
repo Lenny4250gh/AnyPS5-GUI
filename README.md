@@ -4,13 +4,13 @@
 [![Latest release](https://img.shields.io/github/v/release/Lenny4250gh/AnyPS5-GUI)](https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest)
 [![Build](https://github.com/Lenny4250gh/AnyPS5-GUI/actions/workflows/build.yml/badge.svg)](https://github.com/Lenny4250gh/AnyPS5-GUI/actions/workflows/build.yml)
 
-A graphical interface for [AnyPS5](https://github.com/boykopovar/AnyPS5): unwrap, relink and run without touching the command line.
+A graphical interface for [AnyPS5](https://github.com/boykopovar/AnyPS5): unwrap, convert (relink), and run PS5 games on PC without touching the command line.
 
 > **Unofficial.** Not affiliated with Sony or with the AnyPS5 project. This tool contains **no games, no firmware, no keys and no decryption**. Use it only on software you legitimately own (your own dumps or homebrew).
 
 ## What is this for?
 
-[AnyPS5](https://github.com/boykopovar/AnyPS5) is a command-line project that takes a **PS5 game dump you own** and turns it into a program that runs natively on a PC (Windows, Linux or macOS). It does this in a few separate steps, each with its own tool and its own options: unwrapping the executables, relinking them against replacement system libraries, and launching the result with the right environment variables.
+[AnyPS5](https://github.com/boykopovar/AnyPS5) is a command-line project that takes a **PS5 game dump you own** and turns it into a program that runs natively on a PC (Windows, Linux or macOS). It does this in a few separate steps, each with its own tool and its own options: unwrapping the executables, converting relinking them against replacement system libraries, and launching the result with the right environment variables.
 
 **AnyPS5 GUI** puts all of that behind a normal window:
 
