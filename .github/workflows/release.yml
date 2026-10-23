@@ -6,19 +6,32 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
-  build:
-    uses: ./.github/workflows/build.yml
-
   release:
-    needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Find the finished build for this commit
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow build.yml \
+            --commit "$GITHUB_SHA" --status success --limit 1 \
+            --json databaseId --jq '.[0].databaseId')
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "No successful build found for commit $GITHUB_SHA. Run the Build workflow on this commit first, then push the tag again."
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
       - uses: actions/download-artifact@v4
         with:
           path: release
           merge-multiple: true
+          run-id: ${{ steps.find.outputs.run_id }}
+          github-token: ${{ github.token }}
 
       - uses: softprops/action-gh-release@v2
         with:
