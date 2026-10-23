@@ -776,7 +776,8 @@ function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.ru
     const hx=el("div","si");hx.append(el("span","sl","Custom color (hex)"),field("hex",()=>A.accent,v=>{v=(v[0]=="#"?v:"#"+v).toLowerCase();if(HEX.test(v))setA("accent",v);else toast("Use a color like #ffffff","warn")},"#ffffff",{label:"Custom color (hex)",live:v=>{v=(v[0]=="#"?v:"#"+v);if(HEX.test(v)){A.accent=v.toLowerCase();applyUI(A)}}}));
     const bg=el("div","si");bg.append(el("span","sl","Animated background"),hrow(...BGS.map(([k,l])=>radio(l,A.bg==k,()=>setA("bg",k),"bg"+k))),note("Animation stops automatically if your system asks for reduced motion."));
     const bb=el("div","si");bb.append(el("span","sl","Buttons"),check("Bubble animation on hover","Buttons grow slightly when the pointer is over them.",()=>A.bubble!==false&&A.bubble!=="false",v=>setA("bubble",v),"bubble"));
-    body.append(sw,hx,bg,bb,hrow(btn("Reset appearance",()=>{A={...UIDEF};applyUI(A);draw()},{k:"uireset",icon:"reset"})),note("Changes preview live and are kept when you press Save and close."))}
+    const dc=el("div","si");dc.append(el("span","sl","Discord"),check("Disable Discord Rich Presence","Stops showing the launcher / game you are playing on your Discord profile.",()=>yes(D.runtime.no_discord_rpc),v=>{D.runtime.no_discord_rpc=v?"yes":"no";draw()},"no_discord_rpc"));
+    body.append(sw,hx,bg,bb,dc,hrow(btn("Reset appearance",()=>{A={...UIDEF};applyUI(A);draw()},{k:"uireset",icon:"reset"})),note("Changes preview live and are kept when you press Save and close."))}
   if(tab=="Storage"){const st=S.storage,cur=st.path,same=()=>stPath.trim()==cur;
    body.append(note("Folder where the app keeps the downloaded tools, builds, backups and settings (config.ini). Default: your user data folder, so it survives updates."));
    if(st.problem)body.append(note("⚠ "+st.problem));
@@ -808,7 +809,7 @@ function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.ru
    const vis=inMode=="visual",sw=hrow(el("span","lbl","View"),radio("Controller",vis,()=>{inMode="visual";draw()},"vwv"),radio("Text file",!vis,()=>{inMode="text";PADL=null;draw()},"vwt"));
    if(vis)body.append(sw,padEditor(()=>inText,v=>{inText=v},draw,body),tools,mg);
    else{const t=el("textarea");t.value=inText;t.dataset.nav=1;t.dataset.k="ta";t.spellcheck=false;t.oninput=()=>inText=t.value;body.append(sw,note("Edit "+S.input_name+" (keyboard and mouse)."),t,tools,mg)}}
-  else tabItems(tab).forEach(it=>body.append(item(it)));
+  else if(tab!="Appearance")tabItems(tab).forEach(it=>body.append(item(it)));
   if(RESETX[tab]){const label=tab==="Source build"?"source build":tab.toLowerCase(),
      keys=()=>[...tabItems(tab).filter(it=>it.key).map(it=>[it.section,it.key]),...RESETX[tab]];
    body.append(hrow(btn("Reset "+label+" settings",()=>{

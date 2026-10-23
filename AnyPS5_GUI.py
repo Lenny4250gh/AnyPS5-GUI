@@ -240,6 +240,7 @@ DEFAULTS = {
     "trace_dir": "", "pipeline_stats": "no", "gpu_checkpoints": "no",
     "diagnostics": "no",
     "overlay": "no", "overlay_pos": "", "screenshots_dir": "", "shader_cache_dir": "", "no_shader_cache": "no",
+    "no_discord_rpc": "no",
     "playgo_unlisted_chunks": "installed",
   },
 }
@@ -5929,45 +5930,73 @@ class DiscordRPC:
   def __init__(self):
     self.rpc = None
     self.start_ts = None
+    self.lock = threading.Lock()  # updates come from several threads: one at a time
+    self.enabled = lambda: True  # set by Api from the "no_discord_rpc" setting
+
+  def _drop(self):
+    """Remove the presence and close the connection (a fresh one is opened on the next update)."""
+    r, self.rpc = self.rpc, None
+    self.start_ts = None
+    if r is not None:
+      try:
+        r.clear()
+      except Exception:
+        pass
+      try:
+        r.close()
+      except Exception:
+        pass
 
   def _connect(self):
     if Presence is None or DISCORD_CLIENT_ID.startswith("YOUR_"):
       return False
     if self.rpc is None:
       try:
-        self.rpc = Presence(DISCORD_CLIENT_ID)
-        self.rpc.connect()
+        r = Presence(DISCORD_CLIENT_ID)
+        r.connect()
+        self.rpc = r
       except Exception:
         self.rpc = None  # Discord not running: ignore
         return False
     return True
 
   def update(self, details, state=None, timer=False):
-    try:
-      if not self._connect():
+    with self.lock:
+      if not self.enabled():
+        self._drop()
         return
-      if timer and not self.start_ts:
-        self.start_ts = int(time.time())
-      elif not timer:
-        self.start_ts = None
-      self.rpc.update(details=details, state=state, start=self.start_ts,
-                      large_image="logo", large_text="AnyPS5 GUI")
-    except Exception:
-      self.rpc = None
+      for _ in range(2):  # a second try reconnects from scratch if the old connection went stale
+        try:
+          if not self._connect():
+            return
+          if timer and not self.start_ts:
+            self.start_ts = int(time.time())
+          elif not timer:
+            self.start_ts = None
+          self.rpc.update(details=details, state=state, start=self.start_ts,
+                          large_image="logo", large_text="AnyPS5 GUI")
+          return
+        except Exception:
+          self._drop()
 
   def clear(self):
-    try:
-      if self.rpc:
-        self.rpc.clear()
-    except Exception:
-      self.rpc = None
-    self.start_ts = None
+    with self.lock:
+      self._drop()
+
+
+SCHEMA['Appearance'] = [{'type': 'flag',
+                         'section': 'runtime',
+                         'key': 'no_discord_rpc',
+                         'label': 'Disable Discord Rich Presence',
+                         'plat': 'all',
+                         'hint': 'Stops showing the launcher / game you are playing on your Discord profile.'}]
 
 
 class Api:
   def __init__(self):
     self.cfg = L.load_config()
     self.rpc = DiscordRPC()
+    self.rpc.enabled = lambda: not L.yes(self.cfg["runtime"].get("no_discord_rpc", "no"))
     threading.Thread(target=self.rpc.update, args=("In the launcher", "Idle"), daemon=True).start()
     self.schema = SCHEMA
     self.folder = ""
@@ -6040,12 +6069,23 @@ class Api:
                               "problem": L.STORAGE_PROBLEM},
                   "version": APP_VERSION})
 
+  def _rpc_refresh(self):
+    """Apply the Discord Rich Presence setting right away (no restart needed)."""
+    if L.yes(self.cfg["runtime"].get("no_discord_rpc", "no")):
+      threading.Thread(target=self.rpc.clear, daemon=True).start()
+    elif self.game_proc is not None and self.game_proc.poll() is None and self.game_pkg:
+      threading.Thread(target=self.rpc.update, daemon=True,
+                       args=("Playing", os.path.basename(self.game_pkg.rstrip("/\\")), True)).start()
+    else:
+      threading.Thread(target=self.rpc.update, args=("In the launcher", "Idle"), daemon=True).start()
+
   def set_cfg(self, values):
     if self.relocated:
       return False
     for s, items in values.items():
       self.cfg[s].update({k: str(v) for k, v in items.items()})
     L.save_config(self.cfg)
+    self._rpc_refresh()
     return True
 
   def check_update(self):
@@ -6923,6 +6963,7 @@ class Api:
         return {"error": f"Unable to save {L.INPUT_INI_NAME}: {e}"}
     self.cfg = new
     L.save_config(new)
+    self._rpc_refresh()
     return {"error": None}
 
 
