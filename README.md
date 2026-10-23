@@ -37,7 +37,7 @@ The GUI does **not** do the conversion itself: it drives the official AnyPS5 too
 
 What you get besides "a window instead of a command line":
 
-- **Interactive input editor.** Click a button on the controller, press a key, mouse button or wheel direction, done. Alternate inputs, stick deadzones and mouse-as-stick (sensitivity, curve, smoothing, decay) are all in the same screen. Prefer text? Edit `anyps5-input.ini` directly, with a validity check.
+- **Interactive input editor.** Click a button on the controller, press a key, mouse button or wheel direction, done. Alternate inputs, stick deadzones, mouse-as-stick (sensitivity, curve, smoothing, decay), and the new Stick modifier/scale are all in the same screen. Prefer text? Edit `anyps5-input.ini` directly, with a validity check.
 - **Share your settings as a file.** Export any section (conversion, runtime, input) as a small file and import someone else's. Handy to help a friend, or to post a working setup for a game.
 - **Use any repository, not only the official one.** Point the GUI at a fork, a branch or an older tag and it downloads that release or builds it from source. Each repository gets its own folder, so testing a fork never mixes files with the official one. See [Using a different repository](#using-a-different-repository-forks-and-custom-builds).
 - **Tools handled for you.** Relinker, system libs and `unwrap_self.py` are downloaded (checked with SHA-256) or built, and kept up to date.
@@ -150,6 +150,22 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 
 - Import / export your settings, or edit `anyps5-input.ini` directly in text view (with validity check).
 > <img src="docs/screenshots/6.png" width="600" alt="Input deadzones and mouse settings">
+
+**Converted game data and screenshots**
+- The **Play** view has a separate path for the converted PC game package, independent from the PS5 source path used for conversion. Launch and shortcut creation use the selected converted package; when no path is selected, the app attempts the configured output folder.
+- **Game folders (saves and trophies)** lets you open `_sd`, `_sd_mem` and `_trophy`. Save-data folders can be backed up as ZIP files; trophy data can be reset after a confirmation prompt. These actions operate on the selected/last-launched package, so check the displayed package path first.
+- **Screenshots:** the runtime `ANYPS5_SCREENSHOTS` setting accepts an absolute folder. When empty, screenshots go to `anyps5-screenshots/` next to the game executable. Use **Open screenshots folder** to open it; the folder may not exist until the first F12 screenshot.
+- **Shader cache:** Runtime settings show the effective AnyPS5 shader-cache path and current size, allow a custom absolute path through `ANYPS5_SHADER_CACHE_DIR`, and provide a clear-cache action. Clearing removes the AnyPS5 cache at that configured path, not the graphics driver's cache. `ANYPS5_NO_SHADER_CACHE` disables the on-disk cache; shaders may need to be rebuilt on later runs.
+
+**Conversion patches and fixed-base options**
+- `--patches` accepts a patch file. If no explicit file is supplied, the relinker may use `relinker-patches.toml` next to `eboot.bin` when present. **Verify patches** checks the selected patch file against the selected unwrapped game executable without writing changes. `--no-patches` explicitly disables patches and conflicts with `--patches`.
+- `--linux-fixed-base` and `--macos-fixed-base` are now exposed for their respective targets, alongside the existing Windows fixed-base option. Values are validated for address format, alignment and target compatibility; Linux fixed-base also conflicts with `--lazy-binding`.
+
+**Runtime diagnostics and overlay**
+- The performance overlay can be enabled from the first frame and positioned in any corner. In-game **F10** toggles its visibility.
+- `APS5_PLAYGO_UNLISTED_CHUNKS` can be set to `installed` or `absent` to control how unlisted PlayGo chunks are treated.
+- **Test diagnostics (for bug reports)** enables extra profiling/log timestamp variables and, on Windows, crash indirect-memory diagnostics. It can slow the game slightly, so leave it off for performance comparisons.
+- Automatic log interpretation now calls out host-import memory-budget and texture-cache diagnostics, with notes about the corresponding tuning variables.
 
 **Appearance**
 - Choose the main color (presets or custom hex) and the animated background (soft grid, orbs or none). It stops automatically if your system asks for reduced motion.
