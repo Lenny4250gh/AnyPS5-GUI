@@ -7,7 +7,8 @@ Graphical interface to use AnyPS5 without touching the command line:
                (external file in the app data folder, not embedded here)
   - Relink   : builds the "<GAME>-<system>" package with app0 + libs + executable
   - Options  : all relinker options (Windows / Linux / macOS, --to-intel,
-               --to-rosetta, --windows-gui, --windows-fixed-base, unused-filter,
+               --to-rosetta, --windows-gui, --windows-fixed-base, --linux-fixed-base,
+               --macos-fixed-base, unused-filter,
                --registry, --rpath, --module-dir, --executable, --trace-imports,
                --sce-module-path, --autorun, --trap-sdk-syscall-stubs and the deprecated
                debug flags). Every option shows the systems it applies to (Windows / Linux /
@@ -207,6 +208,8 @@ LANGUAGES = [
   (28, "Vietnamese"), (29, "Indonesian"), (30, "Ukrainian"),
 ]
 PRESENT_MODES = ["", "fifo_latest_ready", "mailbox", "immediate"]
+OVERLAY_POSITIONS = ["", "tl", "tr", "bl", "br"]  # ANYPS5_OVERLAY_POS (USAGE.md, performance overlay)
+SCREENSHOTS_DIR_NAME = "anyps5-screenshots"  # next to the executable unless ANYPS5_SCREENSHOTS is set
 
 # default option values (all saved in config.ini as strings)
 DEFAULTS = {
@@ -214,7 +217,7 @@ DEFAULTS = {
                "keep_game": "yes", "window_size": "", "open_sections": ""},
   "relinker": {
     "target": "windows", "rosetta": "no", "gui": "no", "diagnostics": "no",
-    "fixed_base": "", "unused_filter": "0", "registry": "yes", "rpath": "",
+    "fixed_base": "", "linux_fixed_base": "", "macos_fixed_base": "", "unused_filter": "0", "registry": "yes", "rpath": "",
     "trace_imports": "no", "module_dirs": "", "executables": "",
     "unwrap_modules": "yes", "move_root_prx": "yes", "import_audit": "no", "make_launcher": "yes",
     "names_file": "",
@@ -225,7 +228,7 @@ DEFAULTS = {
     "repo_libs_from_repo": "yes",
     "sce_module_path": "", "autorun": "no", "trap_syscall_stubs": "no",
     "lazy_binding": "no", "skip_sce_module": "no", "exclude_sce_modules": "",
-    "skip_syscall_check": "no",
+    "skip_syscall_check": "no", "patches_file": "", "no_patches": "no",
   },
   "runtime": {
     "language": "", "gpu": "", "present_mode": "", "fonts_dir": "",
@@ -235,6 +238,9 @@ DEFAULTS = {
     "sdl_videodriver": "", "thread_priority": "", "thread_nice": "", "thread_rt": "",
     "trace_frames": "", "trace_seconds": "", "trace_summary_every": "", "trace_events": "",
     "trace_dir": "", "pipeline_stats": "no", "gpu_checkpoints": "no",
+    "diagnostics": "no",
+    "overlay": "no", "overlay_pos": "", "screenshots_dir": "", "shader_cache_dir": "", "no_shader_cache": "no",
+    "playgo_unlisted_chunks": "installed",
   },
 }
 
@@ -1395,6 +1401,29 @@ def open_trash():
     base = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
     if shutil.which("xdg-open"):
       subprocess.Popen(["xdg-open", os.path.join(base, "Trash", "files")])
+      return True
+  except Exception:
+    pass
+  return False
+
+
+def screenshots_dir(pkg_dir, rt):
+  """Folder where F12 screenshots land: ANYPS5_SCREENSHOTS if set, else anyps5-screenshots/ next to the executable."""
+  custom = rt.get("screenshots_dir", "").strip()
+  if custom:
+    return custom
+  return os.path.join(pkg_dir, SCREENSHOTS_DIR_NAME) if pkg_dir else ""
+
+
+def open_path(path):
+  """Opens a folder in the file manager. Returns True if it was launched."""
+  try:
+    if os.name == "nt":
+      os.startfile(path)  # noqa: S606 - a folder path that the app itself resolved
+      return True
+    cmd = ["open", path] if sys.platform == "darwin" else ["xdg-open", path]
+    if shutil.which(cmd[0]):
+      subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
       return True
   except Exception:
     pass
@@ -3053,6 +3082,26 @@ def validate_relink_options(intel, rl):
       return "--windows-fixed-base: invalid address (decimal or 0x...)."
     if addr % 0x10000 or not (0x20000 <= addr <= 0x7FFFFFFF0000):
       return "--windows-fixed-base: needs a 64 KiB-aligned address between 0x20000 and 0x7fffffff0000."
+  if rl.get("linux_fixed_base", "").strip():
+    if target != "linux":
+      return "--linux-fixed-base requires the Linux target."
+    try:
+      addr = parse_address(rl["linux_fixed_base"])
+    except ValueError:
+      return "--linux-fixed-base: invalid address (decimal or 0x...)."
+    if addr % 0x10000 or not (0x10000 <= addr <= 0x7FFFFFFF0000):
+      return "--linux-fixed-base: needs a 64 KiB-aligned address between 0x10000 and 0x7fffffff0000."
+    if yes(rl.get("lazy_binding", "no")):
+      return "--linux-fixed-base conflicts with --lazy-binding."
+  if rl.get("macos_fixed_base", "").strip():
+    if target != "macos":
+      return "--macos-fixed-base requires the macOS target."
+    try:
+      addr = parse_address(rl["macos_fixed_base"])
+    except ValueError:
+      return "--macos-fixed-base: invalid address (decimal or 0x...)."
+    if addr % 0x10000 or not (0x20000 <= addr <= 0x7FFFFFFF0000):
+      return "--macos-fixed-base: needs a 64 KiB-aligned address between 0x20000 and 0x7fffffff0000."
   if rl["unused_filter"] not in ("0", "1", "2"):
     return "unused-filter must be 0, 1 or 2."
   rpath = rl["rpath"].strip()
@@ -3079,6 +3128,11 @@ def validate_relink_options(intel, rl):
       return f"--exclude-sce-module takes a file name, not a path: '{name}'."
   if yes(rl.get("lazy_binding", "no")) and yes(rl["trace_imports"]):
     return "--trace-imports conflicts with --lazy-binding."
+  pf = rl.get("patches_file", "").strip()
+  if pf and yes(rl.get("no_patches", "no")):
+    return "--patches conflicts with --no-patches."
+  if pf and not os.path.isfile(os.path.abspath(pf)):
+    return f"--patches: '{pf}' is not an existing file."
   if yes(rl.get("autorun", "no")) and target != host_target():
     return ("--autorun needs the target system to be the one of this computer ("
             + TARGETS[host_target()]["label"].split(" (")[0] + ").")
@@ -3100,6 +3154,11 @@ def build_relink_command(relinker, intel, rl, input_file, out_exe):
       cmd.append("--trace-imports")
   elif target == "macos":
     cmd.append("--macos")
+    if rl.get("macos_fixed_base", "").strip():
+      cmd += ["--macos-fixed-base", rl["macos_fixed_base"].strip()]
+  elif target == "linux":
+    if rl.get("linux_fixed_base", "").strip():
+      cmd += ["--linux-fixed-base", rl["linux_fixed_base"].strip()]
   if yes(rl["rosetta"]):
     cmd.append("--to-rosetta")  # implies --to-intel
   elif intel:
@@ -3126,8 +3185,59 @@ def build_relink_command(relinker, intel, rl, input_file, out_exe):
                     ("autorun", "--autorun")):
     if yes(rl.get(key, "no")):
       cmd.append(flag)
+  if yes(rl.get("no_patches", "no")):
+    cmd.append("--no-patches")
+  elif rl.get("patches_file", "").strip():
+    cmd += ["--patches", os.path.abspath(rl["patches_file"].strip())]
   cmd += [input_file, out_exe]
   return cmd
+
+
+def verify_patches(rl, folder):
+  """Run `relinker --verify-patches <file> <eboot>` (writes nothing). Returns (level, text)."""
+  pf = rl.get("patches_file", "").strip()
+  if not pf:
+    auto = os.path.join(folder, "relinker-patches.toml") if folder else ""
+    if auto and os.path.isfile(auto):
+      pf = auto
+    else:
+      return "warn", "Choose a patch file first (or put relinker-patches.toml next to eboot.bin)."
+  pf = os.path.abspath(pf)
+  if not os.path.isfile(pf):
+    return "err", f"Patch file not found: {pf}"
+  if not folder or not os.path.isdir(folder):
+    return "warn", "Choose the game folder first."
+  eboot = os.path.join(folder, EXECUTABLE_NAME)
+  state = file_state(eboot)
+  if state == "self":
+    return "warn", f"{EXECUTABLE_NAME} is still a SELF: unwrap the game first (Unwrap mode), then verify."
+  if state != "elf":
+    return "err", f"{EXECUTABLE_NAME} not found or not a valid ELF in the game folder."
+  set_active_relinker_cfg(rl)
+  relinker = resolve_relinker(rl)
+  if not relinker or not os.path.isfile(relinker):
+    return "err", "Relinker not available yet: run a conversion once (or build it) so the app has it."
+  cmd = [relinker, "--verify-patches", pf]
+  smp = rl.get("sce_module_path", "").strip()
+  if smp:
+    cmd += ["--sce-module-path", os.path.abspath(smp)]
+  for d in split_list(rl.get("module_dirs", "")):
+    cmd += ["--module-dir", d]
+  for e in split_list(rl.get("executables", "")):
+    cmd += ["--executable", e]
+  cmd.append(eboot)
+  kwargs = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
+  try:
+    res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                         timeout=120, **kwargs)
+  except (OSError, subprocess.SubprocessError) as e:
+    return "err", f"Could not run the relinker: {e}"
+  out = "\n".join(x for x in ((res.stdout or "").strip(), (res.stderr or "").strip()) if x)
+  if res.returncode == 0:
+    return "ok", "Patches OK: no mismatch.\n" + out if out else "Patches OK: no mismatch."
+  if res.returncode == 1:
+    return "err", "Patch mismatch (these patches do not fit this game version):\n" + out
+  return "err", "Verification failed:\n" + out
 
 
 # ─────────────────────────────────────────────────────────────
@@ -3179,6 +3289,12 @@ def validate_runtime_options(rt, rl=None):
   tdir = rt.get("trace_dir", "").strip()
   if tdir and not os.path.isabs(tdir):
     return "APS5_TRACE_DIR must be an absolute path."
+  opos = rt.get("overlay_pos", "").strip()
+  if opos and opos not in OVERLAY_POSITIONS:
+    return "ANYPS5_OVERLAY_POS must be tl, tr, bl or br."
+  sdir = rt.get("screenshots_dir", "").strip()
+  if sdir and not os.path.isabs(sdir):
+    return "ANYPS5_SCREENSHOTS must be an absolute path."
   return None
 
 
@@ -3238,10 +3354,30 @@ def runtime_env(rt, target, pkg_dir):
       if key == "sdl_videodriver" and target == "windows":
         continue  # BUILD.md: SDL_VIDEODRIVER is about the Linux X11/Wayland backends
       env[var] = rt[key].strip()
+  if yes(rt.get("overlay", "no")):
+    env["ANYPS5_OVERLAY"] = "1"  # shown from the first frame (F10 toggles it)
+  if rt.get("overlay_pos", "").strip():
+    env["ANYPS5_OVERLAY_POS"] = rt["overlay_pos"].strip()
+  if rt.get("screenshots_dir", "").strip():
+    env["ANYPS5_SCREENSHOTS"] = rt["screenshots_dir"].strip()
+  if rt.get("shader_cache_dir", "").strip():
+    env["ANYPS5_SHADER_CACHE_DIR"] = rt["shader_cache_dir"].strip()
+  if yes(rt.get("no_shader_cache", "no")):
+    env["ANYPS5_NO_SHADER_CACHE"] = "1"
+  playgo_unlisted = str(rt.get("playgo_unlisted_chunks", "installed")).strip().lower()
+  if playgo_unlisted in ("installed", "absent"):
+    env["APS5_PLAYGO_UNLISTED_CHUNKS"] = playgo_unlisted
   if yes(rt.get("pipeline_stats", "no")):
     env["APS5_PIPELINE_STATS"] = "1"
   if yes(rt.get("gpu_checkpoints", "no")):
     env["APS5_GPU_CHECKPOINTS"] = "1"
+  if yes(rt.get("diagnostics", "no")):
+    # GAME_TESTING.md: [present] lines every 10 s, GPU timings, timestamped log
+    env["APS5_PROFILE_DRAW"] = "1"
+    env["APS5_PROFILE_GPU"] = "1"
+    env["APS5_LOG_TIMESTAMPS"] = "1"
+    if target == "windows":
+      env["APS5_CRASH_INDIRECT_MEMORY"] = "1"  # crash report: bytes behind each register pointer
   if rt.get("pad_input_file", "").strip():
     env["APS5_PAD_INPUT_FILE"] = rt["pad_input_file"].strip()
   if rt["trace_calls"].strip() and target == "windows":
@@ -4132,7 +4268,7 @@ INPUT_ACTIONS = {a.lower() for a in (
   "Cross Circle Triangle Square L1 R1 L2 R2 L3 R3 Options Up Right Down Left "
   "LeftStickLeft LeftStickRight LeftStickUp LeftStickDown "
   "RightStickLeft RightStickRight RightStickUp RightStickDown "
-  "TouchLeft TouchRight ToggleMouse ToggleFullscreen").split()}
+  "TouchLeft TouchRight StickModifier ToggleMouse ToggleFullscreen").split()}
 MOUSE_BUTTONS = {"left", "middle", "right", "x1", "x2"}
 # name: (minimum, maximum, minimum_excluded, integer)
 INPUT_SETTINGS = {
@@ -4145,6 +4281,7 @@ INPUT_SETTINGS = {
   "mousemaxspeed": (0.1, 10, False, False),
   "mousesmoothingms": (0, 500, False, False),
   "mousedecayms": (1, 1000, False, False),
+  "stickmodifierscale": (0.05, 1, False, False),
 }
 
 INPUT_TEMPLATE = """# anyps5-input.ini - AnyPS5 keyboard and mouse mapping
@@ -4738,6 +4875,10 @@ def analyze_log(text):
     notes.append("the GPU ran out of memory")
   if any("execv failed" in l for l in stop):
     notes.append("an executable lost its permission bits: run chmod +x on it")
+  if re.search(r"^\[gpu\] host import budget\b", text, re.MULTILINE):
+    notes.append("[gpu] host import budget detected: APS5_HOST_IMPORT_MIB affects pinned host-import memory budget; change it only for controlled comparisons, not as a general tuning setting")
+  if re.search(r"^\[texture-cache\]", text, re.MULTILINE):
+    notes.append("[texture-cache] diagnostics detected: APS5_TEXTURE_CACHE_MIB controls the texture-cache budget; change it only for controlled comparisons, not as a general tuning setting")
   return {"gpu": gpu[-1].strip() if gpu else "", "presents": presents, "stop": stop[-3:],
           "level": levels[-1].strip() if levels else "", "notes": notes}
 
@@ -4825,7 +4966,7 @@ L = sys.modules[__name__]   # the logic lives in this same file
 HERE = SCRIPT_DIR
 
 # ---------- GUI update check ----------
-APP_VERSION = "1.0.9"
+APP_VERSION = "1.1.0"
 GUI_REPO_OWNER = "Lenny4250gh"
 GUI_REPO_NAME = "AnyPS5-GUI"
 GUI_RELEASES_URL = "https://github.com/%s/%s/releases/latest" % (GUI_REPO_OWNER, GUI_REPO_NAME)
@@ -5361,6 +5502,21 @@ SCHEMA = {'Conversion': [{'type': 'flag',
                  'plat': 'win',
                  'hint': 'Only if the executable needs an exact address, e.g. 0x400000 (multiple of 64 '
                          'KiB).'},
+                {'type': 'text',
+                 'section': 'relinker',
+                 'key': 'linux_fixed_base',
+                 'label': '--linux-fixed-base',
+                 'plat': 'linux',
+                 'hint': 'Only if the executable needs an exact address, e.g. 0x400000 for titles that read '
+                         'imports.txt (64 KiB-aligned, 0x10000 to 0x7fffffff0000). Default is 0x400000. '
+                         'Conflicts with --lazy-binding.'},
+                {'type': 'text',
+                 'section': 'relinker',
+                 'key': 'macos_fixed_base',
+                 'label': '--macos-fixed-base',
+                 'plat': 'macos',
+                 'hint': 'Only if the executable needs an exact address, e.g. 0x400000 for titles that read '
+                         'imports.txt (64 KiB-aligned, 0x20000 to 0x7fffffff0000). Default is 0x140010000.'},
                 {'type': 'choice',
                  'section': 'relinker',
                  'key': 'unused_filter',
@@ -5482,7 +5638,21 @@ SCHEMA = {'Conversion': [{'type': 'flag',
                  'key': 'skip_syscall_check',
                  'label': '--skip-syscall-check',
                  'plat': 'all',
-                 'hint': 'Disables the syscall scan of the executable and of the bundled modules.'}],
+                 'hint': 'Disables the syscall scan of the executable and of the bundled modules.'},
+                {'type': 'text',
+                 'section': 'relinker',
+                 'key': 'patches_file',
+                 'label': '--patches (patch file)',
+                 'plat': 'all',
+                 'hint': 'Byte patches applied during conversion. Empty = relinker-patches.toml next to '
+                         'eboot.bin is used if present. Use Verify patches to check the file against the '
+                         'selected game (unwrapped) without writing anything.'},
+                {'type': 'flag',
+                 'section': 'relinker',
+                 'key': 'no_patches',
+                 'label': '--no-patches',
+                 'plat': 'all',
+                 'hint': 'Apply no patches and ignore relinker-patches.toml. Conflicts with --patches.'}],
  'Source build': [{'type': 'text',
                    'section': 'relinker',
                    'key': 'release_tag',
@@ -5546,6 +5716,39 @@ SCHEMA = {'Conversion': [{'type': 'flag',
               'label': 'Fonts (ANYPS5_SYSTEM_FONTS)',
               'plat': 'all',
               'hint': 'Empty = anyps5-fonts/ folder next to the executable.'},
+             {'type': 'flag',
+              'section': 'runtime',
+              'key': 'overlay',
+              'label': 'Performance overlay from the first frame (ANYPS5_OVERLAY=1)',
+              'plat': 'all',
+              'hint': 'FPS, frame times and memory over the game image. F10 shows or hides it while playing. '
+                      'The corner is chosen below (ANYPS5_OVERLAY_POS).'},
+             {'type': 'text',
+              'section': 'runtime',
+              'key': 'screenshots_dir',
+              'label': 'Screenshots folder (ANYPS5_SCREENSHOTS)',
+              'plat': 'all',
+              'hint': 'Absolute folder for the F12 screenshots (PNG, game resolution, no overlay). '
+                      'Empty = anyps5-screenshots/ folder next to the executable.'},
+             {'type': 'text',
+              'section': 'runtime',
+              'key': 'shader_cache_dir',
+              'label': 'Shader cache folder (ANYPS5_SHADER_CACHE_DIR)',
+              'plat': 'all',
+              'hint': 'Absolute folder for the on-disk shader cache. Empty = shader_cache/ next to the executable. Can grow by several GB.'},
+             {'type': 'flag',
+              'section': 'runtime',
+              'key': 'no_shader_cache',
+              'label': 'Disable shader cache (ANYPS5_NO_SHADER_CACHE=1)',
+              'plat': 'all',
+              'hint': 'Disables AnyPS5 on-disk shader cache; shaders may need to be compiled again on later runs.'},
+             {'type': 'select',
+              'section': 'runtime',
+              'key': 'playgo_unlisted_chunks',
+              'label': 'PlayGo chunks without metadata (APS5_PLAYGO_UNLISTED_CHUNKS)',
+              'plat': 'all',
+              'values': ['installed', 'absent'],
+              'hint': 'Some titles may not start unless this is set. installed = treat unlisted chunks as installed; absent = treat them as absent.'},
              {'type': 'flag',
               'section': 'runtime',
               'key': 'store_at_flip',
@@ -5644,6 +5847,14 @@ SCHEMA = {'Conversion': [{'type': 'flag',
               'label': 'APS5_GPU_CHECKPOINTS=1',
               'plat': 'all',
               'hint': 'Device-loss reports list the last markers the GPU reached (VK_NV_device_diagnostic_checkpoints, NVIDIA).'},
+             {'type': 'flag',
+              'section': 'runtime',
+              'key': 'diagnostics',
+              'label': 'Test diagnostics (for bug reports)',
+              'plat': 'all',
+              'hint': 'Sets APS5_PROFILE_DRAW, APS5_PROFILE_GPU and APS5_LOG_TIMESTAMPS (on Windows also '
+                      'APS5_CRASH_INDIRECT_MEMORY). Needed for the "presents per 10 s" lines of the report. '
+                      'Slows the game a little: do not use it for performance comparisons.'},
              {'type': 'text',
               'section': 'runtime',
               'key': 'extra_env',
@@ -5711,6 +5922,7 @@ class Api:
     self.cfg = L.load_config()
     self.schema = SCHEMA
     self.folder = ""
+    self.play_folder = ""  # converted PC game package selected for Play
     self.q = queue.Queue()
     self.running = False
     self.result = None
@@ -5772,7 +5984,7 @@ class Api:
       inp = L.INPUT_TEMPLATE
     return clean({"cfg": self.cfg, "schema": self.schema, "host": L.host_target(), "folder": self.folder,
                   "targets": {k: v["label"] for k, v in L.TARGETS.items()}, "languages": L.LANGUAGES,
-                  "present_modes": L.PRESENT_MODES, "default_repo": L.DEFAULT_REPO_URL,
+                  "present_modes": L.PRESENT_MODES, "overlay_positions": L.OVERLAY_POSITIONS, "default_repo": L.DEFAULT_REPO_URL,
                   "defaults": L.DEFAULTS, "input": inp, "input_name": L.INPUT_INI_NAME,
                   "storage": {"path": L.DATA_DIR, "default": L.DEFAULT_DATA_DIR, "editable": L.STORAGE_EDITABLE,
                               "problem": L.STORAGE_PROBLEM},
@@ -5880,6 +6092,139 @@ class Api:
     self.relocated = True
     self._mov = {"state": "done", "pct": 100, "text": "Done. Close and reopen the app to use the new folder.", "path": path}
 
+  def shader_cache_info(self):
+    """Return the effective AnyPS5 shader-cache path and its current size."""
+    rt = dict(self.cfg.get("runtime", {}))
+    pkg = self.game_pkg
+    if not pkg and self.folder:
+      try:
+        pkg = L.package_dir(self.cfg["settings"]["output_dir"] or L.SCRIPT_DIR,
+                            self.game_name(), self.cfg["relinker"]["target"])
+      except Exception:
+        pkg = ""
+    path = rt.get("shader_cache_dir", "").strip() or (os.path.join(pkg, "shader_cache") if pkg else "")
+    total = 0
+    if path and os.path.isdir(path):
+      for root, dirs, files in os.walk(path):
+        dirs[:] = [d for d in dirs if not os.path.islink(os.path.join(root, d))]
+        for name in files:
+          fp = os.path.join(root, name)
+          try:
+            if not os.path.islink(fp):
+              total += os.path.getsize(fp)
+          except OSError:
+            pass
+    return {"path": path, "bytes": total, "size": ("%s B" % total if total < 1024 else "%.1f KiB" % (total / 1024) if total < 1024**2 else "%.1f MiB" % (total / 1024**2) if total < 1024**3 else "%.2f GiB" % (total / 1024**3))}
+
+  def clear_shader_cache(self):
+    """Remove only AnyPS5's shader_cache directory, never the driver's cache."""
+    info = self.shader_cache_info()
+    path = info["path"]
+    if not path:
+      return {"ok": False, "error": "Select a game package or set ANYPS5_SHADER_CACHE_DIR first."}
+    if not os.path.isabs(path):
+      return {"ok": False, "error": "ANYPS5_SHADER_CACHE_DIR must be an absolute path."}
+    if os.path.isdir(path):
+      try:
+        shutil.rmtree(path)
+      except OSError as e:
+        return {"ok": False, "error": f"Unable to clear shader cache: {e}"}
+    return {"ok": True, "path": path, "bytes": 0, "size": "0 B"}
+
+  def _selected_game_package(self):
+    """Resolve the last launched package or the package for the selected source folder."""
+    if self.game_pkg and os.path.isdir(self.game_pkg):
+      return os.path.abspath(self.game_pkg)
+    if self.folder and not L.is_archive_source(self.folder):
+      try:
+        return os.path.abspath(L.package_dir(self.cfg["settings"]["output_dir"] or L.SCRIPT_DIR,
+                                             self.game_name(), self.cfg["relinker"]["target"]))
+      except Exception:
+        pass
+    return ""
+
+  def game_folders_info(self):
+    pkg = self._selected_game_package()
+    app0 = os.path.join(pkg, "app0") if pkg else ""
+    return {"package": pkg,
+            "sd": os.path.isdir(os.path.join(pkg, "_sd")) if pkg else False,
+            "sd_mem": os.path.isdir(os.path.join(pkg, "_sd_mem")) if pkg else False,
+            "trophy": os.path.isdir(os.path.join(pkg, "_trophy")) if pkg else False,
+            "ampr_dump": os.path.isfile(os.path.join(app0, "ampr_assets.index")) if app0 else False}
+
+  def open_game_folder(self, name):
+    if name not in ("_sd", "_sd_mem", "_trophy"):
+      return {"ok": False, "error": "Unknown game folder."}
+    pkg = self._selected_game_package()
+    path = os.path.join(pkg, name) if pkg else ""
+    if not path or not os.path.isdir(path):
+      return {"ok": False, "error": f"Folder {name} was not found. Launch the game or select a converted package first."}
+    return {"ok": bool(L.open_path(path)), "path": path}
+
+  def backup_game_folder(self, name):
+    if name not in ("_sd", "_sd_mem"):
+      return {"ok": False, "error": "Only save-data folders can be backed up."}
+    pkg = self._selected_game_package()
+    src = os.path.join(pkg, name) if pkg else ""
+    if not src or not os.path.isdir(src):
+      return {"ok": False, "error": f"Folder {name} was not found."}
+    res = webview.windows[0].create_file_dialog(getattr(getattr(webview, "FileDialog", None), "FOLDER", None) or webview.FOLDER_DIALOG)
+    if not res:
+      return {"ok": False, "cancelled": True}
+    dest = res[0] if isinstance(res, (list, tuple)) else res
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    archive = os.path.join(dest, f"{name}-backup-{stamp}")
+    try:
+      shutil.make_archive(archive, "zip", root_dir=pkg, base_dir=name)
+      return {"ok": True, "path": archive + ".zip"}
+    except OSError as e:
+      return {"ok": False, "error": str(e)}
+
+  def clear_game_trophies(self):
+    pkg = self._selected_game_package()
+    path = os.path.join(pkg, "_trophy") if pkg else ""
+    if not path or not os.path.isdir(path):
+      return {"ok": False, "error": "Folder _trophy was not found."}
+    try:
+      shutil.rmtree(path)
+      os.makedirs(path, exist_ok=True)
+      return {"ok": True, "path": path}
+    except OSError as e:
+      return {"ok": False, "error": str(e)}
+
+  def open_screenshots_folder(self):
+    """Opens the folder of the F12 screenshots: ANYPS5_SCREENSHOTS, or anyps5-screenshots/ next to the
+    executable of the last started game (or of the game package selected in the app)."""
+    cfg = {s: dict(v) for s, v in self.cfg.items()}
+    rt = cfg["runtime"]
+    pkg = self.game_pkg
+    if not pkg and self.folder and not rt.get("screenshots_dir", "").strip():
+      try:
+        pkg = L.package_dir(cfg["settings"]["output_dir"] or L.SCRIPT_DIR, self.game_name(), cfg["relinker"]["target"])
+      except Exception:
+        pkg = ""
+    path = L.screenshots_dir(pkg, rt)
+    if not path:
+      self.q.put(("warn", "No screenshots folder yet: launch a game first, or set ANYPS5_SCREENSHOTS in Runtime settings."))
+      return False
+    if not os.path.isabs(path):
+      self.q.put(("err", "ANYPS5_SCREENSHOTS must be an absolute path."))
+      return False
+    if not os.path.isdir(path):
+      if os.path.isdir(os.path.dirname(path)) or rt.get("screenshots_dir", "").strip():
+        try:
+          os.makedirs(path, exist_ok=True)  # the game creates it at the first F12 anyway
+        except OSError as e:
+          self.q.put(("err", f"Unable to create {path}: {e}"))
+          return False
+      else:
+        self.q.put(("warn", "No screenshots yet: the folder is created at the first F12 in the game (" + path + ")."))
+        return False
+    if not L.open_path(path):
+      self.q.put(("err", f"Unable to open {path}"))
+      return False
+    return True
+
   def open_release_page(self):
     import webbrowser
     webbrowser.open(GUI_RELEASES_URL)  # fixed URL: nothing coming from the UI is opened
@@ -5906,6 +6251,21 @@ class Api:
     if res:
       self.folder = res[0]
     return self.folder
+
+  def pick_patch_file(self):
+    kind = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
+    res = webview.windows[0].create_file_dialog(kind, file_types=("Patch files (*.toml)", "All files (*.*)"))
+    if not res:
+      return None
+    return res if isinstance(res, str) else res[0]
+
+  def verify_patches(self, rl_values=None):
+    """Verify the patch file of the settings dialog against the selected game folder."""
+    rl = dict(self.cfg["relinker"])
+    if isinstance(rl_values, dict):
+      rl.update({k: str(v) for k, v in rl_values.items()})
+    level, text = L.verify_patches(rl, self.folder)
+    return {"level": level, "text": text}
 
   def pick_output(self):
     res = webview.windows[0].create_file_dialog(getattr(getattr(webview, "FileDialog", None), "FOLDER", None)
@@ -6213,36 +6573,72 @@ class Api:
     self.last_exe_dir = os.path.dirname(path)
     return path
 
+  def pick_play_folder(self):
+    """Choose the converted PC game package folder used by Play."""
+    try:
+      kind = getattr(getattr(webview, "FileDialog", None), "FOLDER", None) or webview.FOLDER_DIALOG
+      res = webview.windows[0].create_file_dialog(kind)
+      if not res:
+        return self.play_folder
+      # pywebview backends differ: some return a string, others a list of paths.
+      path = res if isinstance(res, str) else res[0]
+      if path and os.path.isdir(path):
+        self.play_folder = os.path.abspath(path)
+      elif path:
+        return ""
+    except Exception as e:
+      log("err", f"Unable to choose converted PC game folder: {e}")
+      return ""
+    return self.play_folder
+
+  def set_play_folder(self, path):
+    self.play_folder = os.path.abspath((path or "").strip().strip('"')) if (path or "").strip() else ""
+    return self.play_folder
+
+  def _selected_converted_game(self):
+    """Resolve the converted PC package, independently of the PS5 source path."""
+    cfg = self.cfg
+    target = cfg["relinker"]["target"]
+    if self.play_folder:
+      pkg = os.path.abspath(self.play_folder)
+      game = os.path.basename(os.path.normpath(pkg))
+    else:
+      if not self.folder:
+        raise FileNotFoundError("Set the PS5 source path for Convert, and choose the converted PC game folder for Play.")
+      game = L.archive_game_name(self.folder) if L.is_archive_source(self.folder) else os.path.basename(os.path.normpath(os.path.abspath(self.folder)))
+      base = cfg["settings"]["output_dir"] or L.SCRIPT_DIR
+      pkg = L.package_dir(base, game, target)
+    exe = os.path.join(pkg, L.TARGETS[target]["exe"])
+    if not os.path.isfile(exe):
+      raise FileNotFoundError(f"Converted executable not found: {exe}. Select the converted PC game folder in Play, or convert/relink the PS5 source first.")
+    return pkg, target, exe, game
+
   def play_exe(self):
-    """Launch game: choose the executable and start it with the CURRENT Runtime settings."""
-    path = self._pick_exe_path()
-    if not path:
-      return False
+    """Launch the executable in the converted package derived from Game path."""
     if self.game_proc is not None and self.game_proc.poll() is None:
       self.q.put(("warn", "The game is already running."))
       return False
     cfg = {s: dict(v) for s, v in self.cfg.items()}
-    target = L.exe_target(path)
-    pkg = os.path.dirname(os.path.abspath(path))
     try:
-      self.game_proc = L.launch_game(pkg, target, cfg, exe=path, log=lambda k, m: self.q.put((k, m)))
+      pkg, target, exe, game = self._selected_converted_game()
+      self.game_proc = L.launch_game(pkg, target, cfg, exe=exe, log=lambda k, m: self.q.put((k, m)))
       self.q.put(("ok", f"Game started (PID {self.game_proc.pid}) from {pkg}"))
       self.game_pkg, self.game_exit = pkg, None
-    except OSError as e:
+    except (OSError, ValueError) as e:
       self.q.put(("err", f"Unable to launch the game: {e}"))
       return False
     return True
 
   def shortcut_exe(self):
-    """Create a shortcut for the chosen executable with the CURRENT Runtime settings."""
-    path = self._pick_exe_path()
-    if not path:
-      return False
+    """Create a shortcut for the converted executable derived from Game path."""
     cfg = {s: dict(v) for s, v in self.cfg.items()}
-    target = L.exe_target(path)
-    pkg = os.path.dirname(os.path.abspath(path))
-    L.create_shortcut(pkg, os.path.basename(path), target, cfg["runtime"],
-                      L.game_name_from_exe(path), lambda k, m: self.q.put((k, m)), L.SCRIPT_DIR)
+    try:
+      pkg, target, exe, game = self._selected_converted_game()
+      L.create_shortcut(pkg, os.path.basename(exe), target, cfg["runtime"],
+                        game, lambda k, m: self.q.put((k, m)), L.SCRIPT_DIR)
+    except (OSError, ValueError) as e:
+      self.q.put(("err", f"Unable to create shortcut: {e}"))
+      return False
     return True
 
   def _play(self, cfg, log):
