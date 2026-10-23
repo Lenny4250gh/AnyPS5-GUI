@@ -530,7 +530,7 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
     folderButtons.push(btn("Backup "+n,async()=>{const r=await api("backup_game_folder",n);if(!r||!r.ok){if(!(r&&r.cancelled))toast(r&&r.error||"Backup failed","err");return}toast("Backup saved: "+r.path,"ok")},{k:"backup"+n}));
    }
    folderButtons.push(btn("Open _trophy",async()=>{const r=await api("open_game_folder","_trophy");if(!r||!r.ok)toast(r&&r.error||"Unable to open folder","err")},{k:"opentrophy"}));
-   folderButtons.push(btn("Azzera _trophy",async()=>{if(!await ask("Reset trophy data","Delete all trophy data in _trophy? This resets saved unlocks and statistics for this package.","Reset trophies","Cancel"))return;const r=await api("clear_game_trophies");if(!r||!r.ok)toast(r&&r.error||"Unable to reset trophies","err");else toast("Trophy data reset.","ok")},{k:"cleartrophy"}));
+   folderButtons.push(btn("Reset _trophy",async()=>{if(!await ask("Reset trophy data","Delete all trophy data in _trophy? This resets saved unlocks and statistics for this package.","Reset trophies","Cancel"))return;const r=await api("clear_game_trophies");if(!r||!r.ok)toast(r&&r.error||"Unable to reset trophies","err");else toast("Trophy data reset.","ok")},{k:"cleartrophy"}));
    gf.append(hrow(btn("Refresh folder status",refreshGameFolders,{k:"gamefoldersrefresh"}),...folderButtons));root.append(gf)}
  }else{
  const st=el("div","stat");[["eboot","eboot.bin"],["modules","Modules (sce_module/prx)"],["dirs","sce_sys"],["unwrapper","unwrap_self.py"],["relinker","Relinker"],["libs","prx-*.zip (libs zip file)"],["cpu","CPU (AVX2, Intel/AMD)"],["space","Disk space needed"]]
@@ -548,7 +548,7 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
    tg("intel","settings","intel","Intel processor (--to-intel) · all targets"),
    rosEl,
    tg("keep","settings","keep_game","Keep the original PS5 game (copy instead of move)","ON = copy · OFF = safe move: each file is deleted from the source once copied."),
-   hrow(el("span","lbl","Output folder:"),field("out",()=>s.output_dir,v=>setMain("settings","output_dir",v),"Empty = program folder",{label:"Output folder"}),
+   hrow(el("span","lbl","Output folder:"),field("out",()=>s.output_dir,v=>setMain("settings","output_dir",v),"Empty = \"Converted games\" folder",{label:"Output folder"}),
     btn("Browse…",async()=>{const p=await api("pick_output");if(p)setMain("settings","output_dir",p)},{k:"outb"}),btn("Default",()=>setMain("settings","output_dir",""),{k:"outd"})),
    note("Empty = program folder. A '<GAME>-<OS>' folder will be created."));
   const wr=el("div","vzr"),wi=el("div","vzin"),fromRel=prevRel===null?rel:prevRel;prevRel=rel;wi.append(ind);wr.append(wi);

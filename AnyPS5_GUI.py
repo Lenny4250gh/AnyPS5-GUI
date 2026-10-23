@@ -99,6 +99,9 @@ if getattr(sys, "frozen", False):  # PyInstaller executable
 else:
   SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Default output folder (setting "output_dir" empty): "Converted games" next to the program
+DEFAULT_OUTPUT_DIR = os.path.join(SCRIPT_DIR, "Converted games")
+
 # Folder name used by the first versions (next to the program). Kept only to find and migrate the old
 # data, and as the data folder of the portable / from-source mode (so existing data is not lost).
 LEGACY_DIR_NAME = "Utilities"
@@ -224,7 +227,7 @@ DEFAULTS = {
     "auto_module_dirs": "yes",
     "relinker_source": "release", "repo_url": DEFAULT_REPO_URL, "repo_ref": "",
     "release_tag": "", "release_update": "yes",
-    "repo_target": "", "repo_update": "yes", "repo_cmake_args": "",
+    "repo_target": "", "repo_update": "yes", "repo_cmake_args": "", "repo_build_jobs": "",
     "repo_libs_from_repo": "yes",
     "sce_module_path": "", "autorun": "no", "trap_syscall_stubs": "no",
     "lazy_binding": "no", "skip_sce_module": "no", "exclude_sce_modules": "",
@@ -410,7 +413,7 @@ def save_config(values):
   try:
     os.makedirs(DATA_DIR, exist_ok=True)
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-      f.write("# settings: output_dir (default = script folder), intel yes/no,\n"
+      f.write("# settings: output_dir (default = 'Converted games' folder next to the program), intel yes/no,\n"
               "#   auto_unwrap yes/no, mode unwrap/relink, window_size WIDTHxHEIGHT (empty = default)\n"
               "# relinker: relinker options (see AnyPS5 USAGE.md); relinker_source prebuilt/github/release,\n"
               "#   release_tag / release_update for the release source (empty tag = latest release),\n"
@@ -1601,7 +1604,7 @@ def do_relink(folder, cfg, log, cancel, holder):
   game_name = os.path.basename(os.path.normpath(folder))
   if move:
     s = cfg["settings"]
-    out_base = s["output_dir"] or SCRIPT_DIR
+    out_base = s["output_dir"] or DEFAULT_OUTPUT_DIR
     pkg = package_dir(out_base, game_name, cfg["relinker"]["target"])
     mover = Mover(folder, os.path.join(pkg, "app0"))
     log("info", "'Keep PS5 game' is OFF: the game will be MOVED (safe mode).")
@@ -1791,11 +1794,52 @@ def kill_stale_build_processes():
       pass
 
 
-def build_parallel_jobs():
-  """Parallel jobs for the build: not all cores (glslang/FFmpeg builds with every core can
-  exhaust RAM and freeze the machine)."""
+def _total_ram_gib():
+  """Installed RAM in GiB, or 0 if it cannot be read."""
+  try:
+    if os.name == "nt":
+      import ctypes
+
+      class _MS(ctypes.Structure):
+        _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                    ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                    ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+                    ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                    ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+      m = _MS()
+      m.dwLength = ctypes.sizeof(m)
+      if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m)):
+        return m.ullTotalPhys / 2**30
+    elif sys.platform == "darwin":
+      out = subprocess.run(["sysctl", "-n", "hw.memsize"], capture_output=True, text=True, timeout=5).stdout
+      return int(out.strip()) / 2**30
+    else:
+      with open("/proc/meminfo", encoding="utf-8") as f:
+        for line in f:
+          if line.startswith("MemTotal:"):
+            return int(line.split()[1]) / 2**20
+  except Exception:
+    pass
+  return 0
+
+
+def build_parallel_jobs(rl=None):
+  """Parallel jobs for the build. Never fewer than the old conservative value (half the cores, max 8:
+  glslang/FFmpeg builds with every core can exhaust RAM and freeze the machine), but on machines with
+  plenty of RAM (~2 GiB per job, 4 GiB left free) it uses more cores. The 'Build jobs' setting
+  (repo_build_jobs) or ANYPS5_BUILD_JOBS overrides it."""
+  for raw in ((rl or {}).get("repo_build_jobs", ""), os.environ.get("ANYPS5_BUILD_JOBS", "")):
+    try:
+      forced = int(str(raw).strip() or "0")
+    except ValueError:
+      continue
+    if forced > 0:
+      return min(forced, 128)
   n = os.cpu_count() or 2
-  return max(1, min(8, n // 2 if n > 4 else n))
+  safe = max(1, min(8, n // 2 if n > 4 else n))
+  ram = _total_ram_gib()
+  by_ram = int((ram - 4) // 2) if ram else 0
+  return max(safe, min(n, by_ram))
 
 
 def stream_process(cmd, log, cancel, holder, label="Process", cwd=None, env=None,
@@ -2715,6 +2759,35 @@ def predownload_ffmpeg(repo, build, env, log, cancel):
   log("warn", "Could not download FFmpeg (%s): CMake will try on its own." % last)
 
 
+def quote_cmake_include_paths(repo, log):
+  """The repository's CMake adds "SHELL:-include ${path}/HostStandardStreams.hpp" WITHOUT quoting the path:
+  when the path contains a space the compiler sees two files ("cannot specify '-o' with '-c' ... multiple
+  files"). Quote it in the cloned copy (the update step resets the files, so this runs before every
+  configure). Returns how many lines were fixed."""
+  fixed = 0
+  core = os.path.join(repo, "core")
+  pat = re.compile(r'"SHELL:-include (?!\\")([^"\n]*)"')
+  for root, dirs, files in os.walk(core):
+    if "CMakeFiles" in dirs:
+      dirs.remove("CMakeFiles")
+    if "CMakeLists.txt" not in files:
+      continue
+    fp = os.path.join(root, "CMakeLists.txt")
+    try:
+      with open(fp, encoding="utf-8", newline="") as f:
+        text = f.read()
+      new, n = pat.subn(lambda m: '"SHELL:-include \\"' + m.group(1) + '\\""', text)
+      if n:
+        with open(fp, "w", encoding="utf-8", newline="") as f:
+          f.write(new)
+        fixed += n
+    except OSError as e:
+      log("warn", f"Could not patch {fp}: {e}")
+  if fixed:
+    log("info", f"Quoted {fixed} '-include' path(s) in the repository's CMake files (the folder path has a space).")
+  return fixed
+
+
 def ensure_source_libs(rl, log, cancel, holder, target=None):
   """Build the 'libs' CMake target of the cloned repo (full configuration: the relinker-only
   one does not include core/libs) and collect the .prx files (+ the MinGW runtime DLLs on
@@ -2780,6 +2853,8 @@ def ensure_source_libs(rl, log, cancel, holder, target=None):
       fh.write(env_key)
   except OSError:
     pass
+  if " " in repo:
+    quote_cmake_include_paths(repo, log)
   predownload_ffmpeg(repo, build, env, log, cancel)
   cfg_cmd = ["cmake", "-S", repo, "-B", build, "-DCMAKE_BUILD_TYPE=Release"] + extra_args
   for attempt in range(1, 4):
@@ -2810,7 +2885,7 @@ def ensure_source_libs(rl, log, cancel, holder, target=None):
   kill_stale_build_processes()
   del errors[:]
   build_cmd = ["cmake", "--build", build, "--config", "Release", "--target", "libs",
-               "--parallel", str(build_parallel_jobs())]
+               "--parallel", str(build_parallel_jobs(rl))]
   for attempt in range(1, 4):
     del errors[:]
     code = stream_process(build_cmd, log, cancel, holder, "cmake --build", env=env, errors=errors,
@@ -2832,6 +2907,12 @@ def ensure_source_libs(rl, log, cancel, holder, target=None):
   if code != 0:
     log("err", f"Build of the libs failed (exit code {code}).")
     _log_build_errors(errors, logfile, log)
+    if " " in repo and re.search(r"cannot specify '-o' with '-c'", text):
+      log("err", "Cause: the folder path contains a SPACE and the repository's CMake passes "
+                 "'-include <path>' to the compiler without quotes, so the compiler sees the path as two files.")
+      log("info", f"Fix: put the program in a folder whose whole path has no spaces and is short "
+                  f"(e.g. rename 'AnyPS5 GUI' to 'AnyPS5_GUI', or use C:\\AnyPS5), then build again. Now: {repo}")
+      log("info", "Alternative: turn OFF 'Build the libs from the repository' and use the prx-*.zip libs.")
     return None
   # output of core/libs/CMakeLists.txt: <build>/core/libs/libs/*.prx (PATCHED_DIR)
   src = os.path.join(build, "core", "libs", "libs")
@@ -3017,7 +3098,7 @@ def ensure_source_relinker(rl, log, cancel, holder):
   check_cancel(cancel)
 
   started = time.time()
-  base = ["cmake", "--build", build, "--config", "Release", "--parallel", str(build_parallel_jobs())]
+  base = ["cmake", "--build", build, "--config", "Release", "--parallel", str(build_parallel_jobs(rl))]
   attempts = [user_target] if user_target else [RELINKER_TARGET_GUESS, ""]
   built_ok = False
   for target in attempts:
@@ -3399,6 +3480,41 @@ def _safe_filename(name):
   return re.sub(r'[<>:"/\\|?*]', "_", name).strip(" .") or "game"
 
 
+def title_name(pkg_dir):
+  """Real game title (e.g. "Dreaming Sarah") from <pkg>/app0/sce_sys/param.json; "" if unreadable."""
+  try:
+    with open(os.path.join(pkg_dir, "app0", "sce_sys", "param.json"), encoding="utf-8-sig") as f:
+      j = json.load(f)
+    loc = j.get("localizedParameters") or {}
+    langs = [loc.get("defaultLanguage"), "en-US", "en-GB"] + [k for k in loc if isinstance(loc.get(k), dict)]
+    for lang in langs:
+      t = (loc.get(lang) or {}).get("titleName") if lang else None
+      if isinstance(t, str) and t.strip():
+        return t.strip()
+    t = j.get("titleName")
+    return t.strip() if isinstance(t, str) else ""
+  except Exception:
+    return ""
+
+
+_DISCORD_SUBSTATES = (
+  (r"^\[1b\]", "Building relinker"), (r"^\[1c\]", "Building libs"),
+  (r"^\[2\]", "Preparing output folder"), (r"^\[3\] Moving", "Moving game files"),
+  (r"^\[3\] Copying", "Copying game files"), (r"^\[3b\]", "Moving .prx files"),
+  (r"^\[4\] Automatic unwrap \(", "Unwrapping game files"), (r"^\[5\]", "Copying libs"),
+  (r"^\[6\]", "Relinking"), (r"^\[7\]", "Creating shortcut"), (r"^\[8\]", "Checking imports"),
+  (r"^Summary", "Finishing"),
+)
+
+
+def discord_substate(step_msg):
+  """Short Discord status for a conversion step line (\"[5] Copying 'libs'...\" -> \"Copying libs\"), or \"\"."""
+  for pat, text in _DISCORD_SUBSTATES:
+    if re.search(pat, step_msg):
+      return text
+  return ""
+
+
 def windows_shortcut_spec(exe_path, env, sync=None):
   """(target, arguments) of the .lnk. A shortcut cannot carry environment variables, so when
   there are some it starts cmd.exe, which sets them and runs the exe (window stays open only if
@@ -3431,6 +3547,7 @@ def create_shortcut(pkg_dir, exe_name, target, rt, game_name, log, dest_dir=None
     sync = (os.path.abspath(INPUT_INI_FILE), os.path.join(os.path.abspath(pkg_dir), INPUT_INI_NAME))
     sync_input_ini(pkg_dir, rt)  # also right now
   dest_dir = dest_dir or pkg_dir  # where the shortcut file is written (the exe stays in pkg_dir)
+  game_name = title_name(pkg_dir) or game_name  # real title (e.g. "Dreaming Sarah") instead of the title ID
   base = _safe_filename(game_name)
   try:
     if target == "windows":
@@ -4495,7 +4612,12 @@ def _do_relink(folder, cfg, log, cancel, holder, created, mover=None):
       check_cancel(cancel)
 
   # 2. Output
-  output_base = s["output_dir"] or SCRIPT_DIR
+  output_base = s["output_dir"] or DEFAULT_OUTPUT_DIR
+  if not s["output_dir"]:
+    try:
+      os.makedirs(output_base, exist_ok=True)  # default "Converted games" folder
+    except OSError:
+      pass
   if not os.path.isdir(output_base):
     log("err", f"Invalid output folder: {output_base}")
     return False
@@ -4967,7 +5089,7 @@ L = sys.modules[__name__]   # the logic lives in this same file
 HERE = SCRIPT_DIR
 
 # ---------- GUI update check ----------
-APP_VERSION = "1.1.1"
+APP_VERSION = "1.1.2"
 GUI_REPO_OWNER = "Lenny4250gh"
 GUI_REPO_NAME = "AnyPS5-GUI"
 GUI_RELEASES_URL = "https://github.com/%s/%s/releases/latest" % (GUI_REPO_OWNER, GUI_REPO_NAME)
@@ -5703,7 +5825,15 @@ SCHEMA = {'Conversion': [{'type': 'flag',
                    'label': 'Check for updates before every relink',
                    'plat': None,
                    'hint': 'ON = fetch the latest commit and rebuild only if it changed. OFF = reuse the '
-                           'existing build.'}],
+                           'existing build.'},
+                  {'type': 'text',
+                   'section': 'relinker',
+                   'key': 'repo_build_jobs',
+                   'label': 'Build jobs (parallel compilers)',
+                   'plat': None,
+                   'hint': 'Empty = automatic (about half of your CPU threads, more if you have a lot of RAM). '
+                           'A higher number (e.g. 12 or 16 on a 16-thread CPU) builds faster but uses more RAM: '
+                           'if the PC slows down or freezes, lower it. An interrupted build resumes where it stopped.'}],
  'Runtime': [{'type': 'text',
               'section': 'runtime',
               'key': 'gpu',
@@ -6071,7 +6201,14 @@ class Api:
 
   def _rpc_set(self, details, state=None, timer=False):
     """Update Discord Rich Presence without blocking the GUI."""
-    threading.Thread(target=self.rpc.update, args=(details, state, timer), daemon=True).start()
+    # only the most recent request is sent: a slow older thread can no longer overwrite a newer status
+    self._rpc_seq = getattr(self, "_rpc_seq", 0) + 1
+    seq = self._rpc_seq
+
+    def run():
+      if seq == self._rpc_seq:
+        self.rpc.update(details, state, timer)
+    threading.Thread(target=run, daemon=True).start()
 
   def _rpc_idle(self):
     if not self.quitting:
@@ -6193,7 +6330,7 @@ class Api:
     pkg = self.game_pkg
     if not pkg and self.folder:
       try:
-        pkg = L.package_dir(self.cfg["settings"]["output_dir"] or L.SCRIPT_DIR,
+        pkg = L.package_dir(self.cfg["settings"]["output_dir"] or L.DEFAULT_OUTPUT_DIR,
                             self.game_name(), self.cfg["relinker"]["target"])
       except Exception:
         pkg = ""
@@ -6232,7 +6369,7 @@ class Api:
       return os.path.abspath(self.game_pkg)
     if self.folder and not L.is_archive_source(self.folder):
       try:
-        return os.path.abspath(L.package_dir(self.cfg["settings"]["output_dir"] or L.SCRIPT_DIR,
+        return os.path.abspath(L.package_dir(self.cfg["settings"]["output_dir"] or L.DEFAULT_OUTPUT_DIR,
                                              self.game_name(), self.cfg["relinker"]["target"]))
       except Exception:
         pass
@@ -6295,7 +6432,7 @@ class Api:
     pkg = self.game_pkg
     if not pkg and self.folder and not rt.get("screenshots_dir", "").strip():
       try:
-        pkg = L.package_dir(cfg["settings"]["output_dir"] or L.SCRIPT_DIR, self.game_name(), cfg["relinker"]["target"])
+        pkg = L.package_dir(cfg["settings"]["output_dir"] or L.DEFAULT_OUTPUT_DIR, self.game_name(), cfg["relinker"]["target"])
       except Exception:
         pkg = ""
     path = L.screenshots_dir(pkg, rt)
@@ -6394,7 +6531,7 @@ class Api:
     game = ""
     if not pkg and self.folder:
       game = self.game_name()
-      pkg = L.package_dir(cfg["settings"]["output_dir"] or L.SCRIPT_DIR, game, target)
+      pkg = L.package_dir(cfg["settings"]["output_dir"] or L.DEFAULT_OUTPUT_DIR, game, target)
     elif pkg:
       game = os.path.basename(pkg.rstrip("/\\"))
     return L.build_report(cfg, target, game, pkg, log_text or "", self.game_exit)
@@ -6493,7 +6630,7 @@ class Api:
       return None
     s, rl = self.cfg["settings"], self.cfg["relinker"]
     try:
-      r = L.space_requirements(self.folder, rl["target"], s["mode"], s["output_dir"] or L.SCRIPT_DIR,
+      r = L.space_requirements(self.folder, rl["target"], s["mode"], s["output_dir"] or L.DEFAULT_OUTPUT_DIR,
                                L.yes(s["auto_unwrap"]), not L.yes(s["keep_game"]))
     except Exception:
       return {"text": "unable to calculate", "level": "warn"}
@@ -6554,7 +6691,7 @@ class Api:
                                 "(winget)? Windows may ask for administrator permission."])
         res["tools"] = missing
     if action == "start":
-      base = cfg["settings"]["output_dir"] or L.SCRIPT_DIR
+      base = cfg["settings"]["output_dir"] or L.DEFAULT_OUTPUT_DIR
       pkg = L.package_dir(base, self.game_name(), rl["target"])
       if os.path.exists(pkg):
         res["confirms"].append(["Folder already exists", f"'{os.path.basename(pkg)}' already exists in {base}. Overwrite it?"])
@@ -6577,6 +6714,10 @@ class Api:
       if k == "err":
         errs.append(str(m))
       self.q.put((k, m))
+      if k == "step" and not self.cancel_ev.is_set() and action not in ("play", "download", "build", "restore"):
+        sub = L.discord_substate(str(m))  # Discord: show which phase of the conversion is running
+        if sub:
+          self._rpc_set("Unwrapping game" if mode == "unwrap" else "Converting game", sub)
     if action == "play":
       return self._play(cfg, log0)
     if action == "download":
@@ -6630,13 +6771,13 @@ class Api:
     if action == "download":
       self._rpc_set("Downloading tools", "Preparing release")
     elif action == "build":
-      self._rpc_set("Building relinker", "Compiling from source")
+      self._rpc_set("Building converter (relinker)", "Compiling from source")
     elif action == "restore":
       self._rpc_set("Restoring backup", "Restoring")
     elif mode == "unwrap":
-      self._rpc_set("Unwrapping game", "Converting")
+      self._rpc_set("Unwrapping game", "Preparing")
     else:
-      self._rpc_set("Converting game", "Relinking")
+      self._rpc_set("Converting game", "Preparing")
 
     def work():
       t0, ok = time.time(), False
@@ -6670,7 +6811,7 @@ class Api:
     kind = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
     d = getattr(self, "last_exe_dir", "")
     if not (d and os.path.isdir(d)):
-      d = self.cfg["settings"]["output_dir"] or L.SCRIPT_DIR
+      d = self.cfg["settings"]["output_dir"] or L.DEFAULT_OUTPUT_DIR
     res = webview.windows[0].create_file_dialog(
       kind, directory=d, file_types=("Game executable (*.exe;*.elf)", "All files (*.*)"))
     if not res:
@@ -6683,7 +6824,16 @@ class Api:
     """Choose the converted PC game package folder used by Play."""
     try:
       kind = getattr(getattr(webview, "FileDialog", None), "FOLDER", None) or webview.FOLDER_DIALOG
-      res = webview.windows[0].create_file_dialog(kind)
+      # Start from the app's output folder (where converted games are created) to speed up the search
+      start = self.cfg["settings"].get("output_dir") or L.DEFAULT_OUTPUT_DIR
+      if not os.path.isdir(start):
+        os.makedirs(start, exist_ok=True) if not self.cfg["settings"].get("output_dir") else None
+      if not os.path.isdir(start):
+        start = L.SCRIPT_DIR
+      try:
+        res = webview.windows[0].create_file_dialog(kind, directory=os.path.abspath(start))
+      except TypeError:  # very old pywebview without the "directory" parameter
+        res = webview.windows[0].create_file_dialog(kind)
       if not res:
         return self.play_folder
       # pywebview backends differ: some return a string, others a list of paths.
@@ -6712,7 +6862,7 @@ class Api:
       if not self.folder:
         raise FileNotFoundError("Set the PS5 source path for Convert, and choose the converted PC game folder for Play.")
       game = L.archive_game_name(self.folder) if L.is_archive_source(self.folder) else os.path.basename(os.path.normpath(os.path.abspath(self.folder)))
-      base = cfg["settings"]["output_dir"] or L.SCRIPT_DIR
+      base = cfg["settings"]["output_dir"] or L.DEFAULT_OUTPUT_DIR
       pkg = L.package_dir(base, game, target)
     exe = os.path.join(pkg, L.TARGETS[target]["exe"])
     if not os.path.isfile(exe):
@@ -6730,7 +6880,6 @@ class Api:
       self.game_proc = L.launch_game(pkg, target, cfg, exe=exe, log=lambda k, m: self.q.put((k, m)))
       self.q.put(("ok", f"Game started (PID {self.game_proc.pid}) from {pkg}"))
       self.game_pkg, self.game_exit = pkg, None
-      self._rpc_set("Playing " + game, "In-game", True)
     except (OSError, ValueError) as e:
       self.q.put(("err", f"Unable to launch the game: {e}"))
       return False
@@ -6752,7 +6901,7 @@ class Api:
     if not self.folder:
       log("err", "Select the game folder first.")
       return False
-    base = cfg["settings"]["output_dir"] or L.SCRIPT_DIR
+    base = cfg["settings"]["output_dir"] or L.DEFAULT_OUTPUT_DIR
     target = cfg["relinker"]["target"]
     pkg = L.package_dir(base, self.game_name(), target)
     if self.game_proc is not None and self.game_proc.poll() is None:
@@ -6762,7 +6911,6 @@ class Api:
       self.game_proc = L.launch_game(pkg, target, cfg, log=log)
       log("ok", f"Game started (PID {self.game_proc.pid}) from {pkg}")
       self.game_pkg, self.game_exit = pkg, None
-      self._rpc_set("Playing " + self.game_name(), "In-game", True)
     except FileNotFoundError:
       log("err", f"Run the Relink for this game first. Expected: {pkg}")
     except OSError as e:
@@ -6795,6 +6943,7 @@ class Api:
     except Exception:
       pass
     self.q.put(("warn", "Cancellation requested…"))
+    self._rpc_idle()  # Discord back to "In the launcher / Idle" right away
 
   # ---------- settings ----------
   def check_input(self, text):
