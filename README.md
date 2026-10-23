@@ -93,7 +93,7 @@ The first versions kept a `Utilities/` folder next to the program. On startup th
 1. Open the app and go to **Convert a game**.
 2. Check the **requirements**: the app tells you what is missing (tools, CPU, GPU, memory) and can download the tools for you. On the first run it already picks the system, `--to-intel` and `--to-rosetta` options that fit your computer.
 3. Pick your game folder (your own dump), or a `.zip` / `.rar` of it: archives are extracted automatically.
-4. Run **Unwrap** if your files are decrypted SELF/fSELF, then **Relink**. The result is a `<GAME>-<system>` package next to the game.
+4. Run **Unwrap** if your files are decrypted SELF/fSELF, then **Relink**. The result is a `<GAME>-<system>` package in your output folder (by default a `Converted games` folder next to the program; change it in the settings).
 5. Go to **Play a game** and press **Launch**, or create a shortcut.
 
 Settings (runtime, input, appearance) can be changed at any time from their tabs.
@@ -103,6 +103,7 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 **Convert a game**
 - **Unwrap:** already-decrypted SELF/fSELF → ELF, using the official `unwrap_self.py` (the original files are backed up, with a *Restore backup* button).
 - **Relink:** builds the `<GAME>-<system>` package (app0 + libs + executable) for Windows, Linux or macOS.
+- **Output folder:** converted games go to the output folder you choose in the settings. When it is empty, the default is a `Converted games` folder next to the program, created automatically.
 - **Game archives:** the game can be a folder or a `.zip` / `.rar` (`.rar` needs 7-Zip installed).
 - **Requirements check:** shows what is missing before you start, and downloads the tools for you when needed. It also checks:
   - **CPU:** x86-64 with AVX2, FMA, F16C, BMI1/2, LZCNT and MOVBE. Apple silicon is reported (use the macOS system with `--to-rosetta`) and Intel CPUs are reminded to turn on `--to-intel`.
@@ -118,7 +119,8 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 > <img src="docs/screenshots/2.png" width="600" alt="Convert Page 2">
 
 **Play a game**
-- **Launch** a converted game with your current settings, or **create a shortcut** that starts it with the right variables.
+- **Launch** a converted game with your current settings, or **create a shortcut** that starts it with the right variables. The shortcut is named after the real game title read from the game's `param.json` (e.g. *Dreaming Sarah* instead of `PPSA02929`); if the title can't be read, the folder name is used.
+- **Browse PC game…** opens the folder picker directly in your output folder, where your converted games are.
 - **Exit code explained:** when the game ends, the log shows its exit code in plain words (missing library, segmentation fault, access violation, timeout…).
 - **Launch protection (Windows):** if the MinGW runtime DLLs are missing from `libs/`, the game is not started and you get a clear message instead of error 126 on every library.
 
@@ -152,7 +154,7 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 > <img src="docs/screenshots/6.png" width="600" alt="Input deadzones and mouse settings">
 
 **Converted game data and screenshots**
-- The **Play** view has a separate path for the converted PC game package, independent from the PS5 source path used for conversion. Launch and shortcut creation use the selected converted package; when no path is selected, the app attempts the configured output folder.
+- The **Play** view has a separate path for the converted PC game package, independent from the PS5 source path used for conversion. Launch and shortcut creation use the selected converted package; when no path is selected, the app attempts the configured output folder (`Converted games` by default).
 - **Game folders (saves and trophies)** lets you open `_sd`, `_sd_mem` and `_trophy`. Save-data folders can be backed up as ZIP files; trophy data can be reset after a confirmation prompt. These actions operate on the selected/last-launched package, so check the displayed package path first.
 - **Screenshots:** the runtime `ANYPS5_SCREENSHOTS` setting accepts an absolute folder. When empty, screenshots go to `anyps5-screenshots/` next to the game executable. Use **Open screenshots folder** to open it; the folder may not exist until the first F12 screenshot.
 - **Shader cache:** Runtime settings show the effective AnyPS5 shader-cache path and current size, allow a custom absolute path through `ANYPS5_SHADER_CACHE_DIR`, and provide a clear-cache action. Clearing removes the AnyPS5 cache at that configured path, not the graphics driver's cache. `ANYPS5_NO_SHADER_CACHE` disables the on-disk cache; shaders may need to be rebuilt on later runs.
@@ -166,6 +168,9 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 - `APS5_PLAYGO_UNLISTED_CHUNKS` can be set to `installed` or `absent` to control how unlisted PlayGo chunks are treated.
 - **Test diagnostics (for bug reports)** enables extra profiling/log timestamp variables and, on Windows, crash indirect-memory diagnostics. It can slow the game slightly, so leave it off for performance comparisons.
 - Automatic log interpretation now calls out host-import memory-budget and texture-cache diagnostics, with notes about the corresponding tuning variables.
+
+**Discord Rich Presence**
+- While the app is open it shows *In the launcher* and, during a conversion, the current phase (Preparing, Copying game files, Copying libs, Relinking…). It does not show which game you play. Turn it off with *Disable Discord Rich Presence* in the Appearance settings.
 
 **Appearance**
 - Choose the main color (presets or custom hex) and the animated background (soft grid, orbs or none). It stops automatically if your system asks for reduced motion.
@@ -200,6 +205,7 @@ The **Repository URL** field is not tied to AnyPS5. You can point the GUI at a *
 | **Extra CMake arguments** | Build | Added to the configure step, e.g. `-G Ninja -DCMAKE_CXX_COMPILER=clang++`. |
 | **Check for updates before every relink** | Build | ON = fetches the latest commit and rebuilds only if it changed. OFF = reuses the existing build. |
 | **Build the libs (.prx) from the repository** | Build | ON = also builds the `libs` target and uses those libs instead of a `prx-*.zip`. Much slower (full CMake configuration, downloads FFmpeg, needs the SDL/Vulkan build dependencies). |
+| **Build jobs (parallel compilers)** | Build | Empty = automatic: about half of your CPU threads, more if you have a lot of RAM. A higher number (e.g. 12 or 16 on a 16-thread CPU) builds faster but uses more RAM; if the PC slows down or freezes, lower it. An interrupted build resumes where it stopped. |
 
 Each repository gets its own folder, so switching between the official repo and a fork does not mix files:
 
@@ -256,6 +262,8 @@ If you also enable **Build the libs from the repository**, the repo must have a 
 The build is remembered by **commit and target**: if the commit did not change and you did not change the target, the existing relinker is reused and nothing is rebuilt.
 
 **Tools needed to build.** `git`, `cmake` and a C/C++ compiler must be in your `PATH` (on Debian/Ubuntu: `sudo apt install git cmake build-essential`). On Windows the project supports only the MinGW-w64 GCC 15.2.0 (WinLibs, with Ninja) toolchain, and the GUI can install git, CMake and that toolchain for you with one click (the toolchain is about 270 MB, saved in `toolchain/` inside the app folder). Visual Studio cannot link this project.
+
+**Paths with spaces.** The repository's CMake passes the `-include` path of the libs build to the compiler without quotes. When the folder path contains a space (e.g. `AnyPS5 GUI`), the GUI quotes it for you in its cloned copy before configuring. If you still get path errors, use a short folder without spaces (e.g. `C:\AnyPS5`).
 
 ### Quick checklist for a fork
 
