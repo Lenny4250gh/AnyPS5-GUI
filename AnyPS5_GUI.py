@@ -5917,9 +5917,58 @@ def clean(x):
   return json.loads(json.dumps(x, default=str))
 
 
+try:
+  from pypresence import Presence
+except ImportError:
+  Presence = None
+
+DISCORD_CLIENT_ID = "1563249221094875246"  # discord.com/developers/applications
+
+
+class DiscordRPC:
+  def __init__(self):
+    self.rpc = None
+    self.start_ts = None
+
+  def _connect(self):
+    if Presence is None or DISCORD_CLIENT_ID.startswith("YOUR_"):
+      return False
+    if self.rpc is None:
+      try:
+        self.rpc = Presence(DISCORD_CLIENT_ID)
+        self.rpc.connect()
+      except Exception:
+        self.rpc = None  # Discord not running: ignore
+        return False
+    return True
+
+  def update(self, details, state=None, timer=False):
+    try:
+      if not self._connect():
+        return
+      if timer and not self.start_ts:
+        self.start_ts = int(time.time())
+      elif not timer:
+        self.start_ts = None
+      self.rpc.update(details=details, state=state, start=self.start_ts,
+                      large_image="logo", large_text="AnyPS5 GUI")
+    except Exception:
+      self.rpc = None
+
+  def clear(self):
+    try:
+      if self.rpc:
+        self.rpc.clear()
+    except Exception:
+      self.rpc = None
+    self.start_ts = None
+
+
 class Api:
   def __init__(self):
     self.cfg = L.load_config()
+    self.rpc = DiscordRPC()
+    threading.Thread(target=self.rpc.update, args=("In the launcher", "Idle"), daemon=True).start()
     self.schema = SCHEMA
     self.folder = ""
     self.play_folder = ""  # converted PC game package selected for Play
@@ -5942,6 +5991,7 @@ class Api:
     """Window close event. Idle (or already confirmed) -> close. Operation running -> the close is
     vetoed and the in-app popup asks for confirmation."""
     if self.quitting or not self.running:
+      self.rpc.clear()
       return True
     if not self._quit_asked:
       self._quit_asked = True
@@ -6624,6 +6674,8 @@ class Api:
       self.game_proc = L.launch_game(pkg, target, cfg, exe=exe, log=lambda k, m: self.q.put((k, m)))
       self.q.put(("ok", f"Game started (PID {self.game_proc.pid}) from {pkg}"))
       self.game_pkg, self.game_exit = pkg, None
+      threading.Thread(target=self.rpc.update, daemon=True,
+                       args=("Playing", os.path.basename(pkg.rstrip("/\\")), True)).start()
     except (OSError, ValueError) as e:
       self.q.put(("err", f"Unable to launch the game: {e}"))
       return False
@@ -6655,6 +6707,8 @@ class Api:
       self.game_proc = L.launch_game(pkg, target, cfg, log=log)
       log("ok", f"Game started (PID {self.game_proc.pid}) from {pkg}")
       self.game_pkg, self.game_exit = pkg, None
+      threading.Thread(target=self.rpc.update, daemon=True,
+                       args=("Playing", os.path.basename(pkg.rstrip("/\\")), True)).start()
     except FileNotFoundError:
       log("err", f"Run the Relink for this game first. Expected: {pkg}")
     except OSError as e:
@@ -6668,6 +6722,7 @@ class Api:
       self.game_exit = L.normalize_exit_code(p.returncode)
       self.q.put(("ok" if self.game_exit == 0 else "warn",
                   "Game ended, exit code " + L.explain_exit_code(self.game_exit)))
+      self.rpc.update("In the launcher", "Idle")
     while not self.q.empty():
       k, m = self.q.get()
       if k == "percent":
