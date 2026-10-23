@@ -4967,7 +4967,7 @@ L = sys.modules[__name__]   # the logic lives in this same file
 HERE = SCRIPT_DIR
 
 # ---------- GUI update check ----------
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"
 GUI_REPO_OWNER = "Lenny4250gh"
 GUI_REPO_NAME = "AnyPS5-GUI"
 GUI_RELEASES_URL = "https://github.com/%s/%s/releases/latest" % (GUI_REPO_OWNER, GUI_REPO_NAME)
@@ -5989,7 +5989,7 @@ SCHEMA['Appearance'] = [{'type': 'flag',
                          'key': 'no_discord_rpc',
                          'label': 'Disable Discord Rich Presence',
                          'plat': 'all',
-                         'hint': 'Stops showing the launcher / game you are playing on your Discord profile.'}]
+                         'hint': 'Stops showing that you are using AnyPS5 GUI on your Discord profile.'}]
 
 
 class Api:
@@ -6069,15 +6069,20 @@ class Api:
                               "problem": L.STORAGE_PROBLEM},
                   "version": APP_VERSION})
 
+  def _rpc_set(self, details, state=None, timer=False):
+    """Update Discord Rich Presence without blocking the GUI."""
+    threading.Thread(target=self.rpc.update, args=(details, state, timer), daemon=True).start()
+
+  def _rpc_idle(self):
+    if not self.quitting:
+      self._rpc_set("In the launcher", "Idle")
+
   def _rpc_refresh(self):
     """Apply the Discord Rich Presence setting right away (no restart needed)."""
     if L.yes(self.cfg["runtime"].get("no_discord_rpc", "no")):
       threading.Thread(target=self.rpc.clear, daemon=True).start()
-    elif self.game_proc is not None and self.game_proc.poll() is None and self.game_pkg:
-      threading.Thread(target=self.rpc.update, daemon=True,
-                       args=("Playing", os.path.basename(self.game_pkg.rstrip("/\\")), True)).start()
     else:
-      threading.Thread(target=self.rpc.update, args=("In the launcher", "Idle"), daemon=True).start()
+      self._rpc_idle()
 
   def set_cfg(self, values):
     if self.relocated:
@@ -6622,6 +6627,16 @@ class Api:
     self.cancel_ev.clear()
     self.holder = {}
     log0("step", title)
+    if action == "download":
+      self._rpc_set("Downloading tools", "Preparing release")
+    elif action == "build":
+      self._rpc_set("Building relinker", "Compiling from source")
+    elif action == "restore":
+      self._rpc_set("Restoring backup", "Restoring")
+    elif mode == "unwrap":
+      self._rpc_set("Unwrapping game", "Converting")
+    else:
+      self._rpc_set("Converting game", "Relinking")
 
     def work():
       t0, ok = time.time(), False
@@ -6646,6 +6661,7 @@ class Api:
         ntitle, ntext = L.build_notification(title, game, ok, dt, errs)
         L.notify_desktop(ntitle if os.name == "nt" else "AnyPS5 · " + ntitle, ntext)
       self.result, self.running = ok, False
+      self._rpc_idle()
 
     threading.Thread(target=work, daemon=True).start()
     return True
@@ -6714,8 +6730,7 @@ class Api:
       self.game_proc = L.launch_game(pkg, target, cfg, exe=exe, log=lambda k, m: self.q.put((k, m)))
       self.q.put(("ok", f"Game started (PID {self.game_proc.pid}) from {pkg}"))
       self.game_pkg, self.game_exit = pkg, None
-      threading.Thread(target=self.rpc.update, daemon=True,
-                       args=("Playing", os.path.basename(pkg.rstrip("/\\")), True)).start()
+      self._rpc_set("Playing " + game, "In-game", True)
     except (OSError, ValueError) as e:
       self.q.put(("err", f"Unable to launch the game: {e}"))
       return False
@@ -6747,8 +6762,7 @@ class Api:
       self.game_proc = L.launch_game(pkg, target, cfg, log=log)
       log("ok", f"Game started (PID {self.game_proc.pid}) from {pkg}")
       self.game_pkg, self.game_exit = pkg, None
-      threading.Thread(target=self.rpc.update, daemon=True,
-                       args=("Playing", os.path.basename(pkg.rstrip("/\\")), True)).start()
+      self._rpc_set("Playing " + self.game_name(), "In-game", True)
     except FileNotFoundError:
       log("err", f"Run the Relink for this game first. Expected: {pkg}")
     except OSError as e:
@@ -6762,7 +6776,7 @@ class Api:
       self.game_exit = L.normalize_exit_code(p.returncode)
       self.q.put(("ok" if self.game_exit == 0 else "warn",
                   "Game ended, exit code " + L.explain_exit_code(self.game_exit)))
-      self.rpc.update("In the launcher", "Idle")
+      self._rpc_idle()
     while not self.q.empty():
       k, m = self.q.get()
       if k == "percent":
