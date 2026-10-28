@@ -226,6 +226,8 @@ DEFAULTS = {
     "trace_imports": "no", "module_dirs": "", "executables": "",
     "unwrap_modules": "yes", "move_root_prx": "yes", "import_audit": "no", "make_launcher": "yes",
     "audit_strict_stubs": "no", "audit_strict_providers": "no", "audit_source": "",
+    "patch_catalog": "", "patch_timeout": "", "nid_patcher_path": "", "nid_only_sce": "no",
+    "nid_preserve_exports": "", "nid_preserve_list": "",
     "names_file": "",
     "auto_module_dirs": "yes",
     "relinker_source": "release", "repo_url": DEFAULT_REPO_URL, "repo_ref": "",
@@ -3336,6 +3338,145 @@ def verify_patches(rl, folder):
   return "err", "Verification failed:\n" + out
 
 
+def find_repo_tool(rl, rel):
+  """tools/<script> in <data>/tools or in the cloned repository, else None."""
+  candidates = [os.path.join(DATA_DIR, rel)]
+  paths = source_paths(rl) if rl.get("relinker_source") == "github" else None
+  if paths:
+    candidates.append(os.path.join(paths["repo"], rel))
+  for c in candidates:
+    if os.path.isfile(c):
+      return c
+  return None
+
+
+def suggest_patches(rl, folder, list_all=False):
+  """Run tools/suggest_patches.py on the selected unwrapped game. Returns (level, text, patch_file)."""
+  catalog = rl.get("patch_catalog", "").strip()
+  if not catalog:
+    return "warn", "Choose the patch catalog folder first (the one with index.json).", ""
+  catalog = os.path.abspath(catalog)
+  if not os.path.isfile(os.path.join(catalog, "index.json")):
+    return "err", f"No index.json in {catalog}.", ""
+  if not folder or not os.path.isdir(folder):
+    return "warn", "Choose the game folder first.", ""
+  eboot = os.path.join(folder, EXECUTABLE_NAME)
+  state = file_state(eboot)
+  if state == "self":
+    return "warn", f"{EXECUTABLE_NAME} is still a SELF: unwrap the game first (Unwrap mode).", ""
+  if state != "elf":
+    return "err", f"{EXECUTABLE_NAME} not found or not a valid ELF in the game folder.", ""
+  param = os.path.join(folder, "sce_sys", "param.json")
+  if not os.path.isfile(param):
+    return "err", "sce_sys/param.json not found in the game folder (it holds the title id and version).", ""
+  timeout = rl.get("patch_timeout", "").strip()
+  if timeout and not (_whole(timeout) and int(timeout) >= 1):
+    return "err", "Advisor timeout must be a whole number of seconds, 1 or more.", ""
+  script = find_repo_tool(rl, os.path.join("tools", "suggest_patches.py"))
+  if not script:
+    return "err", "tools/suggest_patches.py not found: clone the repository (Source build) or copy it into the app data folder under tools/.", ""
+  python = find_python()
+  if not python:
+    return "err", "Python was not found in PATH (the advisor needs Python 3.11 or newer).", ""
+  kw = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
+  try:
+    ok = subprocess.run([python, "-c", "import sys;print(int(sys.version_info>=(3,11)))"], capture_output=True,
+                        text=True, timeout=15, **kw).stdout.strip()
+  except (OSError, subprocess.SubprocessError):
+    ok = ""
+  if ok != "1":
+    return "err", "The patch advisor needs Python 3.11 or newer.", ""
+  set_active_relinker_cfg(rl)
+  relinker = resolve_relinker(rl)
+  if not relinker or not os.path.isfile(relinker):
+    return "err", "Relinker not available yet: run a conversion once (or build it) so the app has it.", ""
+  cmd = [python, script, "--catalog", catalog, "--param-json", param, "--input", eboot, "--relinker", relinker]
+  smp = rl.get("sce_module_path", "").strip()
+  if smp:
+    cmd += ["--sce-module-path", os.path.abspath(smp)]
+  elif yes(rl.get("skip_sce_module", "no")):
+    cmd.append("--skip-sce-module")
+  for d in split_list(rl.get("module_dirs", "")):
+    cmd += ["--module-dir", d]
+  for e in split_list(rl.get("executables", "")):
+    cmd += ["--executable", e]
+  if timeout:
+    cmd += ["--timeout-seconds", timeout]
+  if list_all:
+    cmd.append("--list-verified")
+  try:
+    res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                         timeout=900, **kw)
+  except (OSError, subprocess.SubprocessError) as e:
+    return "err", f"Could not run the advisor: {e}", ""
+  out = "\n".join(x for x in ((res.stdout or "").strip(), (res.stderr or "").strip()) if x)
+  patch = ""
+  if res.returncode == 0 and not list_all:
+    for line in out.splitlines():  # "  --patches <file> [--module-dir ...]" printed under "Use these options"
+      if line.strip().startswith("--patches"):
+        try:
+          parts = shlex.split(line.strip(), posix=(os.name != "nt"))
+        except ValueError:
+          break
+        if len(parts) >= 2:
+          patch = parts[1]
+          if not os.path.isabs(patch):
+            patch = os.path.join(catalog, patch)
+        break
+  if res.returncode == 0:
+    return "ok", out or "Verified.", patch
+  if res.returncode == 1:
+    return "warn", "No single verified patch for this game:\n" + out, ""
+  return "err", "The advisor could not finish:\n" + out, ""
+
+
+def find_nid_patcher(rl):
+  p = rl.get("nid_patcher_path", "").strip()
+  if p:
+    return os.path.abspath(p) if os.path.isfile(p) else None
+  paths = source_paths(rl) if rl.get("relinker_source") == "github" else None
+  if paths and os.path.isdir(paths["build"]):
+    found = find_built_relinker([(paths["build"], False)], "nid_patcher")
+    if found:
+      return found
+  return shutil.which("nid_patcher")
+
+
+def run_nid_patcher(rl, files):
+  """`nid_patcher --exec [--only-sce] [--preserve-*] <files>`: patches the imports of the files IN PLACE."""
+  exe = find_nid_patcher(rl)
+  if not exe:
+    return "err", "nid_patcher not found: set its path above, or build the repository (Source build)."
+  files = [f for f in files if f]
+  if not files:
+    return "warn", "No file chosen."
+  missing = [f for f in files if not os.path.isfile(f)]
+  if missing:
+    return "err", f"File not found: {missing[0]}"
+  pe, pl = rl.get("nid_preserve_exports", "").strip(), rl.get("nid_preserve_list", "").strip()
+  if pe and pl:
+    return "err", "--preserve-exports and --preserve-export-list cannot be used together."
+  if pl and not os.path.isfile(pl):
+    return "err", f"Export list not found: {pl}"
+  cmd = [exe, "--exec"]
+  if yes(rl.get("nid_only_sce", "no")):
+    cmd.append("--only-sce")
+  if pe:
+    cmd += ["--preserve-exports", os.path.abspath(pe) if os.path.exists(pe) else pe]
+  elif pl:
+    cmd += ["--preserve-export-list", os.path.abspath(pl)]
+  cmd += files
+  kw = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
+  try:
+    res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, **kw)
+  except (OSError, subprocess.SubprocessError) as e:
+    return "err", f"Could not run nid_patcher: {e}"
+  out = "\n".join(x for x in ((res.stdout or "").strip(), (res.stderr or "").strip()) if x)
+  if res.returncode == 0:
+    return "ok", f"Imports patched in {len(files)} file(s).\n" + out if out else f"Imports patched in {len(files)} file(s)."
+  return "err", f"nid_patcher failed (code {res.returncode}). Unsupported layouts fail before the file is written.\n" + out
+
+
 def verify_output(rl, output_path):
   """Run `relinker --verify-patches <manifest> --verify-output [--executable ..] <output>` (writes nothing).
   output_path = a converted Linux ELF; the manifest is the <output-stem>.patches.toml written beside it.
@@ -5799,7 +5940,7 @@ L = sys.modules[__name__]   # the logic lives in this same file
 HERE = SCRIPT_DIR
 
 # ---------- GUI update check ----------
-APP_VERSION = "1.1.3"
+APP_VERSION = "1.1.2"
 GUI_REPO_OWNER = "Lenny4250gh"
 GUI_REPO_NAME = "AnyPS5-GUI"
 GUI_RELEASES_URL = "https://github.com/%s/%s/releases/latest" % (GUI_REPO_OWNER, GUI_REPO_NAME)
@@ -6512,7 +6653,46 @@ SCHEMA = {'Conversion': [{'type': 'flag',
                  'key': 'no_patches',
                  'label': '--no-patches',
                  'plat': 'all',
-                 'hint': 'Apply no patches and ignore relinker-patches.toml. Conflicts with --patches.'}],
+                 'hint': 'Apply no patches and ignore relinker-patches.toml. Conflicts with --patches.'},
+                {'type': 'text',
+                 'section': 'relinker',
+                 'key': 'patch_catalog',
+                 'label': 'Patch advisor: catalog folder (suggest_patches.py)',
+                 'plat': 'all',
+                 'hint': 'Folder with index.json and the patch files. The advisor checks title, version and file '
+                         'hashes of the selected unwrapped game, then verifies with the relinker. It never '
+                         'applies anything: the recommended file is only put in the --patches field.'},
+                {'type': 'text',
+                 'section': 'relinker',
+                 'key': 'patch_timeout',
+                 'label': 'Patch advisor: --timeout-seconds',
+                 'plat': 'all',
+                 'hint': 'Seconds per relinker verification. Empty = 120.'},
+                {'type': 'text',
+                 'section': 'relinker',
+                 'key': 'nid_patcher_path',
+                 'label': 'nid_patcher executable',
+                 'plat': 'all',
+                 'hint': 'Empty = the one built by Source build, else nid_patcher from PATH. It patches the '
+                         'imports of native executables or libraries IN PLACE: work on a copy.'},
+                {'type': 'flag',
+                 'section': 'relinker',
+                 'key': 'nid_only_sce',
+                 'label': 'nid_patcher: --only-sce',
+                 'plat': 'all',
+                 'hint': 'Only rename names starting with sce (any case) or ending with _nid_postfix.'},
+                {'type': 'text',
+                 'section': 'relinker',
+                 'key': 'nid_preserve_exports',
+                 'label': 'nid_patcher: --preserve-exports (unpatched library)',
+                 'plat': 'all',
+                 'hint': 'Library whose exports stay unpatched. Conflicts with the export list below.'},
+                {'type': 'text',
+                 'section': 'relinker',
+                 'key': 'nid_preserve_list',
+                 'label': 'nid_patcher: --preserve-export-list (file)',
+                 'plat': 'all',
+                 'hint': 'File with the export names to leave unchanged. Conflicts with --preserve-exports.'}],
  'Source build': [{'type': 'text',
                    'section': 'relinker',
                    'key': 'release_tag',
@@ -7471,6 +7651,14 @@ class Api:
       self.folder = res[0]
     return self.folder
 
+  def pick_any_folder(self):
+    """Folder dialog that only returns the choice (pick_folder also sets the selected game folder)."""
+    res = webview.windows[0].create_file_dialog(getattr(getattr(webview, "FileDialog", None), "FOLDER", None)
+                                                or webview.FOLDER_DIALOG)
+    if not res:
+      return None
+    return res if isinstance(res, str) else res[0]
+
   def pick_patch_file(self):
     kind = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
     res = webview.windows[0].create_file_dialog(kind, file_types=("Patch files (*.toml)", "All files (*.*)"))
@@ -7484,6 +7672,27 @@ class Api:
     if isinstance(rl_values, dict):
       rl.update({k: str(v) for k, v in rl_values.items()})
     level, text = L.verify_patches(rl, self.folder)
+    return {"level": level, "text": text}
+
+  def suggest_patches(self, rl_values=None, list_all=False):
+    """Ask tools/suggest_patches.py which catalog patch fits the selected game (nothing is applied)."""
+    rl = dict(self.cfg["relinker"])
+    if isinstance(rl_values, dict):
+      rl.update({k: str(v) for k, v in rl_values.items()})
+    level, text, patch = L.suggest_patches(rl, self.folder, bool(list_all))
+    return {"level": level, "text": text, "patch": patch}
+
+  def run_nid_patcher(self, rl_values=None):
+    """Pick one or more native executables/libraries and patch their imports in place with nid_patcher."""
+    rl = dict(self.cfg["relinker"])
+    if isinstance(rl_values, dict):
+      rl.update({k: str(v) for k, v in rl_values.items()})
+    kind = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
+    res = webview.windows[0].create_file_dialog(kind, allow_multiple=True, file_types=("All files (*.*)",))
+    if not res:
+      return {"level": "muted", "text": "Cancelled."}
+    files = [res] if isinstance(res, str) else list(res)
+    level, text = L.run_nid_patcher(rl, files)
     return {"level": level, "text": text}
 
   def verify_output(self, rl_values=None):
