@@ -66,12 +66,14 @@ Game archives: .zip and .rar (the prx-*.zip libs: only .zip). .zip works out of 
 """
 import configparser
 import hashlib
+import json
 import importlib.util
 import os
 import queue
 import re
 import shlex
 import shutil
+import socket
 import stat
 import subprocess
 import sys
@@ -223,6 +225,7 @@ DEFAULTS = {
     "fixed_base": "", "linux_fixed_base": "", "macos_fixed_base": "", "unused_filter": "0", "registry": "yes", "rpath": "",
     "trace_imports": "no", "module_dirs": "", "executables": "",
     "unwrap_modules": "yes", "move_root_prx": "yes", "import_audit": "no", "make_launcher": "yes",
+    "audit_strict_stubs": "no", "audit_strict_providers": "no", "audit_source": "",
     "names_file": "",
     "auto_module_dirs": "yes",
     "relinker_source": "release", "repo_url": DEFAULT_REPO_URL, "repo_ref": "",
@@ -232,6 +235,7 @@ DEFAULTS = {
     "sce_module_path": "", "autorun": "no", "trap_syscall_stubs": "no",
     "lazy_binding": "no", "skip_sce_module": "no", "exclude_sce_modules": "",
     "skip_syscall_check": "no", "patches_file": "", "no_patches": "no",
+    "frame_red_zone": "no",
   },
   "runtime": {
     "language": "", "gpu": "", "present_mode": "", "fonts_dir": "",
@@ -243,7 +247,15 @@ DEFAULTS = {
     "trace_dir": "", "pipeline_stats": "no", "gpu_checkpoints": "no",
     "diagnostics": "no",
     "overlay": "no", "overlay_pos": "", "screenshots_dir": "", "shader_cache_dir": "", "no_shader_cache": "no",
-    "no_discord_rpc": "no",
+    "fullscreen": "no", "display_index": "", "entitlements_file": "",
+    "trace_bench": "no", "trace_calls_file": "", "trace_uds": "no", "videoout_telemetry_dir": "",
+    "store_at_label": "no",
+    "draw_pipeline": "no", "pipelined_draws": "", "pipeline_dispatch": "no", "verify_draw_pipeline": "no",
+    "no_pipeline_lto": "no", "no_pipeline_journal": "no", "pipeline_journal_entries": "",
+    "pipeline_journal_max_mib": "", "pipeline_journal_threads": "", "pipeline_store_entries": "",
+    "address_copy_max_mib": "", "pm4_ring": "", "skip_refused_draws": "no", "mimalloc": "no",
+    "gpu_wait_timeout_ms": "", "stall_watchdog_secs": "", "hang_dump_secs": "", "crash_stack_bytes": "",
+    "no_discord_rpc": "no", "env_catalog": "",
     "playgo_unlisted_chunks": "installed",
   },
 }
@@ -3230,6 +3242,8 @@ def build_relink_command(relinker, intel, rl, input_file, out_exe):
       cmd.append("--windows-gui")
     if yes(rl["diagnostics"]):
       cmd.append("--windows-diagnostics")
+    if yes(rl.get("frame_red_zone", "no")):
+      cmd.append("--frame-red-zone")  # Windows only: frame for leaf functions that use the red zone
     if rl["fixed_base"].strip():
       cmd += ["--windows-fixed-base", rl["fixed_base"].strip()]
     if yes(rl["trace_imports"]):
@@ -3322,6 +3336,60 @@ def verify_patches(rl, folder):
   return "err", "Verification failed:\n" + out
 
 
+def verify_output(rl, output_path):
+  """Run `relinker --verify-patches <manifest> --verify-output [--executable ..] <output>` (writes nothing).
+  output_path = a converted Linux ELF; the manifest is the <output-stem>.patches.toml written beside it.
+  Returns (level, text)."""
+  if not output_path or not os.path.isfile(output_path):
+    return "warn", "Choose the converted Linux executable first."
+  output_path = os.path.abspath(output_path)
+  if file_state(output_path) != "elf":
+    return "err", "This is not a converted Linux ELF (PE and Mach-O outputs cannot be verified)."
+  stem = os.path.splitext(output_path)[0]
+  manifest = next((m for m in (stem + ".patches.toml", output_path + ".patches.toml") if os.path.isfile(m)), "")
+  if not manifest:
+    return "err", (f"No manifest found: expected {os.path.basename(stem)}.patches.toml next to the output. "
+                   "It is written only when at least one patch was applied during the conversion.")
+  set_active_relinker_cfg(rl)
+  relinker = resolve_relinker(rl)
+  if not relinker or not os.path.isfile(relinker):
+    return "err", "Relinker not available yet: run a conversion once (or build it) so the app has it."
+  cmd = [relinker, "--verify-patches", manifest, "--verify-output"]
+  for e in split_list(rl.get("executables", "")):
+    cmd += ["--executable", e]
+  cmd.append(output_path)
+  kwargs = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
+  try:
+    res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                         timeout=120, **kwargs)
+  except (OSError, subprocess.SubprocessError) as e:
+    return "err", f"Could not run the relinker: {e}"
+  out = "\n".join(x for x in ((res.stdout or "").strip(), (res.stderr or "").strip()) if x)
+  if res.returncode == 0:
+    return "ok", "Output OK: no mismatch.\n" + out if out else "Output OK: no mismatch."
+  if res.returncode == 1:
+    return "err", "Output mismatch (the converted file does not hold the patches):\n" + out
+  return "err", "Verification failed:\n" + out
+
+
+def relinker_version(rl):
+  """Run `relinker --version`. Returns (level, text)."""
+  set_active_relinker_cfg(rl)
+  relinker = resolve_relinker(rl)
+  if not relinker or not os.path.isfile(relinker):
+    return "warn", "Relinker not available yet: run a conversion once (or build it) so the app has it."
+  kwargs = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
+  try:
+    res = subprocess.run([relinker, "--version"], capture_output=True, text=True, encoding="utf-8",
+                         errors="replace", timeout=30, **kwargs)
+  except (OSError, subprocess.SubprocessError) as e:
+    return "err", f"Could not run the relinker: {e}"
+  out = "\n".join(x for x in ((res.stdout or "").strip(), (res.stderr or "").strip()) if x)
+  if res.returncode != 0:
+    return "err", "This relinker does not answer --version (it may be an older build):\n" + out
+  return "ok", out or "(no version printed)"
+
+
 # ─────────────────────────────────────────────────────────────
 #  Runtime: environment variables and game shortcut
 # ─────────────────────────────────────────────────────────────
@@ -3330,6 +3398,54 @@ PAD_HELPER = os.path.join("tools", "pad_input.py")
 
 def _whole(text):
   return re.fullmatch(r"[0-9]+", text.strip()) is not None
+
+
+# Advanced runtime variables (docs/dev/ENVIRONMENT.md): key -> (variable, minimum, maximum, windows only)
+ADVANCED_INTS = {
+  "pipelined_draws": ("APS5_PIPELINED_DRAWS", 0, None, False),
+  "pipeline_journal_entries": ("APS5_PIPELINE_JOURNAL_ENTRIES", 1, None, False),
+  "pipeline_journal_max_mib": ("APS5_PIPELINE_JOURNAL_MAX_MIB", 1, None, False),
+  "pipeline_journal_threads": ("APS5_PIPELINE_JOURNAL_THREADS", 0, None, False),
+  "pipeline_store_entries": ("APS5_PIPELINE_STORE_ENTRIES", 1, None, False),
+  "address_copy_max_mib": ("APS5_ADDRESS_COPY_MAX_MIB", 1, None, False),
+  "pm4_ring": ("APS5_PM4_RING", 0, 4096, False),
+  "gpu_wait_timeout_ms": ("APS5_GPU_WAIT_TIMEOUT_MS", 1, None, False),
+  "stall_watchdog_secs": ("APS5_STALL_WATCHDOG_SECS", 0, 86400, False),
+  "hang_dump_secs": ("APS5_HANG_DUMP_SECS", 1, None, True),
+}
+ADVANCED_FLAGS = (  # key -> variable (set to 1); the runtime reads their presence
+  ("draw_pipeline", "APS5_DRAW_PIPELINE", False), ("pipeline_dispatch", "APS5_PIPELINE_DISPATCH", False),
+  ("verify_draw_pipeline", "APS5_VERIFY_DRAW_PIPELINE", False), ("no_pipeline_lto", "APS5_NO_PIPELINE_LTO", False),
+  ("no_pipeline_journal", "APS5_NO_PIPELINE_JOURNAL", False), ("skip_refused_draws", "APS5_SKIP_REFUSED_DRAWS", False),
+  ("mimalloc", "APS5_MIMALLOC", True),
+)
+
+
+def _crash_stack_value(text):
+  """Integer value of APS5_CRASH_STACK_BYTES (decimal or 0x hexadecimal), or None if malformed."""
+  t = text.strip()
+  if re.fullmatch(r"[0-9]+", t):
+    return int(t)
+  if re.fullmatch(r"0[xX][0-9a-fA-F]+", t):
+    return int(t, 16)
+  return None
+
+
+def validate_advanced_runtime(rt):
+  for key, (var, lo, hi, _win) in ADVANCED_INTS.items():
+    v = rt.get(key, "").strip()
+    if not v:
+      continue
+    if not _whole(v) or int(v) < lo or (hi is not None and int(v) > hi):
+      return f"{var} must be a whole number" + (f" from {lo} to {hi}." if hi is not None else f" of {lo} or more.")
+  cs = rt.get("crash_stack_bytes", "").strip()
+  if cs:
+    n = _crash_stack_value(cs)
+    if n is None or n > 1048576:
+      return "APS5_CRASH_STACK_BYTES must be a decimal or 0x hexadecimal number, at most 1048576."
+  if yes(rt.get("verify_draw_pipeline", "no")) and not yes(rt.get("draw_pipeline", "no")):
+    return "APS5_VERIFY_DRAW_PIPELINE needs APS5_DRAW_PIPELINE (it checks that pipeline)."
+  return None
 
 
 def validate_runtime_options(rt, rl=None):
@@ -3377,6 +3493,520 @@ def validate_runtime_options(rt, rl=None):
   sdir = rt.get("screenshots_dir", "").strip()
   if sdir and not os.path.isabs(sdir):
     return "ANYPS5_SCREENSHOTS must be an absolute path."
+  adv_err = validate_advanced_runtime(rt)
+  if adv_err:
+    return adv_err
+  if yes(rt.get("trace_bench", "no")) and not every:
+    return "APS5_TRACE_BENCH=1 needs APS5_TRACE_SUMMARY_EVERY (e.g. 30): set the interval too."
+  tcf = rt.get("trace_calls_file", "").strip()
+  if tcf and not os.path.isabs(tcf):
+    return "APS5_TRACE_CALLS_FILE must be an absolute path to a file."
+  if tcf and not rt.get("trace_calls", "").strip():
+    return "APS5_TRACE_CALLS_FILE needs APS5_TRACE_CALLS (and --trace-imports) to record anything."
+  tel = rt.get("videoout_telemetry_dir", "").strip()
+  if tel and not os.path.isabs(tel):
+    return "APS5_VIDEOOUT_TELEMETRY_DIR must be an absolute path."
+  disp = rt.get("display_index", "").strip()
+  if disp and not _whole(disp):
+    return "ANYPS5_DISPLAY_INDEX must be a whole number from 0 up (0 = first display)."
+  ent = rt.get("entitlements_file", "").strip()
+  if ent and not os.path.isfile(ent):
+    return f"ANYPS5_ENTITLEMENTS: '{ent}' is not an existing file."
+  return validate_catalog_env(rt)
+
+
+# Environment variables documented in docs/dev/ENVIRONMENT.md that have no dedicated option: (name, kind, default, description)
+ENV_CATALOG = [
+  ('ANYPS5_JOB_MANAGER_CASE', 'string', '', 'selects the CPU fixture run by tools/run_job_manager_reference.py'),
+  ('ANYPS5_JOB_MANAGER_HOST', 'presence', '', 'runs the reference adapter against the host fallback instead of the loaded guest module'),
+  ('ANYPS5_LOADEXEC_PARENT', 'string', '', 'variable the Windows entry stub reads; its wide name is built in core/relinker/elfpatcher/src/windows/WindowsEntryStubBuilder.cpp'),
+  ('ANYPS5_LOADEXEC_TEST_ROOT', 'string', '', 'directory the load-exec host test reads its guest executable from'),
+  ('ANYPS5_POSIX_SPAWN_ROLE', 'string', '', "role of the test's own copy spawned as a posix_spawn child, which exits or sleeps on it and otherwise fails"),
+  ('ANYPS5_TEST_QUOTED_ARGV0', 'presence', '', "makes the load-exec test's first argument one with quotes, a backslash and non-ASCII text"),
+  ('APS5_EBOOT', 'string', '', 'host path of the executable launched for /app0/eboot.bin; unset or empty means the running executable'),
+  ('APS5_SKIP_TIMING_TESTS', 'string', '', "treats the timing tests' runner as preempted, so they skip without probing the clock; an empty value or one starting with 0 leaves the probe on"),
+  ('APS5_USBD_DEVICE', 'string', '', 'selects the USB device a test drives, as vendor:product in hex'),
+  ('ANYPS5_GUEST_MODULE_ARGS', 'string', '', 'path of the file the module-argument fixture appends its events to'),
+  ('APS5_BDA_BYTE_READS', 'presence', '', 'forces one address lookup and byte load per byte for BDA reads instead of a wide dword load'),
+  ('APS5_BDA_DWORD_STORES', 'presence', '', 'reverts BDA writes to one address store per dword instead of a wide multi-dword store'),
+  ('APS5_DUMP_IR', 'string', '', 'hex code address (or all) of the programs whose IR is printed after each front-end pass'),
+  ('APS5_EXACT_RCP', 'presence', '', "emits v_rcp_f32 and v_rcp_iflag_f32 as the RDNA hardware reciprocal (bit-exact for normal inputs and results) instead of the driver's division; adds about 13k SPIR-V words to each shader that uses them"),
+  ('APS5_GATHER_CONST', 'integer', '', 'integer every non-depth gather returns in all four texels instead of the sampled value'),
+  ('APS5_IMAGE_TABLE_KEY_SCAN', 'integer', '256', 'number of image-table entries the key scan examines'),
+  ('APS5_IMAGE_TABLE_STRICT', 'string', '', 'sets image-table materialization to its strict form; 0 leaves it off'),
+  ('APS5_NO_ATOMIC_BARRIER', 'presence', '', 'drops the device-scope acquire/release memory barrier emitted after atomics'),
+  ('APS5_NO_ATOMIC_ZERO_SKIP', 'presence', '', 'restores plain buffer atomics instead of skipping identity-operand atomics'),
+  ('APS5_NO_CODE_HASH_KEY', 'presence', '', 'appends every code word to the cache key instead of hashing the code'),
+  ('APS5_NO_FAILURE_MEMO', 'presence', '', 'rebuilds a program whose compilation failed instead of reusing the memoized failure'),
+  ('APS5_NO_IMAGE_TABLES', 'presence', '', 'disables image tables, leaving table-loaded descriptors unplanned'),
+  ('APS5_NO_MASKED_RESULT_MEMO', 'presence', '', 'materializes every result memo miss instead of patching the buffer descriptors, user data and flattened SRT of a cached result whose snapshot differs only in those words'),
+  ('APS5_NO_PERF_DISK_PLANS', 'presence', '', 'disables the disk cache of planning results'),
+  ('APS5_NO_PERF_DOMINATOR_TREE', 'presence', '', "computes the structurizer's dominator and post-dominator sets with the set fixpoint instead of a dominator tree, walks every selection construct instead of testing its members by dominance, and tests every block against each…"),
+  ('APS5_NO_PERF_DOM_INTERSECTION', 'presence', '', 'computes dominator intersections into a fresh vector instead of intersecting in place'),
+  ('APS5_NO_PERF_ITERATION_SELECTION', 'presence', '', "recomputes the post-dominator sets when finding a loop's iteration-selection merge instead of reusing them"),
+  ('APS5_NO_RESULT_MEMO', 'presence', '', 'materializes a fresh result for every recompile instead of reusing the result memo'),
+  ('APS5_NO_SRT_TAPE', 'presence', '', 'runs the runtime-source walk of a plan in the IR evaluator instead of the compiled tape'),
+  ('APS5_NO_TABLE_RESOLUTION_REUSE', 'presence', '', "stops a result memo miss from reusing an unchanged image table's resolution, so the table is resolved again"),
+  ('APS5_NO_TABLE_SNAPSHOT_REUSE', 'presence', '', 'turns off the image table snapshot reuse, so every capture reads and compares each table column'),
+  ('APS5_NO_WINDOW_NARROWING', 'presence', '', "indexes every slot of the shader's vector window instead of only the slots the program uses"),
+  ('APS5_PROBE', 'string', '', 'pc:vgpr[:shift] probe that copies that VGPR into v255 after the instruction so image stores write it as a per-lane trace'),
+  ('APS5_RAYTRACING', 'string', '', 'selects the image_bvh_intersect_ray behaviour: strict throws and miss writes 0xffffffff'),
+  ('APS5_RESULT_MEMO_MB', 'integer', '256', 'MiB the result memos of all shader sources may hold before the least recently used results are dropped (0 keeps them until their set evicts them)'),
+  ('APS5_SAVEEXEC_WRITE_FIRST', 'presence', '', 'writes the saved exec to the destination before reading the source in s_*_saveexec'),
+  ('APS5_SINGLE_LANE', 'string', '', 'hex code addresses (comma separated, or all) of wave64 programs kept at one guest lane per invocation'),
+  ('APS5_SRT_DEBUG', 'presence', '', 'prints extra SRT descriptor-walk debug output, such as guest reads outside the request memory'),
+  ('APS5_STRICT_DESCRIPTOR_WEBS', 'string', '', "makes a T# or S# read in a descriptor web throw when a path's descriptor dwords depend on the program counter, EXEC or a lane mask, instead of selecting the first descriptor and recording an InvalidDescriptor fault when a lane…"),
+  ('APS5_TRACE_BDA', 'presence', '', 'prints the first few accesses that make a program take the address-based path'),
+  ('APS5_TRACE_BUFFER_WRITTEN', 'presence', '', 'prints how many guest buffer elements a program may store to and how many it only loads'),
+  ('APS5_TRACE_IMAGE_TABLE', 'presence', '', 'traces image-table resolution'),
+  ('APS5_VERIFY_MASKED_RESULT_MEMO', 'presence', '', 'also materializes every patched result memo hit, prints the first twenty whose patched result differs and counts them in the result memo report of APS5_PROFILE_DRAW'),
+  ('APS5_VERIFY_SRT_COMPACT', 'presence', '', 'walks every SRT descriptor a second time through the IR evaluator and throws when the two walks differ'),
+  ('APS5_VERIFY_SRT_TAPE', 'presence', '', "walks a plan's runtime sources a second time through the evaluator, adopts its answers where the two differ and prints the first twenty differences"),
+  ('APS5_WAVE_LDS_SUBGROUP', 'presence', '', 'restores subgroup-scope LDS barriers for single-wave workgroups instead of workgroup scope'),
+  ('APS5_TRACE_LABEL', 'integer', '0', 'hex guest address; logs a matching RELEASE_MEM when recorded, and nearby RELEASE_MEM, WRITE_DATA, COPY_DATA, DMA_DATA and WAIT_REG_MEM packets when executed'),
+  ('ANYPS5_REQUIRE_DESCRIPTOR_BINDING_FLAGS', 'presence', '', 'fails the replay test instead of accepting a device that refuses descriptor binding flags'),
+  ('ANYPS5_REQUIRE_ROBUST2', 'presence', '', 'fails the LDS lock-budget test when the device does not enable robustBufferAccess2, instead of only printing it'),
+  ('ANYPS5_REQUIRE_VULKAN', 'presence', '', 'fails a test instead of skipping when no usable Vulkan device is present'),
+  ('APS5_AB', 'string', '', '<seconds>:<switch>[+<switch>...]: alternates phase A (switches as the environment sets them) and phase B (the listed runtime switches toggled) at flip packets, each phase at least <seconds> long; prints [ab] lines; a name that is…'),
+  ('APS5_AB_SETTLE', 'string', '2', "seconds into a phase after which APS5_AB prints the phase's settled line; shorter than the phase"),
+  ('APS5_AB_START', 'string', '0', 'flip packet count (from 1) at which APS5_AB starts, or <n>s for seconds after the first flip'),
+  ('APS5_ALL_BUFFERS_WRITTEN', 'presence', '', 'notes every shader buffer element as written, as before bufferWritten existed'),
+  ('APS5_ASSERT_GPU_LOCK', 'presence', '', 'aborts when a guarded path is reached without holding GuestMemory::GpuMutex'),
+  ('APS5_ATOMIC_STAGE_MAX_KIB', 'integer', '1024', 'size cap in KiB on an atomic shader element covered by device-local staging'),
+  ('APS5_BARRIER_VALIDATE', 'presence', '', 'counts the barriers a hazard-tracking validator would emit and skip, by class and hazard kind'),
+  ('APS5_BATCH_CAP', 'integer', '64', 'recorded work since the last submit at which a label batch, flush or reap is forced (0 disables the cap)'),
+  ('APS5_BDA_FLUSH', 'presence', '', 'also flushes pending storage results over address-based shader regions, which are otherwise exempt'),
+  ('APS5_BDA_STAGING_MIN_THREADS', 'integer', '512', 'smallest dispatch, in threads, whose address-based build stages its written elements device-local; an indirect dispatch always does'),
+  ('APS5_BDA_TABLE_CACHE_ENTRIES', 'integer', '8', 'number of recently used BDA page tables kept in the cache, clamped to 1..64 (1 is the previous behaviour)'),
+  ('APS5_BLOCK_WRITEBACK_EACH', 'presence', '', 'stores the touched units only on every write-back instead of widening repeated partial stores'),
+  ('APS5_BLOCK_WRITEBACK_FRAMES', 'integer', '8', 'window of presents within which repeated partial stores trigger the whole-image widening'),
+  ('APS5_BLOCK_WRITEBACK_PIECES', 'integer', '4', 'number of partial stores within the window that triggers the whole-image widening'),
+  ('APS5_BLOCK_WRITEBACK_WIDEN', 'presence', '', 'enables the widening that stores a whole image when it keeps being asked for in pieces'),
+  ('APS5_BUFFER_POOL_SHARED', 'presence', '', 'uses one buffer tier for every allocation size, as before the tier split'),
+  ('APS5_BUFFER_POOL_SLOTS', 'integer', '4096', 'bounds the buffers each pool tier retains (0 keeps the default of 4096)'),
+  ('APS5_CAPTURE_GPU_COPIES', 'presence', '', 'records GPU buffer copies in the capture trace (requires APS5_CAPTURE_TRACE)'),
+  ('APS5_CAPTURE_INPUTS', 'presence', '', "records each draw's inputs in the capture trace (requires APS5_CAPTURE_TRACE)"),
+  ('APS5_CAPTURE_TRACE', 'presence', '', 'writes capture events to capture-trace.log'),
+  ('APS5_CAPTURE_TRACE_PATH', 'string', 'capture-trace.log', 'file path for the capture events log'),
+  ('APS5_CHECK_INDIRECT_ARGS', 'presence', '', 'reads GPU-side indirect draw records back on the CPU and prints the first ones'),
+  ('APS5_COMPLETION_STORE_SYNC', 'presence', '', 'makes a store made by a completion action wait for later batches over its range'),
+  ('APS5_COPY_DESTINATION_STRICT', 'presence', '', 'refuses a CPU copy whose destination has any pending writer, not only an unsettled one'),
+  ('APS5_COPY_HLE_CPU_MAX', 'integer', '262144', 'largest copy in bytes the CPU side of the copy HLE handles'),
+  ('APS5_COPY_HLE_GPU_MAX', 'integer', '', 'largest copy in bytes the GPU side of the copy HLE handles; unset means no limit'),
+  ('APS5_COPY_READ_TRACKING', 'string', '', 'notes in-place reads of a range; set to 0 to disable, making the CPU copy path require an idle recorder'),
+  ('APS5_COPY_SYNC', 'presence', '', "treats any pending writer over a copy's range as needing a wait"),
+  ('APS5_COPY_VERIFY', 'presence', '', "verifies a CPU copy's source and destination bytes against the pre-copy values after a sync"),
+  ('APS5_COPY_WAIT_SOURCE', 'presence', '', "waits for the source's producer batch when it is the only one in flight, on non-zero queues"),
+  ('APS5_COUNT_ALL_COMPLETION_LABELS', 'presence', '', 'counts a completion label also stored on the GPU as pending from its registration'),
+  ('APS5_CPU_COPIES', 'presence', '', 'copies misaligned descriptor sub-ranges on the CPU instead of with a GPU buffer copy'),
+  ('APS5_CPU_DCC_KEYS', 'presence', '', 'always stores DCC keys on the CPU'),
+  ('APS5_CPU_FLIP_IN_ORDER', 'presence', '', 'orders every CPU flip behind queued work instead of presenting unqueued flips at once'),
+  ('APS5_CPU_STORES', 'presence', '', 'writes packet stores on the CPU instead of recording them on the GPU'),
+  ('APS5_DCC_KEYS_EACH', 'presence', '', 'records every DCC key store at once instead of batching them'),
+  ('APS5_DEPTH_COPY_MIN_KIB', 'integer', '1024', 'minimum surface size in KiB for a depth target to take the depth-copy path'),
+  ('APS5_DEPTH_PLANE_COPY_MIB', 'integer', '256', 'budget in MiB of the sampled depth-plane copies kept for reuse (least recently used copies leave first; copies sampled since the previous present stay while all copies hold at most twice the budget); 0 keeps every copy'),
+  ('APS5_DEPTH_PLANE_WHOLE_STORE', 'presence', '', 'stores a stale depth plane whole when memory over it is read, instead of only the 64 KiB units the read overlaps'),
+  ('APS5_DISPATCH_CACHE_BYTES', 'integer', '268435456', 'size of the dispatch cache in bytes (0 keeps the default of 256 MiB)'),
+  ('APS5_DISPATCH_CACHE_ENTRIES', 'integer', '8192', 'number of dispatch cache entries; 0 picks a default from the variant count: 8192 with the default 4 variants, 16384 with 2 or fewer, 4096 under APS5_DISPATCH_STAMP_VALIDATE'),
+  ('APS5_DISPATCH_STAMP_VALIDATE', 'presence', '', 'validates dispatch cache hits by write stamps, forcing one variant and a 4096-entry cache'),
+  ('APS5_DISPATCH_VARIANTS', 'integer', '4', 'number of dispatch variants kept per cache entry, clamped to the maximum'),
+  ('APS5_DISPMOVE_MAX_KIB', 'integer', '1024', 'upper bound in KiB on the read-only buffers a dispatch-cache hit moves into its template, above which the dispatch is prepared again'),
+  ('APS5_DRAIN_ALL', 'presence', '', 'drains every packet, disabling the batched recording path'),
+  ('APS5_DRAIN_COMPLETION_LABELS', 'presence', '', 'records completion labels immediately instead of deferring them with the batch, and drains a label recorded while a copied write-back is pending instead of storing it behind the write-backs'),
+  ('APS5_DRAW_CACHE_BYTES', 'integer', '268435456', 'size of the draw cache in bytes, evicting least-recently-used entries past it (0 keeps the default of 256 MiB)'),
+  ('APS5_DRAW_CACHE_ENTRIES', 'integer', '4096', 'number of entries in the draw cache; 0 keeps the default 4096'),
+  ('APS5_DRAW_DRAIN', 'presence', '', 'treats draw packets as drains, waiting for them instead of recording ahead'),
+  ('APS5_DRAW_INPUTS_IN_PLACE', 'presence', '', "binds draw vertex and index ranges in place from host imports also with NVIDIA's Windows driver, which copies them by default"),
+  ('APS5_DRAW_KEY_ALL_USER_WORDS', 'presence', '', "includes all 32 user words in a draw's register key instead of the used count"),
+  ('APS5_DRAW_SNAPSHOT_MAX_MIB', 'integer', '64', "upper bound in MiB on the snapshot bytes a draw's bindings may take"),
+  ('APS5_DRAW_TRANSITIONS', 'presence', '', 'keeps the per-draw upload and download barriers and layout transitions instead of the lean recorded path'),
+  ('APS5_DRAW_UPLOAD_MAX', 'integer', '4096', 'largest draw snapshot in bytes copied into the per-recorder upload chunk; 0 turns the chunk off'),
+  ('APS5_DUMP_COMPUTE_MIN_WORDS', 'integer', '', 'only captures compute pipelines whose SPIR-V has at least this many words (an integer from 0 through 8388608; any other value fails)'),
+  ('APS5_DUMP_COMPUTE_PIPELINES', 'string', '', 'directory in which captured compute pipelines are written'),
+  ('APS5_DUMP_DRAW_SHADERS', 'integer', '0', "hex color-target or slot-0 address, or a program's code address, whose draw's shaders are dumped"),
+  ('APS5_DUMP_DRAW_SLOT1', 'integer', '0', "hex slot-1 address whose draw's shaders and register state are dumped"),
+  ('APS5_DUMP_FRAMES', 'integer', '0', 'saves the first n presented frames as frame_<index>.bmp'),
+  ('APS5_DUMP_FRAMES_EVERY', 'integer', '1', 'dumps every n-th presented frame'),
+  ('APS5_DUMP_QUEUE', 'integer', '', 'dumps the first submissions of the queue with this hex id'),
+  ('APS5_DUMP_REJECTED', 'presence', '', 'writes a rejected submission to rejected_submission_<n>.bin'),
+  ('APS5_DUMP_SCALE', 'integer', '4', 'keeps every n-th pixel in each direction of a dumped frame (1 to 16384; any other value fails)'),
+  ('APS5_DUMP_SHADERS', 'presence', '', "writes each prepared shader's request to shader_<address>.req"),
+  ('APS5_DUMP_STORAGE', 'string', '', 'selects storage textures to dump by hex address or WxHxL[:format] extent as storage_<address>_<n>.raw'),
+  ('APS5_DUMP_SUBMITS', 'string', '', 'directory in which every submission is captured for replay'),
+  ('APS5_DUMP_TARGETS', 'integer', '0', 'dumps the first n renders of each non-resident color target as target_<address>_<n>.raw in the working directory; a non-zero value also runs every draw synchronously, and in practice it needs APS5_NO_RESIDENT_TARGETS=1'),
+  ('APS5_DUMP_TEXTURE', 'string', '', 'hex addresses or WxH extents whose sampled textures are dumped on each of their first 8 uploads as texture_<address>_<n>.raw'),
+  ('APS5_EAGER_WRITEBACK', 'presence', '', 'writes back pending storage layers eagerly'),
+  ('APS5_EXACT_DRAW_WRITES', 'string', '', "sizes a color or depth target's draw write ranges from its own bytes and slices (the default when unset); 0 uses the slack and unknown-byte approximation instead"),
+  ('APS5_FILL_CHAIN', 'presence', '', 'seeds and doubles the fill pattern in place in the import'),
+  ('APS5_FILL_CLEAR_EXACT_ONLY', 'presence', '', 'turns a fill into a clear only when it covers the target exactly and nothing else'),
+  ('APS5_FILL_SYNC', 'presence', '', "waits for every recorded store over the fill's range"),
+  ('APS5_FLIP_INFLIGHT', 'integer', '1', 'number of presentations that may trail on the GPU (0, 1 or 2)'),
+  ('APS5_FLIP_READ_CHECK', 'presence', '', "records the in-place reads of completed batches and checks them before the present blit's fence"),
+  ('APS5_FORCE_SDR', 'presence', 'unset', 'suppresses advertised HDR availability while retaining detected host capabilities; uses the existing SDR presentation path'),
+  ('APS5_FORCE_STRUCTURIZER_FALLBACK', 'presence', '', 'makes the structurizer use the reach-flag fallback for every graph that supports it instead of trying cloning first; the control-flow tests then expect that fallback'),
+  ('APS5_FRAME_CAPTURE', 'string', '', "directory in which the driver records a few frames of the title's driver calls and guest memory for agc_frame_replay"),
+  ('APS5_FRAME_CAPTURE_AT_FLIP', 'integer', '0', 'frame boundary (CPU flip or submission that flips) at which the frame capture starts when no trigger file is set; 0 and 1 both start at the first boundary; a value that is not a number fails'),
+  ('APS5_FRAME_CAPTURE_FRAMES', 'integer', '10', 'number of frame boundaries the frame capture records'),
+  ('APS5_FRAME_CAPTURE_TRIGGER', 'string', '', 'file whose appearance starts the frame capture at the next frame boundary; a number in it replaces the frame count'),
+  ('APS5_FULL_BARRIERS', 'presence', '', 'records every barrier instead of merging redundant ones'),
+  ('APS5_GPU_COPY_MAX_KIB', 'integer', '1024', 'size cap in KiB on a descriptor sub-range copied through the GPU path, larger ones staying on the CPU'),
+  ('APS5_GPU_NO_WRITEBACK', 'presence', '', 'skips writing GPU results back into guest memory'),
+  ('APS5_GROUP_CAPTURE_ALL_QUEUES', 'presence', '', 'resolves group-ahead capture on queue 0 as well'),
+  ('APS5_HANDOFF_SPIN_US', 'integer', '', "microseconds a thread spins for a handed-off draw's work or for the GPU mutex before blocking, clamped to 0..10000; unset spins 150 us when the process has more than 8 usable processors and not at all otherwise"),
+  ('APS5_HEAP_MIRROR_MIB', 'integer', '24576', 'budget in MiB for the heap mirrors held for registered allocations'),
+  ('APS5_HOOK_FLUSH_CPU_BLOCKS', 'string', '', 'set to 0 flushes pending images whose every 64 KiB block the CPU wrote, instead of skipping them'),
+  ('APS5_HOOK_FULL_SYNC', 'presence', '', "makes the flush hook's recorded-store wait a full Sync under the GpuMutex"),
+  ('APS5_HOOK_LOCKED_WAIT', 'presence', '', "keeps the flush hook's pending-write wait under the GpuMutex"),
+  ('APS5_IGNORE_DEPTH_TEST', 'presence', '', 'renders depth- and stencil-tested draws without a depth target as if the tests always passed'),
+  ('APS5_IMAGE_POOL_MIB', 'integer', '', "size in MiB of the released image memory the buffer pool keeps for reuse by memory type and size while the device-local heap is under its reported budget, a quarter of the device tier's budget by default; 0 frees image memory at…"),
+  ('APS5_INDIRECT_VERTEX_MIB', 'integer', '64', 'cap in MiB on a vertex attribute extent, above which a GPU-side indirect draw resolves on the CPU'),
+  ('APS5_INSERT_COMPARE', 'presence', '', "compares a fresh capture's regions against the recorder before inserting it into the cache"),
+  ('APS5_KEPT_DESCRIPTOR_SETS', 'integer', '8', 'number of freed dedicated image table descriptor sets kept for a later build with the same layout and sizes; 0 keeps none'),
+  ('APS5_KEYFLIP_DROP', 'presence', '', "drops a pending unit's results on a clear-code to uncompressed key flip, as before"),
+  ('APS5_KEYS_FILL_CLEAR', 'string', '', 'clears an image from DCC keys whose fill pattern it matches (only when set to 1)'),
+  ('APS5_LABEL_FLUSH_US', 'integer', '', 'age in microseconds at which a pending label batch is recorded or submitted; unset is 1000 with batched label submission and 250 when APS5_NO_LABEL_BATCH_SUBMIT or APS5_NO_LABEL_BATCHING turns it off'),
+  ('APS5_LABEL_GATE_ALL', 'presence', '', 'gates a label store on any pending completion, not only one overlapping the range'),
+  ('APS5_LABEL_LOCK_EACH', 'presence', '', 'records each label under the GpuMutex instead of deferring it'),
+  ('APS5_LABEL_OWN_LOCK', 'presence', '', 'makes a label flush take the GpuMutex itself instead of relying on a self-locking packet'),
+  ('APS5_LABEL_REAP_ALL_QUEUES', 'presence', '', 'reaps completion labels on every queue instead of only queue 0'),
+  ('APS5_LABEL_RUNS_INLINE', 'presence', '', 'records store runs at once and closes each run at the next command'),
+  ('APS5_LABEL_STORE_ALWAYS', 'presence', '', 'writes back every label store even when a later store already covered its bytes'),
+  ('APS5_LABEL_SUBMIT_NOW', 'presence', '', 'submits every label immediately instead of waiting for the flush deadline'),
+  ('APS5_LABEL_TRUST_LATE', 'string', '', "trusts cache entries with a stamp at or below the wait's stamp under the late rule (off unless set to a non-zero value)"),
+  ('APS5_LABEL_TRY_EACH_PACKET', 'presence', '', 'attempts to record deferred labels at every self-locking packet instead of deferring to its lock'),
+  ('APS5_LAND_WAITS_ALL_QUEUES', 'presence', '', 'notes pending waits on queue 0 as well'),
+  ('APS5_LAZY_SHADER_PREPARE', 'presence', '', 'prepares a registered shader on its first use instead of while registering it'),
+  ('APS5_LDS_SLACK', 'integer', '0', "dwords added to every dispatch's LDS allocation"),
+  ('APS5_LOCKED_BUILD', 'presence', '', 'builds the whole dispatch preparation under the GpuMutex, skipping the split path'),
+  ('APS5_LOCKED_DRAW_PREPARE', 'presence', '', 'takes the GpuMutex before preparing a draw'),
+  ('APS5_LOG_STATS', 'string', '', "prints the AGC log's line, byte and coalescing statistics every 10 s window by default, when unset or set to anything but 0; 0 turns them off"),
+  ('APS5_LOG_SYNC', 'presence', '', 'writes AGC log lines on the calling thread instead of through the asynchronous sink thread'),
+  ('APS5_LOOP_GUARD', 'presence', '', 'enables the fault buffer that guards shader loops running past their bound'),
+  ('APS5_MIRROR_REFRESH_THREADS', 'integer', '3', 'number of helper threads that refresh heap mirrors, clamped to 0 through 16'),
+  ('APS5_NO_ADDRESS_READ_PASSES', 'presence', '', "stops a draw that only reads through its buffer descriptors from counting as read-only, so it breaks the pass instead of continuing the producer's"),
+  ('APS5_NO_ADDRESS_SPACE_CACHE', 'presence', '', 'disables the address-space cache so every build rebuilds its space'),
+  ('APS5_NO_ADJACENT_GENERATION', 'presence', '', 'leaves adjacent pending images at their generation during a write-back, as before'),
+  ('APS5_NO_ALIAS_BORROW', 'presence', '', 'disables borrowing a pending aliased storage image'),
+  ('APS5_NO_ATOMIC_STAGING', 'presence', '', 'binds atomic shader elements in place instead of staging them through a device-local buffer'),
+  ('APS5_NO_BARRIER_BATCH', 'presence', '', 'records the staging, write-back and label-run leading barriers that a covering barrier already orders, instead of leaving them out; APS5_AB can toggle it'),
+  ('APS5_NO_BARRIER_ELISION', 'presence', '', 'records every leading barrier instead of merging it into the following submission'),
+  ('APS5_NO_BDA_STAGING', 'presence', '', 'binds the written elements of address-based compute builds in place in the host imports instead of staging them device-local'),
+  ('APS5_NO_BDA_TABLE_CACHE', 'presence', '', 'builds every BDA descriptor table instead of reusing the recent-table cache'),
+  ('APS5_NO_BLOCK_TRACKING', 'presence', '', 'tracks array layers, or the whole surface, instead of 64 KiB blocks'),
+  ('APS5_NO_BUFFER_CLASSES', 'presence', '', 'matches exact sizes in the buffer pool instead of rounding up to size classes'),
+  ('APS5_NO_CACHED_PRECOLLECT', 'presence', '', "leaves the write-watch walks of a cached object's Revalidate under the GPU mutex"),
+  ('APS5_NO_CLEAR_HAND_OVER', 'presence', '', "writes other images' pending results back at a clear-key storage refresh instead of handing them over to the refreshed image"),
+  ('APS5_NO_CLEARED_VIEW', 'presence', '', 'keeps fast-cleared surfaces as CPU snapshots instead of viewing the cleared storage image'),
+  ('APS5_NO_COLLECT_MEMO', 'presence', '', 'disables the per-thread memo of write-watch collects'),
+  ('APS5_NO_CONTEXT_CACHE', 'presence', '', 'rebuilds the Graphics::Context on every call instead of returning the cached one'),
+  ('APS5_NO_COPY_ALIAS', 'presence', '', 'keeps every device copy a transfer instead of aliasing the source storage image'),
+  ('APS5_NO_COPY_HLE', 'presence', '', 'disables the copy-kernel HLE, so matching copies run as compute'),
+  ('APS5_NO_COPY_KNOWN_VALUES', 'presence', '', "disables serving a copy's destination from source values the driver already knows"),
+  ('APS5_NO_CPU_COPY', 'presence', '', 'disables the CPU copy path of the copy HLE'),
+  ('APS5_NO_DATA_HITS', 'presence', '', 'disables dispatch-cache hits that differ only in ShaderData or FlattenedSrt words'),
+  ('APS5_NO_DCC_PRESYNC', 'presence', '', 'leaves the DCC key ranges out of the surfaces a build pre-syncs, so only the surface itself waits for its producer'),
+  ('APS5_NO_DEFERRED_DESTRUCTION', 'presence', '', 'on MoltenVK, destroys buffers and frees device memory as soon as the driver releases them, instead of while the graphics queue is idle (KhronosGroup/MoltenVK#2876)'),
+  ('APS5_NO_DCC_WORD_SCAN', 'presence', '', 'restores the byte-by-byte DCC key scan instead of the word-at-a-time compare'),
+  ('APS5_NO_DEFERRED_EVICTION', 'presence', '', 'destroys displaced resource-cache entries under the mutex instead of deferring them to the open batch'),
+  ('APS5_NO_DEFERRED_SETTLES', 'presence', '', 'settles watched private host imports as they open instead of through the deferred block-settling path (Windows only)'),
+  ('APS5_NO_DIRECT_DEPTH_COPY', 'presence', '', "keeps every copy between a depth plane and a color storage image on the staging buffer instead of one vkCmdCopyImage (used when VK_KHR_maintenance8 is enabled and the storage format is a single component of the aspect's size)"),
+  ('APS5_NO_DISPATCH_CACHE', 'presence', '', 'disables the dispatch cache so every dispatch takes the uncached path'),
+  ('APS5_NO_DISPATCH_KEY_HYGIENE', 'presence', '', 'mixes every shader register into the dispatch key instead of only the registers that affect the dispatch'),
+  ('APS5_NO_DISPATCH_LRU', 'presence', '', 'clears the whole dispatch cache on overflow instead of evicting the least recently used entry'),
+  ('APS5_NO_DISPATCH_MOVE', 'presence', '', 'leaves a dispatch-cache hit from moving its read-only buffers into the template, so it prepares the dispatch again; also off when APS5_NO_TEMPLATE_DATA_REFRESH is set'),
+  ('APS5_NO_DISPATCH_RECIPE', 'presence', '', 'builds no dispatch recipes, so dispatch-cache hits repeat the recorded work'),
+  ('APS5_NO_DRAW_DATA_HITS', 'presence', '', 'disables draw-cache hits that differ only in ShaderData words'),
+  ('APS5_NO_DRAW_INPUTS_IN_PLACE', 'presence', '', 'copies draw vertex and index ranges instead of binding them in place from host imports, on any device; wins over APS5_DRAW_INPUTS_IN_PLACE'),
+  ('APS5_NO_DRAW_KEY', 'presence', '', 'registers no draw key, so every draw decodes its programs instead of hitting the draw cache'),
+  ('APS5_NO_DRAW_KEY_TRIM', 'presence', '', 'keys the render target and index ranges into the draw resource key instead of repeating the alias checks on a hit'),
+  ('APS5_NO_DRAW_PRECHECK', 'presence', '', 'disables the draw precheck that rejects empty or invalid draws early'),
+  ('APS5_NO_DRAW_RECIPE', 'presence', '', 'builds no draw recipes, so draw-cache hits repeat the recorded stages'),
+  ('APS5_NO_DRAW_RELOCATION', 'presence', '', "disables draw relocation, which rewrites a draw's moved user words from a learned variant instead of preparing the draw again"),
+  ('APS5_NO_DRAW_RESOURCE_CACHE', 'presence', '', "builds every draw's shader resources instead of reusing a cached identical build"),
+  ('APS5_NO_DRAW_SRT_ENTRIES', 'presence', '', "disables the draw cache's SRT entries, so every draw decodes its programs"),
+  ('APS5_NO_DRAW_STAGE_DATA_HITS', 'presence', '', "disables draw-cache hits that differ only in a stage's ShaderData words"),
+  ('APS5_NO_EMPTY_INDIRECT_SKIP', 'presence', '', 'builds the stages of an indirect draw whose front program last took the CPU path even when none of its records draws anything, instead of reading its records first and skipping it'),
+  ('APS5_NO_EPOCH_COLLECT_MAP', 'presence', '', 'drops the per-epoch map of completed collects, leaving only the fixed-size thread memo to answer a repeated collect'),
+  ('APS5_NO_EPOCH_REVALIDATE', 'presence', '', "runs every Revalidate's per-element and per-region checks instead of the epoch gate"),
+  ('APS5_NO_EXACT_ROBUST_LOADS', 'presence', '', 'keeps the descriptor-range comparison in direct buffer loads on a device that zeroes past the range'),
+  ('APS5_NO_FAST_REVALIDATE', 'presence', '', 'always repeats the resource lookups instead of using the fast proof'),
+  ('APS5_NO_FILL_CLEAR', 'presence', '', 'disables the clear-through-DCC-keys path in a fill'),
+  ('APS5_NO_FILL_HLE', 'presence', '', 'disables the fill-kernel HLE, so matching fills run as compute'),
+  ('APS5_NO_FLUSH_PRETEST', 'presence', '', 'lists every pending image on FlushPending instead of testing whether a pending unit lies inside the range'),
+  ('APS5_NO_FOREIGN_WRITERS', 'presence', '', 'records no draw-written ranges as foreign writers for capture validation'),
+  ('APS5_NO_GATE_RETRY', 'presence', '', 'retries no validation whose entry moved, leaving the dispatch or draw unvalidated'),
+  ('APS5_NO_GPL', 'presence', '', 'draws without graphics pipeline libraries; the device still enables their extensions, so the driver builds its pipelines as for a default device'),
+  ('APS5_NO_GPU_DUMP', 'presence', '', 'decodes dump frames from the tiled guest buffer on the CPU'),
+  ('APS5_NO_GPU_INDIRECT', 'presence', '', 'reads indirect dispatch arguments on the CPU instead of letting the GPU count them'),
+  ('APS5_NO_GPU_INDIRECT_DRAW', 'presence', '', 'reads indirect draw arguments through the flush hook on the CPU instead of from the GPU'),
+  ('APS5_NO_GPU_SAMPLE_DUMPS', 'presence', '', 'dumps occlusion-counter samples on the CPU instead of through the GPU copy path'),
+  ('APS5_NO_GPU_THREAD_DIMENSIONS', 'presence', '', 'reads the thread counts of an indirect dispatch with USE_THREAD_DIMENSIONS on the CPU instead of turning them into group counts and a thread limit on the GPU'),
+  ('APS5_NO_HOLD_PROFILE', 'presence', '', 'turns off GpuMutex hold-time profiling, keeping only the wait timing'),
+  ('APS5_NO_HOOKSYNC_PROFILE', 'presence', '', 'leaves only the plain hook-sync counts under APS5_PROFILE_DRAW'),
+  ('APS5_NO_HOOK_COMPLETION_GUARD', 'presence', '', "lets the flush hook record the accessing worker's queued labels even from inside a completion action"),
+  ('APS5_NO_HOOK_SNAPSHOT', 'presence', '', 'takes the GpuMutex on every access instead of using the pending-write snapshot'),
+  ('APS5_NO_HOST_IMPORT', 'presence', '', 'disables importing guest memory, so address-based shaders copy instead of using it in place'),
+  ('APS5_NO_HW_F32_FLUSH', 'presence', '', 'skips the startup f32 denormal flush probe and keeps the emulated flush in every shader'),
+  ('APS5_NO_HW_F32_PRESERVE', 'presence', '', 'stops requesting DenormPreserve for 32-bit floats, so the device keeps its default f32 denormal handling'),
+  ('APS5_NO_IMAGE_PAGE_CACHE', 'presence', '', "leaves the main guest image's page-protection table uncached"),
+  ('APS5_NO_INDIRECT_DRAW', 'presence', '', 'rejects indirect draw packets at submission validation'),
+  ('APS5_NO_JOIN_WAW_CHECK', 'presence', '', 'lets a contiguous store join the pending one without the write-after-write check'),
+  ('APS5_NO_KEEP_NEW_STORAGE', 'presence', '', 'does not keep a newly created storage image alive with the open batch; such an image evicted before the batch completes can hand its memory to another image through the buffer pool while the batch still writes it'),
+  ('APS5_NO_KEYS_FILL_MEMO', 'presence', '', 'records no memo of GPU-side DCC key fills'),
+  ('APS5_NO_KEYS_REFILL', 'presence', '', "keeps a covered image's uploaded keys as they were instead of marking them uncompressed after a matching key fill"),
+  ('APS5_NO_KEYS_RESCAN', 'presence', '', "reuses the DCC keys scanned before the lookup's refresh instead of discarding them for a rescan"),
+  ('APS5_NO_KEY_FAST_PATH', 'presence', '', "scans a surface's DCC keys on every call instead of using and storing a proof"),
+  ('APS5_NO_LABEL_BATCHING', 'presence', '', 'turns off every label-batching behaviour, the label runs, queued labels and batched submit'),
+  ('APS5_NO_LABEL_BATCH_SUBMIT', 'presence', '', 'disables batched label submission'),
+  ('APS5_NO_LABEL_PACKET_FLUSH', 'presence', '', 'disables the label flush between packets, which runs only when batched label submission is off (APS5_NO_LABEL_BATCH_SUBMIT or APS5_NO_LABEL_BATCHING)'),
+  ('APS5_NO_LABEL_READBACK_STORE', 'presence', '', 'leaves pending linear and small storage images on the GPU at a label instead of storing them before it'),
+  ('APS5_NO_LABEL_RUNS', 'presence', '', 'records every store in a run of its own between a barrier pair'),
+  ('APS5_NO_LABEL_SHORTCUT', 'presence', '', 'disables the pending-label table shortcut in a memory wait'),
+  ('APS5_NO_LAYER_CLEAR', 'presence', '', 'tracks every surface as one layer instead of per array layer'),
+  ('APS5_NO_LAYER_REFUSAL_MEMO', 'presence', '', 're-checks a layer whose surface check failed at its current generation on every fill'),
+  ('APS5_NO_LAYOUT_CACHE', 'presence', '', 'builds descriptor set layouts fresh instead of through the descriptor cache'),
+  ('APS5_NO_LEASE_MIRROR', 'presence', '', 'restores copies instead of image mirrors for address-based builds'),
+  ('APS5_NO_LIBRARY_PREBUILD', 'presence', '', 'disables prebuilding registration-form shader libraries (only 1 disables it)'),
+  ('APS5_NO_LOCK_PROFILE', 'presence', '', 'turns off GpuMutex wait profiling under APS5_PROFILE_DRAW'),
+  ('APS5_NO_MOVED_BUFFER_TEMPLATES', 'presence', '', 'keys the full descriptor words of read-only guest buffers instead of allowing a hit when they move'),
+  ('APS5_NO_OBSERVATION_GUARD', 'presence', '', 'observes every validated range, not only the ranges whose flush hook waited'),
+  ('APS5_NO_OPPORTUNISTIC_REAP', 'presence', '', 'skips retiring already-finished batches before a submit'),
+  ('APS5_NO_OWN_IMAGE_REFRESH', 'presence', '', 'lets a Pending failure of the fast proof take the full walk instead of the own-object refresh'),
+  ('APS5_NO_PARALLEL_MIRROR_REFRESH', 'presence', '', 'disables the mirror-refresh thread pool, so mirror refreshes run on the calling thread'),
+  ('APS5_NO_PATTERN_FILL_HLE', 'presence', '', 'disables the dword-pattern fill HLE'),
+  ('APS5_NO_PAUSE_SPIN', 'presence', '', 'disables the CPU pause-spin in a blocked memory wait'),
+  ('APS5_NO_PENDING_HTILE_FILLS', 'presence', '', 'reads the HTILE words of a depth target bind even when recorded fills are pending over them, instead of working the words out from the fills'),
+  ('APS5_NO_PERF_FRONTEND_PAIR', 'presence', '', "disables the recompiler's frontend-pair reuse; the shader disk cache treats it as output-neutral"),
+  ('APS5_NO_PERF_LAYOUT_PAIR', 'presence', '', "disables the recompiler's layout-pair reuse; the shader disk cache treats it as output-neutral"),
+  ('APS5_NO_PIPELINED_INDIRECT', 'presence', '', 'drains the draw pipeline at every CPU-path indirect draw instead of queuing it behind the pipeline'),
+  ('APS5_NO_PIPELINE_CACHE', 'presence', '', 'builds a pipeline per draw instead of reusing cached ones'),
+  ('APS5_NO_POOL_CACHE', 'presence', '', 'allocates descriptor pools fresh instead of through the descriptor cache'),
+  ('APS5_NO_PRECOLLECT', 'presence', '', 'disables the stage-A precollect pass'),
+  ('APS5_NO_PREPARED_FIND', 'presence', '', 'looks the resource-cache key up again instead of using the object stage A found'),
+  ('APS5_NO_PRESENT_EPOCH', 'presence', '', 'keeps the presenter at collect epoch 0 instead of adopting the newest epoch a worker started'),
+  ('APS5_NO_PRESYNC', 'presence', '', 'disables the stage-A pre-sync of pending writes'),
+  ('APS5_NO_PROC_TABLE', 'presence', '', "resolves the device's Vulkan entry points per call instead of filling the function table once"),
+  ('APS5_NO_QUEUED_DRAW_READ_ORDER', 'presence', '', 'stops queued draws and DMA copies from holding back write-backs over the guest memory they read at commit'),
+  ('APS5_NO_QUEUED_LABELS', 'presence', '', 'disables the queued-label table'),
+  ('APS5_NO_RECENT_IMPORTS', 'presence', '', 'looks every host import up in the import map instead of first checking the last four found while the map is unchanged'),
+  ('APS5_NO_RECORDED_CLEAR', 'presence', '', "waits for a storage image's fast clear in a batch of its own instead of recording it"),
+  ('APS5_NO_RECORDER_SYNC_DRAWS', 'presence', '', 'gives the draws the recorder waits for their own batch instead of recording them with the wait'),
+  ('APS5_NO_RECORD_COPIED_DRAWS', 'presence', '', 'waits for copied-write draws at once instead of listing their write-back for later'),
+  ('APS5_NO_RECT_INDIRECT', 'presence', '', 'sends an indirect rectangle-list draw down the CPU path instead of the GPU-side path'),
+  ('APS5_NO_RESIDENT_LINEAR', 'presence', '', 'drops the residency of linear color targets, so a target whose address has a host import, or whose import a draw would make, is copied in and out again'),
+  ('APS5_NO_RESIDENT_PRESENT', 'presence', '', 'always presents through guest memory instead of the resident image'),
+  ('APS5_NO_RESIDENT_TARGETS', 'presence', '', 'copies every render target in and out again instead of keeping it resident'),
+  ('APS5_NO_RESOURCE_CACHE', 'presence', '', 'disables the shared resource cache, so every dispatch builds its resources fresh'),
+  ('APS5_NO_RUN_MEMO', 'presence', '', "walks the lease for a host import's run of ranges on every lookup instead of reusing the bounds found for the same lease snapshot and import window block"),
+  ('APS5_NO_SAMPLED_FROM_STORAGE', 'presence', '', "keeps every sampled texture a CPU snapshot instead of viewing the surface's storage image"),
+  ('APS5_NO_SAMPLER_CACHE', 'presence', '', 'creates a sampler per binding instead of caching them'),
+  ('APS5_NO_SEPARATE_QUEUED_LABELS', 'presence', '', 'lets a queued label enter the recorded table and replace a recorded entry of its dword'),
+  ('APS5_NO_SHAPE_MEMO', 'presence', '', "looks up every draw's resident targets and pipeline anew instead of repeating the ones an earlier draw of the same register shape used"),
+  ('APS5_NO_SINGLE_PASS_COLLECT', 'presence', '', 'walks the written pages once without clearing them and, when any were written, a second time clearing them, instead of one cleared pass'),
+  ('APS5_NO_SITE_SAMPLING', 'presence', '', 'disables per-site sampling of write evidence'),
+  ('APS5_NO_SNAPSHOT_CHECK', 'presence', '', 'skips the live compare that proves a captured snapshot still equals the guest bytes'),
+  ('APS5_NO_SORTED_SNAPSHOT_LOOKUP', 'presence', '', "scans the snapshot's regions in AddSnapshot instead of searching them"),
+  ('APS5_NO_SPACE_STAMP_ONCE', 'presence', '', 'stamps every direct import of a cached address space on each hit instead of once per space'),
+  ('APS5_NO_SPARSE_HEAP_MIRROR', 'presence', '', 'disables sparse heap mirrors, mirroring only whole heap ranges'),
+  ('APS5_NO_STAGE_A_IMAGES', 'presence', '', 'leaves every image element to the stage-B full lookup instead of a stage-A record'),
+  ('APS5_NO_STORAGE_DEDUPE', 'presence', '', 'looks each identical consecutive storage descriptor up, and refreshes its image, separately'),
+  ('APS5_NO_SYNC_SITES', 'presence', '', 'leaves only the per-source and per-thread sync counts, with no per-site attribution'),
+  ('APS5_NO_SYNC_THROUGH', 'presence', '', 'makes every pending-write sync a full Sync instead of the targeted unlocked wait'),
+  ('APS5_NO_TABLE_REPLAY', 'presence', '', "makes a reused bound image table rerun each element's checks instead of replaying its recorded bind outcomes"),
+  ('APS5_NO_TABLE_REUSE', 'presence', '', 'disables reusing a materialized image table'),
+  ('APS5_NO_TARGET_WRITEBACK', 'presence', '', 'skips writing render targets back to guest memory after the draw'),
+  ('APS5_NO_TEMPLATE_DATA_REFRESH', 'presence', '', "keys the ShaderData and FlattenedSrt words into compute keys instead of refreshing a template's data buffers"),
+  ('APS5_NO_TEXTURE_CACHE', 'presence', '', 'builds every texture and storage-image object fresh instead of caching it'),
+  ('APS5_NO_TEXTURE_HASH', 'presence', '', 'finds texture-cache entries by scanning the list instead of the hash index'),
+  ('APS5_NO_TIMELINE', 'presence', '', 'leaves timeline semaphores off, so drains wait under the mutex'),
+  ('APS5_NO_UNIT_SHADOW', 'presence', '', 'makes every unit shadow primitive inert'),
+  ('APS5_NO_UNLOCKED_DEVICE', 'presence', '', 'loads the device and runs a dispatch under the GPU mutex instead of using an unlocked device'),
+  ('APS5_NO_UNLOCKED_DRAIN', 'presence', '', 'keeps the GPU mutex held while draining a packet instead of the unlocked drain'),
+  ('APS5_NO_UNLOCKED_VALIDATE', 'presence', '', 'keeps the dispatch-cache mutex held while validating a cache entry'),
+  ('APS5_NO_UNREGISTERED_DROP', 'presence', '', "stores a storage image's pending results even when its memory is no longer registered, instead of dropping them"),
+  ('APS5_NO_VALIDATE_CACHE', 'presence', '', 'validates every draw instead of serving the validation memo'),
+  ('APS5_NO_VALIDATE_SKIP', 'presence', '', 'syncs every pending write instead of skipping validation on written-element evidence'),
+  ('APS5_NO_VOUCHED_VALIDATION', 'presence', '', "validates a cached draw or dispatch through its per-run checks instead of its table block's vouch"),
+  ('APS5_NO_WAIT_OVERLAP_SUBMIT', 'presence', '', 'disables the unlocked wait that submits recorded work while overlapping writes are open'),
+  ('APS5_NO_WORDWISE_CAPTURE', 'presence', '', 'fetches every captured page whole instead of reading pending pages word by word'),
+  ('APS5_NO_WORKER_AFFINITY', 'presence', '', 'leaves the queue workers and presenter unpinned (affinity mask 0)'),
+  ('APS5_NO_WRITER_KEYED_EVIDENCE', 'presence', '', 'records written-element evidence without keying it by writer'),
+  ('APS5_NO_WRITE_EVIDENCE', 'presence', '', 'disables the written-element evidence that lets a read skip the flush hook'),
+  ('APS5_NO_WRITE_ONLY_PASSES', 'presence', '', 'counts a buffer a draw only stores to as read and written, so the next draw storing to it begins a new render pass'),
+  ('APS5_NO_WRITTEN_SHADOW', 'presence', '', 'binds written staging elements in place instead of through the written shadow'),
+  ('APS5_NV_DIAGNOSTICS', 'presence', '', 'creates the device with VK_NV_device_diagnostics_config and VK_NV_device_diagnostic_checkpoints where supported, for Nsight Aftermath crash dumps'),
+  ('APS5_PACKET_EPOCH', 'presence', '', 'makes queue workers bump the collect epoch before every packet'),
+  ('APS5_PIPELINE_DRAIN_FILLS', 'presence', '', 'runs queue-0 buffer fills through the draw pipeline to keep their order; any value stores them in place instead'),
+  ('APS5_PIPELINE_DRAIN_LABELS', 'presence', '', "answers a queue-0 wait from the draw pipeline's own pending labels while it is busy; any value drains the pipeline at the wait"),
+  ('APS5_PIPELINE_DRAIN_SUBMISSIONS', 'presence', '', "lets a submission end without submitting its recorded work, so it joins a later submit with the pipeline's queue; any value drains the pipeline and submits at the end of the submission"),
+  ('APS5_POLL_REAP', 'presence', '', 'reaps completions on every poll tick'),
+  ('APS5_POLL_TRY_EACH', 'presence', '', 'tries the poll service on every tick instead of at the poll interval'),
+  ('APS5_PREBUILD_THREADS', 'integer', '', 'threads in the pool that prebuilds registration-form shader libraries; unset uses half the hardware threads, at least two'),
+  ('APS5_PRESENT_POLL_FENCE', 'presence', '', 'polls the present fence every 50 us instead of blocking on it'),
+  ('APS5_PROBE_DISPATCH', 'string', '', 'probes one dispatch at a hex program address (optionally :index) with debug output'),
+  ('APS5_PROFILE_GPU_DRAWS', 'presence', '', "with APS5_PROFILE_GPU, records the GPU time of each recorded draw by its fragment program's variant id and prints a [drawvariant] line with the code address behind each variant id once (draws that do not use a recipe only; the…"),
+  ('APS5_REAP_EACH_PACKET', 'presence', '', 'reaps deferred labels after every packet'),
+  ('APS5_RELEASE_ON_UNLOCK', 'presence', '', 'destroys deferred batches on the unlocking thread instead of a release thread'),
+  ('APS5_RELEASE_QUEUE_MAX', 'integer', '256', 'maximum deferred batches handed to the release thread before a thread destroys its own'),
+  ('APS5_RELEASE_UNDER_LOCK', 'presence', '', 'destroys deferred batches in finish() under the lock instead of on a release thread'),
+  ('APS5_RESOURCE_CACHE_ENTRIES', 'integer', 'adaptive', 'fixes the bound on the entries of the per-device shader-resource cache, which otherwise grows while evicted keys keep coming back and shrinks back to its base when few keys are in use; 0 keeps the adaptive bound'),
+  ('APS5_RESOURCE_CACHE_TABLE_ELEMENTS', 'integer', '65536', 'number of image-table elements the shader-resource cache keeps (0 keeps the default)'),
+  ('APS5_SAMPLE_COMMITTER', 'string', '', "samples queue 0's draw committer every millisecond and writes its stacks to a file (Windows only)"),
+  ('APS5_SAMPLE_THREADS', 'string', '', "samples every thread of the process every 2 ms and writes each busy thread's hottest frames to a file (Windows only)"),
+  ('APS5_SAMPLE_WORKER', 'string', '', 'samples the calling queue worker every millisecond and writes its stacks to a file (Windows only)'),
+  ('APS5_SHADOW_VERIFY', 'presence', '', 'verifies that the shadow-published bytes equal the guest bytes'),
+  ('APS5_SHARED_COLLECT_MEMO', 'presence', '', "uses the tracker's shared collect-memo ring under its mutex instead of the per-thread ring"),
+  ('APS5_SHARED_MEMORY_COUNTERS', 'presence', '', 'accumulates the memory counters into one shared set with atomic RMWs'),
+  ('APS5_SKIP_INVALID_INDIRECT_REGISTERS', 'presence', '', 'skips the entries whose offset dword is no register offset in a SET_*_REG_INDIRECT list read again where its packet executes, and writes its valid entries, instead of stopping'),
+  ('APS5_SKIP_REQUEST_DUMPS', 'integer', '8', 'caps RecompileRequest dumps per shader-skip reason'),
+  ('APS5_SKIP_SHADER', 'integer', '0', 'hex program address of a shader whose draws and dispatches are dropped'),
+  ('APS5_SKIP_SHADER_FILE', 'path', '', 'file of whitespace-separated hex program addresses (# starts a comment) whose draws and dispatches are dropped; re-read within 500 ms of a change; a token that is not a whole 64-bit hex number is reported and ignored'),
+  ('APS5_SNAPSHOT_CHECK_FATAL', 'presence', '', 'throws on the first snapshot that differs from registered memory instead of only counting them'),
+  ('APS5_SPANNED_WAVE', 'presence', '', 'spans a single-wave wave64 compute program over two full 32-lane subgroups'),
+  ('APS5_SPIRV_OPT', 'string', '', 'selects the SPIR-V optimization pipeline: full restores the performance pipeline, none skips optimization'),
+  ('APS5_SRGB_ATTACHMENT_PROXY', 'string', '', 'forces the sRGB color-attachment proxy format; 1 forces it'),
+  ('APS5_SRGB_SHADER_DECODE', 'string', '', '1 forces shader sRGB decode for the sRGB 8-bit formats; copy does the same, except that 8 and 8_8 sRGB sample an RGBA8 sRGB copy when the device can blit to RGBA8; any other value has no effect'),
+  ('APS5_STAGING_POOL_MIB', 'integer', '', 'size in MiB of the device-local staging buffer pool; 0 disables the device tier'),
+  ('APS5_STALE_EVICT', 'presence', '', "also evicts a proved-present dead image's pending layers on an access"),
+  ('APS5_SUBMISSION_EPOCH_EACH', 'presence', '', 'bumps the guest-memory collect epoch on every submission instead of only when the submission is newer than the last bump'),
+  ('APS5_SUBMIT_AT_END', 'presence', '', 'submits recorded work at the end of a submission even when a worker is queued'),
+  ('APS5_SUBMIT_PROGRESS', 'presence', '', 'enables opt-in pacing for eligible queue-zero submission prefixes within a shared nominal two-millisecond acknowledgement/timeline budget; timeout retains asynchronous acceptance'),
+  ('APS5_SUSPEND_DRAIN', 'presence', '', 'drains the device at a suspend point'),
+  ('APS5_SYNC_COMPLETION_DRAWS', 'presence', '', 'keeps every draw with completion work synchronous'),
+  ('APS5_SYNC_DISPATCH', 'presence', '', 'waits for every dispatch instead of batching it'),
+  ('APS5_SYNC_DRAWS', 'presence', '', 'makes every draw synchronous'),
+  ('APS5_SYNC_FLIP', 'presence', '', 'makes flips synchronous (no frames in flight)'),
+  ('APS5_SYNC_LEASE_DISPATCH', 'presence', '', 'waits for leased draws and dispatches at once instead of deferring them'),
+  ('APS5_SYNC_SAMPLE_DUMPS', 'presence', '', 'takes the CPU path for occlusion-counter sample dumps, as APS5_NO_GPU_SAMPLE_DUMPS does'),
+  ('APS5_SYNC_SHADER_PREPARE', 'presence', '', 'prepares registered shaders on the registering thread instead of in the background'),
+  ('APS5_SYNC_TEXTURE_UPLOAD', 'presence', '', 'restores the waiting batch for every texture upload'),
+  ('APS5_TEMPLATE_AUDIT_MS', 'integer', '1000', 'milliseconds after which a cached shader-resource object takes the full walk instead of the fast proof; 0 turns the audit off'),
+  ('APS5_THREAD_RTTIME_US', 'integer', '200000', 'hard RLIMIT_RTTIME the realtime plan lowers to, in microseconds'),
+  ('APS5_TRACE_BARRIERS', 'integer', '', 'prints the first n accesses for which the hazard validator would skip a barrier; needs APS5_BARRIER_VALIDATE'),
+  ('APS5_TRACE_BIGBUF', 'presence', '', 'lists every copied guest region of at least 1 MiB'),
+  ('APS5_TRACE_CAPSYNC', 'presence', '', 'prints every unlocked hook wait'),
+  ('APS5_TRACE_CONTEXT_STATE', 'presence', '', 'logs context-state operations and the context registers written'),
+  ('APS5_TRACE_COPY_HLE', 'presence', '', "traces the CPU copy HLE's refusals"),
+  ('APS5_TRACE_DCC_KEYS', 'presence', '', 'traces stores of uncompressed DCC keys'),
+  ('APS5_TRACE_DISPATCH_CACHE', 'presence', '', 'reports dispatch-cache entries whose key changed'),
+  ('APS5_TRACE_DISPATCH_IO', 'string', '', "prints every dispatch's resources; 2 also lists the small-buffer words"),
+  ('APS5_TRACE_DRAWS', 'presence', '', 'prints one line per draw with its phases and inputs'),
+  ('APS5_TRACE_DRAW_CACHE', 'presence', '', 'reports draw-cache entries whose key changed'),
+  ('APS5_TRACE_DRAW_PROGRAMS', 'presence', '', 'prints one line per recorded draw with the stage, role and code address of each program'),
+  ('APS5_TRACE_FILL_COVER', 'presence', '', 'prints the first fills that meet images without covering them'),
+  ('APS5_TRACE_FLUSH', 'presence', '', 'names what forces pending storage-image results into guest memory'),
+  ('APS5_TRACE_GPU', 'presence', '', 'prints GPU wait, submission and scanout events, the execute lines, and waits longer than 200 ms (read in DisplayBuffer, PacketExecution, QueueWorker, Submission and WaitMemory)'),
+  ('APS5_TRACE_HOST_IMPORT', 'presence', '', 'traces host-import mapping failures'),
+  ('APS5_TRACE_INDIRECT_DRAWS', 'presence', '', 'prints indirect draw packets that reach the precheck'),
+  ('APS5_TRACE_LATE_LABELS', 'presence', '', 'prints how late labels were trusted or refused'),
+  ('APS5_TRACE_PREPARATION_WAIT', 'presence', '', 'prints where a demanded shader preparation sat in the queue'),
+  ('APS5_TRACE_QUERY', 'presence', '', 'on Windows, prints every 16th page query with its cost'),
+  ('APS5_TRACE_RESOURCE_KEY_MISSES', 'presence', '', 'reports shader-resource cache key misses'),
+  ('APS5_TRACE_SHADER_CORRELATION', 'presence', '', 'traces shader selection and preparation failure tokens through draw batches (requires APS5_CAPTURE_TRACE)'),
+  ('APS5_TRACE_SHADER_REGS', 'string', '', "prints a shader's registers for one hex program address, or all"),
+  ('APS5_TRACE_SHADOW', 'integer', '', 'prints the first n shadow publishes, the first 64 seeds, every evict and retire'),
+  ('APS5_TRACE_SKIPS', 'presence', '', 'reports each distinct shader skip once with or without it; set, a repeat of an already reported skip is also logged as again, cut to 100 characters'),
+  ('APS5_TRACE_STAGING', 'presence', '', 'prints every distinct staged range once, with its size and whether an atomic element lies in it'),
+  ('APS5_TRACE_TEXTURES', 'presence', '', "prints a sampled texture's bytes and how many are nonzero"),
+  ('APS5_TRACE_UNREADABLE', 'presence', '', 'names the code that checked an inaccessible range'),
+  ('APS5_TRACE_UPLOAD', 'presence', '', 'names why a storage image is uploaded again'),
+  ('APS5_UNIT_SHADOW_MIB', 'integer', '1024', "budget in MiB of the unit shadow's slabs"),
+  ('APS5_UNIT_SHADOW_SLAB_MIB', 'integer', '8', 'size in MiB of one unit-shadow slab'),
+  ('APS5_VALIDATE_LEGACY', 'presence', '', 'uses the legacy snapshot and full-compare path for pending-write validation'),
+  ('APS5_VALIDATE_SYNC_SKIP', 'presence', '', 'reads skipped dwords through the hook too and counts a mismatch'),
+  ('APS5_VERIFY_BDA_TABLES', 'presence', '', 'checks a reused BDA page table against the one just built'),
+  ('APS5_VERIFY_DATA_HITS', 'presence', '', 'recomputes a dispatch data hit and aborts on a disagreement'),
+  ('APS5_VERIFY_DRAW_DATA_HITS', 'presence', '', 'recomputes a draw data hit and aborts on a disagreement'),
+  ('APS5_VERIFY_DRAW_ENTRIES', 'presence', '', 're-decodes every draw-cache hit through the full path and checks it'),
+  ('APS5_VERIFY_DRAW_RECIPE', 'presence', '', 're-decodes a draw recipe instead of using the cache and checks the result'),
+  ('APS5_VERIFY_DRAW_SNAPSHOTS', 'presence', '', 're-reads a reused draw snapshot and counts the ones that differ'),
+  ('APS5_VERIFY_KNOWN_VALUES', 'presence', '', 'serves known values through the hook too and counts mismatches'),
+  ('APS5_VERIFY_PROOFS', 'presence', '', 'runs the full walk beside every own-object refresh proof and aborts on a different decision'),
+  ('APS5_VERIFY_RECIPE', 'presence', '', 'makes the ordinary prepare path beside a recipe hit and compares the answers'),
+  ('APS5_VERIFY_REGISTER_KEYS', 'presence', '', 'checks the incremental register fingerprint against the full state'),
+  ('APS5_VERIFY_SET_LAYOUTS', 'presence', '', "checks the draw's set layouts against those described from the shaders"),
+  ('APS5_VERIFY_SHAPE_MEMO', 'presence', '', 'looks up the resident targets and pipeline of every shape memo hit anew as well, throws when they differ and prints [shape-memo] counts of the checked hits every 10 s'),
+  ('APS5_WAIT_LOCK', 'presence', '', 'always takes the GPU mutex on a wait (no unlocked label lookup)'),
+  ('APS5_WAIT_LOCK_ENTRY', 'presence', '', 'takes the GPU mutex blocking on the entry instead of trying it'),
+  ('APS5_WATCH_MEMORY', 'string', '', 'watches named guest ranges (<hex address>:<hex bytes>[,...]) across dispatches; needs APS5_SYNC_DISPATCH=1'),
+  ('APS5_WORKER_AFFINITY', 'presence', '', 'pins the queue workers and presenter to the performant cores of a hybrid CPU (needed to enable it on non-Linux hosts)'),
+  ('APS5_WORKER_AFFINITY_MASK', 'integer', '', 'explicit hex CPU affinity mask for the queue workers and presenter'),
+  ('APS5_WORKING_SET_MIB', 'integer', '', 'sets the process working-set minimum to this many MiB (Windows only)'),
+  ('APS5_WRITE_EVIDENCE_AFTER', 'integer', '4', "consecutive unchanged observations before a dword's written-element evidence is trusted"),
+  ('APS5_WRITE_EVIDENCE_MAX_KIB', 'integer', '16', 'largest written range in KiB that the evidence may serve'),
+  ('APS5_WRITE_EVIDENCE_SAMPLE', 'integer', '16', 'reads one in this many pending writes to sample them'),
+  ('APS5_WRITE_WATCH_IMPORTS', 'string', 'probe', 'how host imports are write-tracked, not on Windows: probe, watch or unwatch; any other value throws'),
+  ('APS5_WRITTEN_SHADOW_MAX_KIB', 'integer', '2048 (8192 on a discrete GPU)', 'upper bound in KiB of the written staging window; a set value is used as given on both device types'),
+  ('APS5_WRITTEN_SHADOW_MIN_KIB', 'integer', '16', 'lower bound in KiB of the written staging window'),
+  ('APS5_TRACE_AJM', 'presence', '', 'logs every job the title submits and what the library writes back'),
+  ('APS5_TRACE_AUDIOOUT', 'presence', '', 'logs each audio-out port opened with its type, sample count, frequency and format'),
+  ('APS5_TRACE_AUDIOOUT2', 'presence', '', "prints the title's AudioOut2 context and port parameters and stream activity"),
+  ('APS5_TRACE_FIBER', 'presence', '', 'logs fiber initialization, switches and returns to the thread'),
+  ('APS5_SAVEDATA_TRACE', 'presence', '3', 'logs every save-data operation instead of the first three at each logging site'),
+  ('APS5_USB_STORAGE_PASSTHROUGH', 'presence', '', 'passes the FAT and exFAT volumes the host mounted from USB mass-storage devices through to the guest, read-only where the host mounted them read-only; unset, no host volume is scanned and the guest sees no USB storage device'),
+  ('ANYPS5_REQUIRE_DISPLAY', 'presence', '', 'makes video-out tests fail instead of skipping when no display or Vulkan device is available'),
+  ('APS5_NO_PAD_INPUT', 'presence', '', 'ignores keyboard and mouse input so a measurement run is not advanced by a stray press'),
+  ('APS5_NO_WGI', 'presence', '', "turns off SDL's Windows.Gaming.Input joystick backend at default hint priority, on Windows hosts where it faults a few seconds into every run"),
+  ('APS5_OUTPUT_RESOLUTION', 'string', '', "<width>x<height> in pixels that replaces the host display's size when sceVideoOutGetOutputStatus and sceVideoOutGetOutputStatusWithVrr report the output resolution: 1 for a size below 3840 wide and 2160 high, 2 otherwise, as for…"),
+  ('APS5_TRACE_VIDEODEC', 'presence', '', 'logs decoder memory queries, queue allocation and the first few decodes'),
+  ('APS5_HEAP_CACHE_MIB', 'integer', '4096', 'size in MiB of the cache of freed large blocks before the oldest are decommitted'),
+  ('APS5_HELPER_AFFINITY_MASK', 'integer', '', 'hex core mask that helper threads (deferred release, mirror refresh) are pinned to'),
+  ('APS5_NO_PROCMAP_QUERY', 'presence', '', 'skips the /proc/self/maps PROCMAP_QUERY ioctl and scans the maps file instead'),
+  ('APS5_NO_SSE4A_EMULATION', 'presence', '', 'disables emulation of AMD-only SSE4a instructions, making such a fault fatal'),
+  ('APS5_NO_WRITE_WATCH', 'presence', '', 'disables write watching so guest buffers are fully re-read on every use'),
+  ('APS5_PIN_WAIT_MS', 'integer', '60000', 'milliseconds to wait for a pinned allocation lease before failing'),
+  ('APS5_TRACE_AFFINITY', 'presence', '', 'prints a line naming the role, tid and mask of every thread pinning'),
+  ('APS5_TRACE_EXIT', 'presence', '', 'prints a backtrace of the caller of exit, _Exit and the process-exit path'),
+  ('APS5_TRACE_SSE4A', 'presence', '', 'prints each emulated SSE4a instruction once per rip'),
+  ('APS5_VERIFY_DIRECT_COLLECT', 'presence', '', 'queries the regions of each private-memory collect read from the allocation map and throws when that collect succeeded over memory that is no longer committed private'),
+  ('APS5_WATCH_ADDR', 'integer', '', 'absolute hex address whose writes are reported after its page is committed'),
+  ('APS5_WATCH_WRITE', 'integer', '', 'guest ELF vaddr whose 8-byte writes are reported by single-stepping the protected page'),
+  ('ANYPS5_LOADEXEC_ARGV_SKIP', 'string', '', 'on Windows, set to 1 to drop the first process argument and clear the variable'),
+  ('APS5_COARSE_TIMED_WAITS', 'presence', '', 'on Windows, rounds timed waits up to the scheduler tick'),
+  ('APS5_JOB_AFFINITY', 'presence', '', "on Windows, pins the title's job worker threads to the efficiency cores of a hybrid CPU"),
+  ('APS5_JOB_AFFINITY_MASK', 'integer', '', 'on Windows, hex core mask that job worker threads are pinned to'),
+  ('APS5_NO_DIRECT_MEMORY_SECTION_POOL', 'presence', '', 'on Windows, creates a section for every direct-memory allocation and closes it at release instead of reusing released sections that never held guest data'),
+  ('APS5_NO_JOB_AFFINITY', 'presence', '', 'on Windows, disables pinning of job worker threads'),
+  ('APS5_NO_SLEEP_WAKE', 'presence', '', 'keeps every sleep of 1 ms or less in full instead of ending it at a GPU batch, batch completion action or flip completion'),
+  ('APS5_NO_TIMER_RESOLUTION', 'presence', '', 'keeps the default 15.6 ms scheduler tick instead of raising it to 0.5 ms on Windows'),
+  ('APS5_TIME_SCALE', 'string', '1', 'factor applied to the guest monotonic clocks and TSC; sleeps and host JobManager worker spin intervals still take real time; fractional factors work, and a value that is not above 0 uses 1'),
+  ('APS5_TRACE_APR', 'presence', '', 'logs every APR file read with its path, offset, size and destination'),
+  ('APS5_TRACE_MEMORY', 'presence', '', 'logs direct-memory map, remap, protect, unmap and physical allocation operations'),
+  ('APS5_TRACE_SYNC', 'presence', '', 'logs event-flag and semaphore operations'),
+  ('APS5_TRACE_TIMERS', 'presence', '', 'on Windows, runs a timed-wait selftest at startup and prints mean, p50 and max latencies'),
+  ('APS5_TRACE_USLEEP', 'presence', '', 'reports every 2000 usleep calls the guest call sites that sleep most'),
+  ('APS5_TRACE_WAITS', 'presence', '', 'aggregates blocking waits per guest call site and prints the longest-waiting sites every 3 s'),
+]
+ENV_CATALOG_KINDS = {n: k for n, k, _d, _t in ENV_CATALOG}
+
+
+def catalog_env_values(rt):
+  """Dict {VARIABLE: value} chosen in the 'All environment variables' panel (rt['env_catalog'] is JSON)."""
+  raw = rt.get("env_catalog", "").strip()
+  if not raw:
+    return {}
+  try:
+    data = json.loads(raw)
+  except ValueError:
+    return None
+  if not isinstance(data, dict):
+    return None
+  return {str(k): str(v) for k, v in data.items()}
+
+
+def validate_catalog_env(rt):
+  data = catalog_env_values(rt)
+  if data is None:
+    return "The list of extra environment variables is damaged: clear it in Runtime > All environment variables."
+  for name, value in data.items():
+    kind = ENV_CATALOG_KINDS.get(name)
+    if kind is None:
+      return f"{name} is not a documented environment variable."
+    value = value.strip()
+    if kind == "integer" and value and not re.fullmatch(r"-?[0-9]+|0[xX][0-9a-fA-F]+", value):
+      return f"{name} must be a whole number (decimal or 0x hexadecimal)."
+    if kind == "path" and value and not os.path.isabs(value):
+      return f"{name} must be an absolute path."
   return None
 
 
@@ -3390,6 +4020,38 @@ def find_pad_helper(rl):
     if os.path.isfile(c):
       return c
   return None
+
+
+INPUT_MAPPER_REL = os.path.join("tools", "input-mapper")
+INPUT_MAPPER_PORT = 4173
+
+
+def find_input_mapper(rl):
+  """tools/input-mapper in <data>/tools or in the cloned repository, else None. Returns (folder_to_run_from, mapper_dir)."""
+  candidates = [DATA_DIR]
+  paths = source_paths(rl) if rl.get("relinker_source") == "github" else None
+  if paths:
+    candidates.append(paths["repo"])
+  for base in candidates:
+    if os.path.isfile(os.path.join(base, INPUT_MAPPER_REL, "package.json")):
+      return base, os.path.join(base, INPUT_MAPPER_REL)
+  return None
+
+
+def node_status():
+  """(path, major, text): node executable, its major version and an error text ('' when Node 22+ is available)."""
+  node = shutil.which("node")
+  if not node:
+    return None, 0, "Node.js is not installed. Install Node.js 22 or newer from nodejs.org, then try again."
+  try:
+    kw = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
+    out = subprocess.run([node, "--version"], capture_output=True, text=True, timeout=10, **kw).stdout.strip()
+    major = int(re.match(r"v?(\d+)", out).group(1))
+  except Exception:
+    return node, 0, "Unable to read the Node.js version (node --version failed)."
+  if major < 22:
+    return node, major, f"Node.js {out} is too old: the input mapper needs Node.js 22 or newer."
+  return node, major, ""
 
 
 def sync_input_ini(pkg_dir, rt, log=None):
@@ -3442,6 +4104,30 @@ def runtime_env(rt, target, pkg_dir):
     env["ANYPS5_OVERLAY_POS"] = rt["overlay_pos"].strip()
   if rt.get("screenshots_dir", "").strip():
     env["ANYPS5_SCREENSHOTS"] = rt["screenshots_dir"].strip()
+  for key, var, win_only in ADVANCED_FLAGS:
+    if yes(rt.get(key, "no")) and not (win_only and target != "windows"):
+      env[var] = "1"
+  for key, (var, _lo, _hi, win_only) in ADVANCED_INTS.items():
+    if rt.get(key, "").strip() and not (win_only and target != "windows"):
+      env[var] = str(int(rt[key].strip()))
+  if rt.get("crash_stack_bytes", "").strip() and target == "windows":
+    env["APS5_CRASH_STACK_BYTES"] = rt["crash_stack_bytes"].strip()
+  if yes(rt.get("trace_bench", "no")):
+    env["APS5_TRACE_BENCH"] = "1"  # the runtime refuses any other value
+  if yes(rt.get("trace_uds", "no")):
+    env["APS5_TRACE_UDS"] = "1"
+  if yes(rt.get("store_at_label", "no")):
+    env["APS5_STORE_AT_LABEL"] = "1"
+  if rt.get("videoout_telemetry_dir", "").strip():
+    env["APS5_VIDEOOUT_TELEMETRY_DIR"] = rt["videoout_telemetry_dir"].strip()
+  if rt.get("trace_calls_file", "").strip() and rt["trace_calls"].strip() and target == "windows":
+    env["APS5_TRACE_CALLS_FILE"] = rt["trace_calls_file"].strip()
+  if yes(rt.get("fullscreen", "no")):
+    env["ANYPS5_FULLSCREEN"] = "1"  # any non-empty value other than 0; F11 still toggles in game
+  if rt.get("display_index", "").strip():
+    env["ANYPS5_DISPLAY_INDEX"] = str(int(rt["display_index"].strip()))
+  if rt.get("entitlements_file", "").strip():
+    env["ANYPS5_ENTITLEMENTS"] = os.path.abspath(rt["entitlements_file"].strip())
   if rt.get("shader_cache_dir", "").strip():
     env["ANYPS5_SHADER_CACHE_DIR"] = rt["shader_cache_dir"].strip()
   if yes(rt.get("no_shader_cache", "no")):
@@ -3468,6 +4154,12 @@ def runtime_env(rt, target, pkg_dir):
     env["VK_LOADER_DRIVERS_DISABLE"] = "*dzn*"
   if yes(rt["copy_input_ini"]) and os.path.isfile(os.path.join(pkg_dir, INPUT_INI_NAME)):
     env["ANYPS5_INPUT_CONFIG"] = os.path.join(pkg_dir, INPUT_INI_NAME)
+  for name, value in (catalog_env_values(rt) or {}).items():  # Runtime > All environment variables
+    kind = ENV_CATALOG_KINDS.get(name)
+    if kind == "presence":
+      env[name] = "1"
+    elif kind and value.strip():
+      env[name] = value.strip()
   for item in re.split(r"[;\n]", rt.get("extra_env", "")):
     if "=" in item:
       k, v = item.split("=", 1)
@@ -4386,7 +5078,9 @@ INPUT_ACTIONS = {a.lower() for a in (
   "Cross Circle Triangle Square L1 R1 L2 R2 L3 R3 Options Up Right Down Left "
   "LeftStickLeft LeftStickRight LeftStickUp LeftStickDown "
   "RightStickLeft RightStickRight RightStickUp RightStickDown "
-  "TouchLeft TouchRight StickModifier ToggleMouse ToggleFullscreen").split()}
+  "TouchLeft TouchRight StickModifier Shake ToggleMouse ToggleFullscreen "
+  "TogglePerformanceOverlay Screenshot").split()}
+KEY_ONLY_ACTIONS = {"togglefullscreen", "toggleperformanceoverlay", "screenshot"}  # INPUT_MAPPING.md: keyboard keys only
 MOUSE_BUTTONS = {"left", "middle", "right", "x1", "x2"}
 # name: (minimum, maximum, minimum_excluded, integer)
 INPUT_SETTINGS = {
@@ -4400,6 +5094,8 @@ INPUT_SETTINGS = {
   "mousesmoothingms": (0, 500, False, False),
   "mousedecayms": (1, 1000, False, False),
   "stickmodifierscale": (0.05, 1, False, False),
+  "keyboardrampms": (0, 2000, False, False),
+  "triggerrampms": (0, 2000, False, False),
 }
 
 INPUT_TEMPLATE = """# anyps5-input.ini - AnyPS5 keyboard and mouse mapping
@@ -4458,6 +5154,8 @@ def validate_input_ini(text):
       errors.append((number, f"WHEEL:{name} is invalid (Up or Down)"))
     elif kind not in ("KEY", "MOUSE", "WHEEL"):
       errors.append((number, f"unknown type '{kind}' (KEY, MOUSE, WHEEL)"))
+    elif low in KEY_ONLY_ACTIONS and kind != "KEY":
+      errors.append((number, f"'{key}' accepts only keyboard keys (KEY:...)"))
   return errors
 
 
@@ -4841,6 +5539,16 @@ def run_import_audit(out_exe, app0_dir, pkg_dir, rl, log, cancel, holder):
       cmd += ["--names", names]
     else:
       log("warn", f"Names file not found ({names}): audit without --names.")
+  if yes(rl.get("audit_strict_stubs", "no")):
+    cmd.append("--strict-stubs")
+  if yes(rl.get("audit_strict_providers", "no")):
+    cmd.append("--strict-providers")
+  src = rl.get("audit_source", "").strip()
+  if src:
+    if os.path.isdir(src):
+      cmd += ["--source", src]
+    else:
+      log("warn", f"Audit source folder not found ({src}): audit without --source.")
   json_path = os.path.join(out_dir, stem + ".audit.json")
   _remove_quiet(json_path)
   cmd += ["--json", json_path]
@@ -4853,6 +5561,8 @@ def run_import_audit(out_exe, app0_dir, pkg_dir, rl, log, cancel, holder):
     return
   meaning = {0: "nothing blocks loading", 1: "there are 'absent' imports or missing libraries",
              2: "an input is not readable"}.get(code, "")
+  if code == 1 and (yes(rl.get("audit_strict_stubs", "no")) or yes(rl.get("audit_strict_providers", "no"))):
+    meaning += " (or stub / other-library imports, because of the strict options)"
   log("ok" if code == 0 else "warn", f"Audit finished with code {code}: {meaning}")
   summary = summarize_audit(json_path)
   if summary:
@@ -5089,7 +5799,7 @@ L = sys.modules[__name__]   # the logic lives in this same file
 HERE = SCRIPT_DIR
 
 # ---------- GUI update check ----------
-APP_VERSION = "1.1.2"
+APP_VERSION = "1.1.3"
 GUI_REPO_OWNER = "Lenny4250gh"
 GUI_REPO_NAME = "AnyPS5-GUI"
 GUI_RELEASES_URL = "https://github.com/%s/%s/releases/latest" % (GUI_REPO_OWNER, GUI_REPO_NAME)
@@ -5613,6 +6323,14 @@ SCHEMA = {'Conversion': [{'type': 'flag',
                  'hint': 'Dependency diagnostics at startup.'},
                 {'type': 'flag',
                  'section': 'relinker',
+                 'key': 'frame_red_zone',
+                 'label': '--frame-red-zone',
+                 'plat': 'win',
+                 'hint': 'Gives leaf functions that keep values below RSP (the red zone) a frame, so an '
+                         'exception Windows delivers on a guest thread cannot overwrite them. Try it if a '
+                         'game crashes randomly on Windows. It changes the code more than the other options.'},
+                {'type': 'flag',
+                 'section': 'relinker',
                  'key': 'trace_imports',
                  'label': '--trace-imports',
                  'plat': 'win',
@@ -5728,6 +6446,25 @@ SCHEMA = {'Conversion': [{'type': 'flag',
                  'label': 'import_audit',
                  'plat': 'all',
                  'hint': None},
+                {'type': 'flag',
+                 'section': 'relinker',
+                 'key': 'audit_strict_stubs',
+                 'label': 'Audit: --strict-stubs',
+                 'plat': 'all',
+                 'hint': 'Also fail the audit (exit code 1) when an import is only a throwing stub.'},
+                {'type': 'flag',
+                 'section': 'relinker',
+                 'key': 'audit_strict_providers',
+                 'label': 'Audit: --strict-providers',
+                 'plat': 'all',
+                 'hint': 'Also fail the audit when an import is exported only by a library other than the one '
+                         'it names (it resolves on Linux but can fail on Windows).'},
+                {'type': 'text',
+                 'section': 'relinker',
+                 'key': 'audit_source',
+                 'label': 'Audit: source folder (--source)',
+                 'plat': 'all',
+                 'hint': 'core/libs/prx tree searched for throwing stubs. Empty = the audit script default.'},
                 {'type': 'text',
                  'section': 'relinker',
                  'key': 'names_file',
@@ -5854,6 +6591,27 @@ SCHEMA = {'Conversion': [{'type': 'flag',
               'plat': 'all',
               'hint': 'FPS, frame times and memory over the game image. F10 shows or hides it while playing. '
                       'The corner is chosen below (ANYPS5_OVERLAY_POS).'},
+             {'type': 'flag',
+              'section': 'runtime',
+              'key': 'fullscreen',
+              'label': 'Start fullscreen (ANYPS5_FULLSCREEN=1)',
+              'plat': 'all',
+              'hint': 'Opens the game window fullscreen at the desktop resolution. F11 switches between window '
+                      'and fullscreen while playing. The game keeps its own render resolution.'},
+             {'type': 'text',
+              'section': 'runtime',
+              'key': 'display_index',
+              'label': 'Display index (ANYPS5_DISPLAY_INDEX)',
+              'plat': 'all',
+              'hint': 'Monitor where the game window opens (0 = first display). Empty = default. '
+                      'A number that does not exist makes the window fail to open.'},
+             {'type': 'text',
+              'section': 'runtime',
+              'key': 'entitlements_file',
+              'label': 'Entitlements file (ANYPS5_ENTITLEMENTS)',
+              'plat': 'all',
+              'hint': 'Path of the ini that lists the add-ons (DLC) you own. '
+                      'Empty = anyps5-entitlements.ini next to the executable.'},
              {'type': 'text',
               'section': 'runtime',
               'key': 'screenshots_dir',
@@ -5887,18 +6645,34 @@ SCHEMA = {'Conversion': [{'type': 'flag',
               'plat': 'all',
               'hint': 'Writes GPU results at every flip: useful if graphics get corrupted, costs '
                       'performance.'},
+             {'type': 'flag',
+              'section': 'runtime',
+              'key': 'store_at_label',
+              'label': 'APS5_STORE_AT_LABEL=1',
+              'plat': 'all',
+              'hint': 'Writes GPU results before every label the GPU writes: for games that wait for a GPU label '
+                      'and then read stale data. Costs more performance than the flip option.'},
              {'type': 'text',
               'section': 'runtime',
               'key': 'trace_calls',
               'label': 'APS5_TRACE_CALLS',
               'plat': 'win',
               'hint': 'Needs --trace-imports. E.g. libkernel,libSceSaveData or all.'},
+             {'type': 'text',
+              'section': 'runtime',
+              'key': 'trace_calls_file',
+              'label': 'APS5_TRACE_CALLS_FILE',
+              'plat': 'win',
+              'hint': 'Absolute path of a file. Every 10 seconds it is rewritten with every import the game '
+                      'called so far, most called first. Needs APS5_TRACE_CALLS (above) and --trace-imports.'},
              {'type': 'flag',
               'section': 'runtime',
               'key': 'disable_dozen',
-              'label': 'Disable Mesa Dozen (VK_LOADER_DRIVERS_DISABLE=*dzn*)',
+              'label': 'Disable Dozen (Vulkan over D3D12)',
               'plat': 'win',
-              'hint': 'Only if a D3D12 driver crashes and you have another Vulkan driver.'},
+              'hint': 'Use only if the game crashes while Vulkan enumerates adapters and another Vulkan driver '
+                      'is installed. Do not enable it if Dozen is your only Vulkan driver. '
+                      'Sets VK_LOADER_DRIVERS_DISABLE=*dzn*.'},
              {'type': 'flag',
               'section': 'runtime',
               'key': 'copy_input_ini',
@@ -5966,6 +6740,29 @@ SCHEMA = {'Conversion': [{'type': 'flag',
               'label': 'APS5_TRACE_DIR',
               'plat': 'all',
               'hint': 'Absolute folder for the trace files. Empty = working directory.'},
+             {'type': 'flag',
+              'section': 'runtime',
+              'key': 'trace_bench',
+              'label': 'APS5_TRACE_BENCH=1 (benchmark report)',
+              'plat': 'all',
+              'hint': 'Needs APS5_TRACE_SUMMARY_EVERY (e.g. 30). Every interval it rewrites '
+                      'aps5-bench-<commit>-<pid>.json.gz in the trace folder with the time between presents. '
+                      'Play the scene for a few minutes, then quit. Compare later intervals: the first one includes '
+                      'shader compilation.'},
+             {'type': 'flag',
+              'section': 'runtime',
+              'key': 'trace_uds',
+              'label': 'APS5_TRACE_UDS=1 (trophy events)',
+              'plat': 'all',
+              'hint': 'Prints every posted trophy/statistics event and every statistic it sets. Useful when a '
+                      'trophy does not unlock.'},
+             {'type': 'text',
+              'section': 'runtime',
+              'key': 'videoout_telemetry_dir',
+              'label': 'APS5_VIDEOOUT_TELEMETRY_DIR',
+              'plat': 'all',
+              'hint': 'Absolute folder where the game writes videoout.jsonl: presents (fps) and controller changes, '
+                      'one JSON line each, appended between runs.'},
              {'type': 'flag',
               'section': 'runtime',
               'key': 'pipeline_stats',
@@ -6114,6 +6911,78 @@ class DiscordRPC:
       self._drop()
 
 
+def _advanced_runtime_items():
+  """Runtime > Advanced options (debugging and tuning). The UI shows them in a closed section, below the
+  normal Runtime options. Values and defaults: docs/user/USAGE.md and docs/dev/ENVIRONMENT.md."""
+  def flag(key, label, hint, plat='all'):
+    return {'type': 'flag', 'section': 'runtime', 'key': key, 'label': label, 'plat': plat, 'hint': hint,
+            'advanced': True}
+
+  def text(key, label, hint, plat='all'):
+    return {'type': 'text', 'section': 'runtime', 'key': key, 'label': label, 'plat': plat, 'hint': hint,
+            'advanced': True}
+
+  return [
+    flag('draw_pipeline', 'Draw pipeline (APS5_DRAW_PIPELINE=1)',
+         'Off by default. Finishes each draw on a second thread and reuses work that did not change. The picture '
+         'should not change: if it does, turn it off. Meant to be used with the two options below '
+         '(APS5_PIPELINED_DRAWS=32, APS5_PIPELINE_DISPATCH=1). APS5_PROFILE_DRAW (Test diagnostics) '
+         'finishes every draw on the reading thread, so do not measure this option with it.'),
+    text('pipelined_draws', 'Draw queue depth (APS5_PIPELINED_DRAWS)',
+         'Whole number. 0 = record draws inline, 1 = default depth (8), any other value = that depth, '
+         'at most 256. The docs suggest 32 together with the draw pipeline. Empty = default.'),
+    flag('pipeline_dispatch', 'Pipeline dispatches (APS5_PIPELINE_DISPATCH=1)',
+         'Records eligible compute dispatches as items of the draw pipeline instead of running them inline.'),
+    flag('verify_draw_pipeline', 'Verify the draw pipeline (APS5_VERIFY_DRAW_PIPELINE=1)',
+         'Needs the draw pipeline. Runs the full checks next to the reused ones, costs speed, and prints '
+         '[epoch-proofs] lines: any nonzero count of differences is a bug worth reporting.'),
+    flag('no_pipeline_lto', 'No pipeline LTO (APS5_NO_PIPELINE_LTO=1)',
+         'Turns off the background link-time optimization of graphics pipeline libraries. Try it if the game '
+         'crashes while pipelines are created (some NVIDIA driver versions crash in their shader compiler).'),
+    flag('no_pipeline_journal', 'No pipeline journal (APS5_NO_PIPELINE_JOURNAL=1)',
+         'Does not record or replay pipelines.journal, so the game does not get the head start from the '
+         'previous run. The journal is also off while the shader cache is disabled.'),
+    text('pipeline_journal_entries', 'Journal entries replayed (APS5_PIPELINE_JOURNAL_ENTRIES)',
+         'Whole number, 1 or more. How many pipelines of the journal are replayed at most (the last recorded ones). '
+         'Empty = 4096.'),
+    text('pipeline_journal_max_mib', 'Journal size limit, MiB (APS5_PIPELINE_JOURNAL_MAX_MIB)',
+         'Whole number, 1 or more. When the file reaches it, it is rewritten down to three quarters of the limit, '
+         'keeping the newest pipelines. Empty = 1024.'),
+    text('pipeline_journal_threads', 'Journal replay threads (APS5_PIPELINE_JOURNAL_THREADS)',
+         'Whole number, 0 or more. 0 records the journal without replaying it. Empty = half of the CPU threads, '
+         'at least one.'),
+    text('pipeline_store_entries', 'Resident graphics pipelines (APS5_PIPELINE_STORE_ENTRIES)',
+         'Whole number, 1 or more. Fixes how many graphics pipelines stay in memory. Empty = adaptive: it starts '
+         'at 1024 and grows up to 4096 when needed.'),
+    text('address_copy_max_mib', 'Address copy limit, MiB (APS5_ADDRESS_COPY_MAX_MIB)',
+         'Whole number, 1 or more. Maximum guest memory that one address-based build copies; going over it '
+         'aborts the game. Empty = 64.'),
+    text('pm4_ring', 'PM4 ring size (APS5_PM4_RING)',
+         'Whole number from 0 to 4096: how many command buffer submissions are kept for dumps. 0 turns the ring '
+         'off. Empty = 16.'),
+    flag('skip_refused_draws', 'Skip refused draws (APS5_SKIP_REFUSED_DRAWS=1)',
+         'Skips draws whose shader the recompiler refuses (each one is reported once) instead of stopping the '
+         'game. The picture may miss those objects. Only for testing.'),
+    flag('mimalloc', 'Use mimalloc (APS5_MIMALLOC=1)',
+         'Windows only. Loads mimalloc.dll at start so the game allocates through mimalloc. The DLL must be '
+         'available next to the game, or the game may not start.', plat='win'),
+    text('gpu_wait_timeout_ms', 'GPU wait warning, ms (APS5_GPU_WAIT_TIMEOUT_MS)',
+         'Whole number, 1 or more. A GPU wait longer than this prints a warning. Empty = 1000.'),
+    text('stall_watchdog_secs', 'Stall watchdog, seconds (APS5_STALL_WATCHDOG_SECS)',
+         'Whole number from 0 to 86400. If a GPU queue makes no progress for this long, the submission rings '
+         'are dumped. Empty or 0 = off.'),
+    text('hang_dump_secs', 'Hang dump, seconds (APS5_HANG_DUMP_SECS)',
+         'Windows only. After this many seconds a watchdog dumps all threads and aborts the game: use it only '
+         'to catch a hang, and set it longer than a normal play session.', plat='win'),
+    text('crash_stack_bytes', 'Crash report stack bytes (APS5_CRASH_STACK_BYTES)',
+         'Windows only. Bytes of the crashing thread stack printed in the crash report: decimal or 0x '
+         'hexadecimal, at most 1048576. Empty or 0 = none.', plat='win'),
+  ]
+
+
+SCHEMA['Runtime'] += _advanced_runtime_items()
+
+
 SCHEMA['Appearance'] = [{'type': 'flag',
                          'section': 'runtime',
                          'key': 'no_discord_rpc',
@@ -6140,6 +7009,7 @@ class Api:
     self.game_exit = None      # exit code of the last game that ended
     self.game_pkg = ""         # folder of the last started game
     self.quitting = False      # True once the user confirmed closing during an operation
+    self.mapper_proc = None    # input mapper web server (node), started from the Input tab
     self._quit_asked = False   # a confirmation popup is already on screen
     self._upd = {"state": "idle"}  # progress of the GUI self-update
     self._mov = {"state": "idle"}  # progress of moving the data folder
@@ -6151,6 +7021,7 @@ class Api:
     vetoed and the in-app popup asks for confirmation."""
     if self.quitting or not self.running:
       self.rpc.clear()
+      self._stop_mapper()
       return True
     if not self._quit_asked:
       self._quit_asked = True
@@ -6177,12 +7048,77 @@ class Api:
       deadline = time.time() + 300  # rollback of a big move can take a while
       while self.running and time.time() < deadline:
         time.sleep(0.2)
+      self._stop_mapper()
       try:
         webview.windows[0].destroy()
       except Exception:
         os._exit(0)
     threading.Thread(target=finish, daemon=True).start()
     return True
+
+  # ---------- input mapper web (tools/input-mapper) ----------
+  def _mapper_running(self):
+    return self.mapper_proc is not None and self.mapper_proc.poll() is None
+
+  def _stop_mapper(self):
+    p, self.mapper_proc = self.mapper_proc, None
+    if p is not None and p.poll() is None:
+      try:
+        L.kill_tree(p)
+      except Exception:
+        try:
+          p.terminate()
+        except Exception:
+          pass
+
+  def input_mapper_status(self):
+    return {"running": self._mapper_running(), "url": f"http://127.0.0.1:{L.INPUT_MAPPER_PORT}"}
+
+  def start_input_mapper(self):
+    """Starts `npm --prefix tools/input-mapper start` in the background and opens it in the browser."""
+    import webbrowser
+    url = f"http://127.0.0.1:{L.INPUT_MAPPER_PORT}"
+    if self._mapper_running():
+      webbrowser.open(url)
+      return {"ok": True, "running": True, "url": url, "text": "The input mapper is already running."}
+    node, _major, err = L.node_status()
+    if err:
+      return {"ok": False, "running": False, "text": err}
+    npm = shutil.which("npm")
+    if not npm:
+      return {"ok": False, "running": False, "text": "npm was not found (it comes with Node.js). Reinstall Node.js 22 or newer."}
+    found = L.find_input_mapper(self.cfg["relinker"])
+    if not found:
+      return {"ok": False, "running": False,
+              "text": "tools/input-mapper was not found. Clone the repository (Source build) or copy the "
+                      "tools/input-mapper folder into the app data folder under tools/."}
+    base, _mapper = found
+    kw = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {"start_new_session": True}
+    env = dict(os.environ)
+    env["PORT"] = str(L.INPUT_MAPPER_PORT)
+    try:
+      self.mapper_proc = subprocess.Popen([npm, "--prefix", L.INPUT_MAPPER_REL, "start"], cwd=base, env=env,
+                                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                          stderr=subprocess.DEVNULL, **kw)
+    except OSError as e:
+      return {"ok": False, "running": False, "text": f"Unable to start the input mapper: {e}"}
+    for _ in range(40):  # wait up to ~8 s for the server to answer
+      if self.mapper_proc.poll() is not None:
+        self.mapper_proc = None
+        return {"ok": False, "running": False,
+                "text": f"The input mapper stopped right away (is port {L.INPUT_MAPPER_PORT} already in use?)."}
+      try:
+        with socket.create_connection(("127.0.0.1", L.INPUT_MAPPER_PORT), timeout=0.4):
+          break
+      except OSError:
+        time.sleep(0.2)
+    webbrowser.open(url)
+    return {"ok": True, "running": True, "url": url,
+            "text": "Input mapper opened in your browser. Export the .ini there, then use Import settings here."}
+
+  def stop_input_mapper(self):
+    self._stop_mapper()
+    return {"ok": True, "running": False, "text": "Input mapper stopped."}
 
   # ---------- state ----------
   def get_state(self):
@@ -6384,6 +7320,32 @@ class Api:
             "trophy": os.path.isdir(os.path.join(pkg, "_trophy")) if pkg else False,
             "ampr_dump": os.path.isfile(os.path.join(app0, "ampr_assets.index")) if app0 else False}
 
+  def env_catalog(self):
+    return [{"name": n, "kind": k, "default": d, "desc": t} for n, k, d, t in L.ENV_CATALOG]
+
+  def open_entitlements_file(self, rt_values=None):
+    """Opens the entitlements ini (the field value, else anyps5-entitlements.ini beside the game executable)
+    in the default editor, creating it with a short template when it does not exist yet."""
+    rt = dict(self.cfg["runtime"])
+    if isinstance(rt_values, dict):
+      rt.update({k: str(v) for k, v in rt_values.items()})
+    path = rt.get("entitlements_file", "").strip()
+    if not path:
+      pkg = self._selected_game_package()
+      if not pkg:
+        return {"ok": False, "error": "Select a converted game package first, or type a file path above."}
+      path = os.path.join(pkg, "anyps5-entitlements.ini")
+    path = os.path.abspath(path)
+    if not os.path.isfile(path):
+      try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8", newline="\n") as fh:
+          fh.write("# anyps5-entitlements.ini - add-ons (DLC) the game sees as owned\n"
+                   "# One entitlement label per line (at most 15 characters). # or ; starts a comment.\n")
+      except OSError as e:
+        return {"ok": False, "error": f"Unable to create {path}: {e}"}
+    return {"ok": bool(L.open_path(path)), "path": path}
+
   def open_game_folder(self, name):
     if name not in ("_sd", "_sd_mem", "_trophy"):
       return {"ok": False, "error": "Unknown game folder."}
@@ -6457,6 +7419,31 @@ class Api:
       return False
     return True
 
+  def open_runtime_folder(self, key, rt_values=None):
+    """Opens the folder of a Runtime setting (trace files or video-out telemetry)."""
+    names = {"trace_dir": "APS5_TRACE_DIR", "videoout_telemetry_dir": "APS5_VIDEOOUT_TELEMETRY_DIR"}
+    if key not in names:
+      return False
+    rt = dict(self.cfg["runtime"])
+    if isinstance(rt_values, dict):
+      rt.update({k: str(v) for k, v in rt_values.items()})
+    path = rt.get(key, "").strip()
+    if not path:
+      self.q.put(("warn", f"Set {names[key]} first" + (" (empty = the working directory of the game)." if key == "trace_dir" else ".")))
+      return False
+    if not os.path.isabs(path):
+      self.q.put(("err", f"{names[key]} must be an absolute path."))
+      return False
+    try:
+      os.makedirs(path, exist_ok=True)
+    except OSError as e:
+      self.q.put(("err", f"Unable to create {path}: {e}"))
+      return False
+    if not L.open_path(path):
+      self.q.put(("err", f"Unable to open {path}"))
+      return False
+    return True
+
   def open_release_page(self):
     import webbrowser
     webbrowser.open(GUI_RELEASES_URL)  # fixed URL: nothing coming from the UI is opened
@@ -6497,6 +7484,26 @@ class Api:
     if isinstance(rl_values, dict):
       rl.update({k: str(v) for k, v in rl_values.items()})
     level, text = L.verify_patches(rl, self.folder)
+    return {"level": level, "text": text}
+
+  def verify_output(self, rl_values=None):
+    """Ask for a converted Linux executable and check it against its <stem>.patches.toml manifest."""
+    rl = dict(self.cfg["relinker"])
+    if isinstance(rl_values, dict):
+      rl.update({k: str(v) for k, v in rl_values.items()})
+    kind = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
+    res = webview.windows[0].create_file_dialog(kind, file_types=("All files (*.*)",))
+    if not res:
+      return {"level": "muted", "text": "Cancelled."}
+    path = res if isinstance(res, str) else res[0]
+    level, text = L.verify_output(rl, path)
+    return {"level": level, "text": text}
+
+  def relinker_version(self, rl_values=None):
+    rl = dict(self.cfg["relinker"])
+    if isinstance(rl_values, dict):
+      rl.update({k: str(v) for k, v in rl_values.items()})
+    level, text = L.relinker_version(rl)
     return {"level": level, "text": text}
 
   def pick_output(self):
