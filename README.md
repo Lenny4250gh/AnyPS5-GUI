@@ -37,25 +37,6 @@
 
 ---
 
-## Table of contents
-
-| Section | What you will find |
-|:--|:--|
-| [Download](#download) | Builds for Windows, Linux and macOS |
-| [Quick start](#quick-start) | From dump to launch in 5 steps |
-| [What is this for?](#what-is-this-for) | What the GUI does and the typical flow |
-| [Who is it for?](#who-is-it-for) | Beginners and experienced users |
-| [Highlights](#highlights) | The best features at a glance |
-| [Feature guide](#feature-guide) | Every page and setting, in detail |
-| [Where the tools come from](#where-the-tools-come-from) | Local files, GitHub release or build from source |
-| [Installation & requirements](#installation--requirements) | Verifying, folders, portable mode, upgrading, warnings |
-| [Advanced: forks and custom builds](#advanced-forks-and-custom-builds) | Use any repository, branch or tag |
-| [Build from source](#build-from-source) | Run or package the GUI yourself |
-| [Support](#support) | Where to ask for help |
-| [License, credits, disclaimer](#license) | Legal information |
-
----
-
 ## Download
 
 <p align="center">
@@ -83,6 +64,25 @@
 > The release page contains the detailed changelog for each version. This README is the stable guide to downloading, installing and using AnyPS5 GUI.
 
 Need checksums, folders or portable mode? See [Installation & requirements](#installation--requirements).
+
+---
+
+## Table of contents
+
+| Section | What you will find |
+|:--|:--|
+| [Download](#download) | Builds for Windows, Linux and macOS |
+| [Quick start](#quick-start) | From dump to launch in 5 steps |
+| [What is this for?](#what-is-this-for) | What the GUI does and the typical flow |
+| [Who is it for?](#who-is-it-for) | Beginners and experienced users |
+| [Highlights](#highlights) | The best features at a glance |
+| [Feature guide](#feature-guide) | Every page and setting, in detail |
+| [Where the tools come from](#where-the-tools-come-from) | Local files, GitHub release or build from source |
+| [Installation & requirements](#installation--requirements) | Verifying, folders, portable mode, upgrading, warnings |
+| [Advanced: forks and custom builds](#advanced-forks-and-custom-builds) | Use any repository, branch or tag |
+| [Build from source](#build-from-source) | Run or package the GUI yourself |
+| [Support](#support) | Where to ask for help |
+| [License, credits, disclaimer](#license) | Legal information |
 
 ---
 
@@ -319,7 +319,11 @@ Shows what is missing before you start, and downloads the tools for you when nee
 
 ### Discord Rich Presence
 
-While the app is open it shows *In the launcher* and, during a conversion, the current phase (Preparing, Copying game files, Copying libs, Relinking…). It does not show which game you play. Turn it off with *Disable Discord Rich Presence* in the Appearance settings.
+While the app is open it shows *In the launcher*. During a conversion or a tool download it shows the current phase (Preparing, Copying game files, Relinking…) with an elapsed-time counter, and while a converted game is running it shows *Playing a converted game*. It never shows which game you play.
+
+The presence includes a *Get AnyPS5 GUI* button that opens this README). Discord does not display this button on your own profile, only to other users.
+
+Turn it off with *Disable Discord Rich Presence* in the Appearance settings.
 
 ---
 
