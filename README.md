@@ -29,11 +29,15 @@
   <a href="#installation--requirements">Installation</a> ·
   <a href="#advanced-forks-and-custom-builds">Advanced</a> ·
   <a href="#build-from-source">Build</a> ·
-  <a href="#support">Support</a>
+  <a href="#support">Support</a> ·
+  <a href="#about-this-projects-development">Development</a>
 </p>
 
 > [!WARNING]
 > **Unofficial.** Not affiliated with Sony or with the AnyPS5 project. This tool contains **no games, no firmware, no keys and no decryption**. Use it only on software you legitimately own (your own dumps or homebrew).
+
+> [!NOTE]
+> **Built with AI assistance ("vibe coding").** Most of this app was written with the help of AI tools. I test it as much as I can, but there may be bugs or unexpected behavior. If you find one, please report it with the **Report or suggest** button in the app or open an [issue](https://github.com/Lenny4250gh/AnyPS5-GUI/issues).
 
 ---
 
@@ -82,6 +86,7 @@ Need checksums, folders or portable mode? See [Installation & requirements](#ins
 | [Advanced: forks and custom builds](#advanced-forks-and-custom-builds) | Use any repository, branch or tag |
 | [Build from source](#build-from-source) | Run or package the GUI yourself |
 | [Support](#support) | Where to ask for help |
+| [About this project's development](#about-this-projects-development) | How the app was made (AI-assisted) |
 | [License, credits, disclaimer](#license) | Legal information |
 
 ---
@@ -536,6 +541,14 @@ When running from source on Linux, pywebview needs a WebKitGTK or Qt backend, se
 |:--|:--|
 | **This GUI** (it doesn't open, a button does nothing, a wrong option) | Use the **Report or suggest** button in the app, or open an [issue](https://github.com/Lenny4250gh/AnyPS5-GUI/issues). Please include your OS, the GUI version and any error shown, and paste **Copy for bug** or attach the file from **Export report…** / **Debug package…** if it is about a game. |
 | **AnyPS5 itself** (a game doesn't start, crashes, missing library functions) | This GUI cannot fix them. Attach the report from **Export report…** and ask in the official [AnyPS5 Discord](https://discord.gg/BHFztBPUe) or in the [Game bring-up discussions](https://github.com/boykopovar/AnyPS5/discussions/categories/game-bring-up), and read the [usage guide](https://github.com/boykopovar/AnyPS5/blob/main/docs/user/USAGE.md). |
+
+---
+
+## About this project's development
+
+AnyPS5 GUI was built with "vibe coding": I described what I wanted and used AI tools to write much of the code, then tested and adjusted the result myself. Because of this, the code may contain mistakes or non-idiomatic solutions that a hand-written project might not.
+
+If something does not work as expected, please [open an issue](https://github.com/Lenny4250gh/AnyPS5-GUI/issues) and include the GUI version, your OS and, if it is about a game, the report from **Export report…** or **Copy for bug**. Pull requests and suggestions are welcome.
 
 ---
 
