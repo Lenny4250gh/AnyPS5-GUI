@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest"><img src="https://img.shields.io/github/v/release/Lenny4250gh/AnyPS5-GUI?style=for-the-badge&label=Latest%20version" alt="Latest release"></a>
-  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases"><img src="https://img.shields.io/github/downloads/Lenny4250gh/AnyPS5-GUI/total?style=for-the-badge&label=Downloads" alt="Downloads"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0--only-blue?style=for-the-badge" alt="GPL-2.0-only license"></a>
+  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest"><img src="https://img.shields.io/github/v/release/Lenny4250gh/AnyPS5-GUI?style=flat&label=LATEST%20VERSION&labelColor=20242B&color=1687F8&logo=github&logoColor=white" alt="Latest release"></a>
+  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases"><img src="https://img.shields.io/github/downloads/Lenny4250gh/AnyPS5-GUI/total?style=flat&label=DOWNLOADS&labelColor=20242B&color=16A36A&logo=github&logoColor=white" alt="Downloads"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/LICENSE-GPL--2.0--ONLY-64748B?style=flat&labelColor=20242B&logo=opensourceinitiative&logoColor=white" alt="GPL-2.0-only license"></a>
 </p>
 
 <p align="center">
@@ -28,36 +28,30 @@
 ## Download
 
 <p align="center">
-  Choose your operating system:
+  <strong>Choose your platform</strong><br>
+  <sub>Direct download · Always the latest release</sub>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest/download/AnyPS5_GUI-windows.exe">
-    <img src="https://img.shields.io/badge/Download-Windows%20(.exe)-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows">
-  </a>
-  &nbsp;
-  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest/download/AnyPS5_GUI-linux">
-    <img src="https://img.shields.io/badge/Download-Linux- FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Download for Linux">
-  </a>
-  &nbsp;
-  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest/download/AnyPS5_GUI-macos.zip">
-    <img src="https://img.shields.io/badge/Download-macOS%20(.zip)-555555?style=for-the-badge&logo=apple&logoColor=white" alt="Download for macOS">
-  </a>
+  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest/download/AnyPS5_GUI-windows.exe"><img src="https://img.shields.io/badge/WINDOWS-DOWNLOAD%20.EXE-20242B?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI%2BPHBhdGggZmlsbD0iIzAwQTRFRiIgZD0iTTEgNC4yIDEwLjUgMi45djguNkgxem0xMC43LTEuNUwyMyAxdjEwLjVIMTEuN3pNMSAxMi44aDkuNXY4LjZMMSAyMC4xem0xMC43IDBIMjN2MTAuNWwtMTEuMy0xLjZ6Ii8%2BPC9zdmc%2B" alt="Download for Windows"></a>&nbsp;&nbsp;
+  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest/download/AnyPS5_GUI-linux"><img src="https://img.shields.io/badge/LINUX-DOWNLOAD%20BINARY-20242B?style=for-the-badge&logo=linux&logoColor=FCC624" alt="Download for Linux"></a>&nbsp;&nbsp;
+  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest/download/AnyPS5_GUI-macos.zip"><img src="https://img.shields.io/badge/macOS-DOWNLOAD%20.ZIP-20242B?style=for-the-badge&logo=apple&logoColor=FFFFFF" alt="Download for macOS"></a>
 </p>
 
 <p align="center">
-  Each button downloads the latest available build for that platform.
-  <br>
-  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases">View all releases and changelogs</a>
+  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases">All releases and changelogs</a>
 </p>
 
-| Platform | File | After downloading |
-|:--|:--|:--|
-| **Windows** | `AnyPS5_GUI-windows.exe` | Double-click the file. |
-| **Linux** | `AnyPS5_GUI-linux` | Run `chmod +x AnyPS5_GUI-linux`, then open it. |
-| **macOS** | `AnyPS5_GUI-macos.zip` | Extract the ZIP and open the app. If blocked, right-click it and choose **Open**. |
+<details>
+<summary><strong>How to install</strong></summary>
 
-> **Note:** You do not need to install Python or compile the app when using a release build.
+- **Windows:** open the downloaded `.exe`.
+- **Linux:** run `chmod +x AnyPS5_GUI-linux`, then launch the file.
+- **macOS:** extract the ZIP and open the app. If blocked, right-click it and choose **Open**.
+
+No Python installation is required when using a release build.
+
+</details>
 
 ---
 
