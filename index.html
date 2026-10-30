@@ -184,6 +184,14 @@ textarea{width:100%;height:34vh;resize:none}
 .modal.out{animation:mOut .18s ease-in both;pointer-events:none}
 .modal .dlg,.modal .cfm{animation:dIn .3s var(--ease) both}
 .modal.out .dlg,.modal.out .cfm{animation:dOut .18s ease-in both}
+.ruc{max-height:90vh;overflow:auto}.ruc p{margin-bottom:1em}
+.ruv{display:flex;align-items:center;gap:.8em;flex-wrap:wrap;margin:0 0 .9em}.ruvb{display:flex;flex-direction:column;gap:.1em;padding:.5em .8em;border:1px solid var(--line);border-radius:.8em;background:rgba(255,255,255,.04)}
+.ruvb code{font-size:.95em}.rul{color:var(--dim);font-size:.75em;text-transform:uppercase;letter-spacing:.05em}.rud{color:var(--dim);font-size:.8em}.rua{color:var(--dim)}
+.rucl{list-style:none;margin:0 0 .7em;padding:0;max-height:12em;overflow:auto;border:1px solid var(--line);border-radius:.8em}
+.rucl li{display:flex;gap:.7em;align-items:baseline;padding:.4em .7em;border-top:1px solid var(--line)}.rucl li:first-child{border-top:0}
+.rucl code{flex:none;color:var(--blue)}.rucl .rud{flex:none;white-space:nowrap}.rucl .rus{flex:1;min-width:0;overflow-wrap:anywhere}.rucl .rum{color:var(--dim);font-size:.85em}
+.ruc a.rnl{display:inline-block;margin:0 0 .4em;color:var(--text);text-decoration:underline;text-underline-offset:.15em;text-decoration-color:rgba(255,255,255,.4);cursor:pointer}.ruc a.rnl:hover{text-decoration-color:var(--text)}
+.ruc .rurem{margin-top:1.3em}.ruc .ruact{margin-top:1.8em}
 .updm{z-index:30}.updm .cfm{width:min(34em,90vw);align-items:center;text-align:center}
 .updm svg{width:min(17em,70%);height:auto;color:var(--accent,#fff);margin:.2em 0 .6em}
 .updm .rnb .rni{display:block;max-width:100%;height:auto;margin:.5em 0;border-radius:.5em;background:rgba(255,255,255,.04)}
@@ -265,6 +273,11 @@ input[type=text]:focus,input:not([type]):focus,textarea:focus,.prow input[type=n
 .pi:hover{background:rgba(255,255,255,.22)}.pi:focus-visible{box-shadow:0 0 0 .12em var(--ring)}
 .padrow{display:flex;flex-wrap:wrap;gap:1.2em;margin-top:.6em}
 .pgrp{flex:1;min-width:13em}.pgrp .pc{margin-top:.35em}
+.pextra{flex:0 0 100%;min-width:0}
+.pextra-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.45em}
+.pextra-grid .pc{margin-top:0;min-width:0}
+@media(max-width:760px){.pextra-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.pextra-grid{grid-template-columns:1fr}}
 .pcross{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"up up" "left right" "down down";gap:.35em}.pcross .pc{margin-top:0}
 .padset{margin-top:.8em}.padset .pdt{color:var(--dim);font-size:.85em}
 .pdzrow{display:flex;gap:2.5em;justify-content:center;flex-wrap:wrap;margin:.7em 0 .3em}.pdzrow[hidden],.pdz p[hidden]{display:none}
@@ -327,6 +340,7 @@ body.noring .cmb:not(.open) .cbtn:focus-visible{border-color:var(--line)!importa
 .card>.readyrow+.adv{border-top:1px solid var(--line);padding-top:.6em}
 .card>.step+.adv{border-top:1px solid var(--line);margin-top:.9em;padding-top:.6em}
 .ready{font-size:.9em}
+.pcv{font-size:.9em;margin-left:.8em}.pcv.ok{color:var(--ok)}.pcv.err{color:var(--err)}.pcv.warn{color:var(--warn,#c90)}
 .ready.ok{color:var(--ok)}.ready.err{color:var(--err)}
 .step h3{color:var(--text);font-size:.95em;font-weight:400;margin:0 0 .6em}
 .adv summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:.6em;padding:.15em 0 .05em}
@@ -340,6 +354,17 @@ body.noring .cmb:not(.open) .cbtn:focus-visible{border-color:var(--line)!importa
 .rh{display:flex;align-items:center;justify-content:space-between;gap:.8em;flex-wrap:wrap}.rh h3{margin:0;line-height:1.4;display:flex;align-items:center;min-height:2.2em}
 .card:has(>.rh){padding-top:.75em;padding-bottom:.75em}.rh .hrow{margin-top:0}
 .sum{margin:.7em 0 0;color:var(--dim);font-size:.88em}
+
+/* Play view: compact, balanced action groups */
+.card:has([data-k="rt"]) .hrow:has([data-k="rt"]),
+.card:has([data-k="gamefoldersrefresh"]) .hrow:has([data-k="gamefoldersrefresh"]){
+ display:flex;flex-wrap:wrap;align-items:center;gap:.5em
+}
+.card:has([data-k="rt"]) .hrow:has([data-k="rt"]) .b,
+.card:has([data-k="gamefoldersrefresh"]) .hrow:has([data-k="gamefoldersrefresh"]) .b{
+ width:auto;min-height:2.35em;justify-content:flex-start;padding:.42em .85em;flex:0 1 auto
+}
+.card:has([data-k="rt"]) .hrow:has([data-k="rt"]) .b{min-width:0}
 /* Hover on text boxes, number boxes, text areas and combo boxes: they brighten (no growing, so wide fields never overflow) */
 input[type=text],input:not([type]),textarea,.prow input[type=number],.cbtn{
  transition:border-color .18s ease-out,box-shadow .18s ease-out,background .18s ease-out,transform .22s cubic-bezier(.34,1.56,.64,1)}
@@ -354,6 +379,7 @@ textarea:not(:focus):hover,
 .cmb.open .cbtn:hover{background:rgba(255,255,255,.08)}
 /* the small ring appears slightly on hover, then turns full color on focus */
 @media (prefers-reduced-motion:reduce){input,textarea,.cbtn{transition:none!important}}
+.fbd{width:min(34em,90vw)}.fbh{display:flex;align-items:flex-start;justify-content:space-between;gap:1em}.fbh h2{margin:0 0 .4em}.fbx{flex:none;margin-top:-.2em}.fbl{display:flex;flex-direction:column;gap:.5em;margin-top:1em}.fbl .fbo{justify-content:flex-start;width:100%;padding:.6em 1.1em;border-radius:1.2em;text-align:left}.fbl .fbo .bt small{font-size:.78em}
 </style></head><body data-bg="grid" class="intro">
 <div id="bg" aria-hidden="true"><i></i><i></i><i></i></div>
 <div id="page"><div id="in">
@@ -367,7 +393,7 @@ textarea:not(:focus):hover,
 </div></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <script>
-const closeM=m=>{if(m._c)return;m._c=1;m.classList.add("out");setTimeout(()=>m.remove(),190)};
+const closeM=m=>{if(m._c)return;m._c=1;m.classList.add("out");SND.play("close");setTimeout(()=>m.remove(),190)};
 setTimeout(()=>document.body.classList.remove("intro"),1400);
 const $=s=>document.querySelector(s),el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.textContent=h;return e};
 const api=(f,...a)=>pywebview.api[f](...a),yes=v=>["yes","true","1"].includes(String(v).toLowerCase());
@@ -393,7 +419,29 @@ function applyUI(u){const c=HEX.test(u.accent)?u.accent.toLowerCase():UIDEF.acce
  document.body.dataset.bg=BGS.some(x=>x[0]==u.bg)?u.bg:UIDEF.bg;document.body.dataset.bubble=(u.bubble===false||u.bubble==="false")?"off":"on"}
 let S,cfg,status=[],space=null,running=false,log=[],pct="idle",folder="",playFolder="",poller=null,view="convert",vAnim="",advOpen={};
 const TI={err:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/>',warn:'<path d="M12 3.8 21.5 20h-19z"/><path d="M12 10v4.5M12 17.5h.01"/>',ok:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.5"/>'};
-function toast(t,l){
+// ---------- sound effects (generated with Web Audio: no files) ----------
+const SND=(()=>{let ctx=null,on=true,vol=.6,last=0;
+ const get=()=>{if(!ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;try{ctx=new C()}catch(e){return null}}if(ctx.state=="suspended")ctx.resume().catch(()=>{});return ctx};
+ // [frequency Hz, start s, length s, wave, relative level]
+ const FX={click:[[1500,0,.035,"triangle",.5]],pri:[[660,0,.05,"triangle",.55],[990,.045,.07,"triangle",.45]],
+  ok:[[880,0,.09,"sine",.6],[1175,.08,.14,"sine",.5]],done:[[523,0,.11,"sine",.6],[659,.1,.11,"sine",.6],[784,.2,.22,"sine",.6]],
+  warn:[[440,0,.1,"triangle",.6],[440,.14,.12,"triangle",.5]],err:[[330,0,.14,"sawtooth",.3],[220,.13,.26,"sawtooth",.3]],
+  tab:[[620,0,.08,"sine",.3],[830,.045,.1,"sine",.22]],
+  open:[[392,0,.14,"sine",.32],[587,.07,.2,"sine",.26]],close:[[587,0,.09,"sine",.22],[392,.06,.16,"sine",.2]],
+  unfold:[[349,0,.09,"sine",.26],[466,.05,.12,"sine",.2]],fold:[[466,0,.08,"sine",.2],[349,.05,.11,"sine",.2]]};
+ return{set(o,v){on=!!o;vol=Math.max(0,Math.min(1,v))},
+  play(n){const f=FX[n];if(!on||!f||vol<=0||document.visibilityState!="visible"||!document.hasFocus())return;
+   const now=performance.now();if(n=="click"&&now-last<40)return;last=now;const c=get();if(!c)return;const t0=c.currentTime+.005;
+   f.forEach(([hz,at,len,w,lv])=>{const o=c.createOscillator(),g=c.createGain(),a=t0+at,pk=Math.max(lv*vol*.22,.0002);o.type=w;o.frequency.value=hz;
+    g.gain.setValueAtTime(.0001,a);g.gain.exponentialRampToValueAtTime(pk,a+.008);g.gain.exponentialRampToValueAtTime(.0001,a+len);
+    o.connect(g);g.connect(c.destination);o.start(a);o.stop(a+len+.02)})}}})();
+const sndSync=r=>SND.set(yes(r.sound_fx),(Number(r.sound_volume)||0)/100);
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("button,summary");if(!b||b.getAttribute("aria-disabled")=="true"||b.disabled)return;
+ if(b.tagName=="SUMMARY"){const d=b.parentElement;SND.play(d&&d.open?"fold":"unfold");return}
+ SND.play(b.closest(".tabs")||b.getAttribute("role")=="radio"?"tab":b.classList.contains("pri")?"pri":"click")},true);
+new MutationObserver(ms=>{for(const m of ms)for(const n of m.addedNodes)if(n.classList&&n.classList.contains("modal"))SND.play("open")}).observe(document.body,{childList:true});
+function toast(t,l,s){
+ SND.play(s||l);
  const e=$("#toast"),active=e.classList.contains("on"),reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
  const before=active?e.getBoundingClientRect():null;
  const content=el("div","toast-content");
@@ -474,6 +522,26 @@ window.confirmQuit=async()=>{
  const ok=await ask("Operation in progress","An operation is still running. If you close the app now it will be stopped and the work done so far will be undone (incomplete folders are removed, moved game files are put back). Close anyway?","Stop and close","Keep running");
  await api("quit_answered");
  if(ok){toast("Stopping the operation… the app will close when the cleanup is done.","warn");await api("force_quit")}};
+// called by Python when a build already exists and the repository has a newer commit
+window.askRepoUpdate=info=>{
+ let rem=false;
+ const m=el("div","modal"),b=el("div","cfm ruc");b.setAttribute("role","dialog");
+ const cs=info.commits||[],n=cs.length;
+ b.append(el("h2","","New version available"),
+  el("p","",n?"The repository has "+(info.partial?"more than "+n:n)+" new change"+(n==1&&!info.partial?"":"s")+" since the relinker you built. Update and rebuild now, or keep the build you already have?"
+   :"The repository has a newer version than the relinker you built. Update and rebuild now, or keep the build you already have?"));
+ const vs=el("div","ruv"),ver=(lb,h,d)=>{const x=el("div","ruvb");x.append(el("span","rul",lb),el("code","",h),el("span","rud",d||""));return x};
+ vs.append(ver("Your build",info.old,info.old_date),el("span","rua","→"),ver("Latest",info.new,info.new_date));b.append(vs);
+ if(n){const ul=el("ul","rucl");
+  cs.forEach(c=>{const li=el("li","");li.append(el("code","",c.h),el("span","rud",c.d),el("span","rus",c.s));ul.append(li)});
+  if(info.partial)ul.append(el("li","rum","…and older changes not listed"));b.append(ul)}
+ if(info.compare){const a=el("a","rnl","See all the changes on GitHub");a.href=info.compare;a.title=info.compare;a.onclick=e=>{e.preventDefault();api("open_link",info.compare)};b.append(a)}
+ const c=check("Do not show this message again","Your choice is saved: Update turns \"Check for updates before every relink\" ON, Keep turns it OFF. You can change it any time in Settings → Source build.",()=>rem,v=>{rem=v;c.setAttribute("aria-checked",v)},"ru_remember");
+ const send=u=>{closeM(m);api("repo_update_answer",u,rem);
+  if(rem){cfg.relinker.repo_update=u?"yes":"no";cfg.relinker.repo_update_ask="no";renderCards();refresh()}};
+ const y=btn("Update and rebuild",()=>send(true),{pri:1,k:"ru_yes"}),nb=btn("Keep this build",()=>send(false),{k:"ru_no"});
+ const hr=hrow(y,nb);hr.classList.add("ruact");c.classList.add("rurem");
+ b.append(c,hr);m.append(b);document.body.append(m);y.focus();return true};
 // ---------- main page (same layout as the Tk version) ----------
 function setMain(sec,key,val){cfg[sec][key]=val;api("set_cfg",{[sec]:{[key]:val}});renderCards();refresh()}
 function foldAnim(d,sm,wb,key){let an=null;const rm=()=>matchMedia("(prefers-reduced-motion:reduce)").matches;
@@ -485,6 +553,12 @@ function foldAnim(d,sm,wb,key){let an=null;const rm=()=>matchMedia("(prefers-red
   else{set(true);const h=wb.offsetHeight;an=wb.animate([{height:"0px",opacity:0},{height:h+"px",opacity:1}],{duration:300,easing:"cubic-bezier(.2,.8,.2,1)"});an.onfinish=an.oncancel=()=>{an=null}}})}
 async function makeReport(){const t=await api("make_report",log.map(x=>x[1]).join("\n"));
  const ok=await api("save_log",t,"anyps5-report.txt");if(ok)toast("Report exported","ok")}
+async function debugPack(){const r=await api("export_debug_package",log.map(x=>x[1]).join("\n"));
+ if(r&&r.ok)toast("Debug package saved: "+r.path,"ok");else if(!(r&&r.cancelled))toast(r&&r.error||"Could not create the debug package","err")}
+async function copyBug(){const t=await api("make_bug_report",log.map(x=>x[1]).join("\n"));
+ let ok=false;try{await navigator.clipboard.writeText(t);ok=true}catch(e){}
+ if(!ok){const a=document.createElement("textarea");a.value=t;a.style.cssText="position:fixed;left:-9999px;top:0";document.body.append(a);a.select();try{ok=document.execCommand("copy")}catch(e){}a.remove()}
+ toast(ok?"Bug report copied: paste it in the issue":"Could not copy",ok?"ok":"err")}
 async function copyLog(){const t=log.map(x=>x[1]).join("\n");if(!t.trim())return toast("The log is empty.","warn");
  let ok=false;try{await navigator.clipboard.writeText(t);ok=true}catch(e){}
  if(!ok){const a=document.createElement("textarea");a.value=t;a.style.cssText="position:fixed;left:-9999px;top:0";document.body.append(a);a.select();try{ok=document.execCommand("copy")}catch(e){}a.remove()}
@@ -493,10 +567,19 @@ let prevSrc=null,prevRel=null,prevWin=null;
 function saveAdv(){const v=Object.keys(advOpen).filter(k=>advOpen[k]).join(",")||"none";cfg.settings.open_sections=v;api("set_cfg",{settings:{open_sections:v}})}
 const M=/module|executable|sce-module/i,plat=(p,T)=>!p||p=="all"||(p=="win"&&T=="windows")||(p=="nowin"&&T!="windows")||(p=="linux"&&T=="linux")||(p=="macos"&&T=="macos")||(p=="host"&&T==S.host),
  FRIEND=[["--to-rosetta","Run on Apple silicon (Rosetta)"],["--windows-gui","Hide the console window"],["--autorun","Start the game when the conversion ends"],["--lazy-binding","Faster start (lazy binding)"],["--registry","Write registry files"],["--rpath","Extra library search path"]],
- CUSTOM=[["Language","Runtime","language ANYPS5_LANGUAGE"],["Present mode","Runtime","present vsync fifo wayland"],["Overlay position","Runtime","overlay corner position ANYPS5_OVERLAY_POS top left right bottom"],["Keys and mouse","Input","keys mouse controller keyboard deadzone ini"],["Main color","Appearance","accent theme color custom picker wheel"],["Background","Appearance","animated bubble hover"],["Storage folder","Storage","config data move"],["Target system","Conversion","windows linux macos"]];
+ CUSTOM=[["Language","Runtime","language ANYPS5_LANGUAGE"],["Present mode","Runtime","present vsync fifo wayland"],["Overlay position","Runtime","overlay corner position ANYPS5_OVERLAY_POS top left right bottom"],["Keys and mouse","Input","keys mouse controller keyboard deadzone ini"],["Main color","Appearance","accent theme color custom picker wheel"],["Background","Appearance","animated bubble hover"],["Storage folder","Storage","config data move"],["Target system","Conversion","windows linux macos"],["Sound effects","Appearance","sound audio volume click chime mute"]];
 function cfgSet(sec,k,x){cfg[sec][k]=x;api("set_cfg",{[sec]:{[k]:x}});renderCards();refresh()}
+function feedback(){const m=el("div","modal"),b=el("div","cfm fbd");b.setAttribute("role","dialog");b.setAttribute("aria-modal","true");b.setAttribute("aria-label","Report a bug or suggest something");
+ const esc=e=>{if(e.key=="Escape"){e.stopPropagation();m.done()}};
+ m.done=()=>{document.removeEventListener("keydown",esc,true);closeM(m)};document.addEventListener("keydown",esc,true);
+ m.addEventListener("mousedown",e=>{if(e.target===m)m.done()});
+ const x=el("button","b ico fbx");x.type="button";x.dataset.k="fb-x";x.title="Close (Esc)";x.setAttribute("aria-label","Close");x.innerHTML='<span class="bi"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span>';x.onclick=()=>m.done();
+ const hd=el("div","fbh");hd.append(el("h2","","Report a bug or suggest something"),x);
+ const go=k=>{api("open_feedback",k);m.done()},opt=(l,s,k,o)=>{const c=btn(l,()=>go(k),{k:"fb-"+k,icon:"ext",sub:s,...o});c.classList.add("fbo");return c};
+ const list=el("div","fbl");list.append(opt("Report a bug","Opens a form with your app version and system filled in","bug",{pri:1}),opt("Suggest something","Share an idea or a feature you would like","idea"),opt("See open issues","See what has already been reported","all"));
+ b.append(hd,el("p","","This opens GitHub in your browser, where you need an account to post. Nothing else is sent, and you can edit the form before posting."),list);m.append(b);document.body.append(m);list.firstChild.focus()}
 function renderTop(){const t=$("#topbtn");t.textContent="";
- t.append(btn("Settings",()=>openSettings("Appearance"),{k:"gear",icon:"tune",tip:"Settings (Ctrl+K to search them all)"}))}
+ t.append(btn("Report or suggest",feedback,{k:"fb",icon:"ext",tip:"Report a bug or suggest something (opens GitHub)"}),btn("Settings",()=>openSettings("Appearance"),{k:"gear",icon:"tune",tip:"Settings (Ctrl+K to search them all)"}))}
 function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$("#cards"),a=document.activeElement,fk=a&&root.contains(a)&&a.dataset.k;root.textContent="";
  const s=cfg.settings,r=cfg.relinker,rel=s.mode=="relink",gh=r.relinker_source=="github",rls=r.relinker_source=="release";
  const card=(t,...k)=>{const c=el("section","card");c.append(el("h3","",t),...k);root.append(c);return c};
@@ -507,7 +590,7 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
  } else {
   card("Converted PC game path",note("Converted PC game output folder. Used by Play, Launch game and Create shortcut."),hrow(field("playfolder",()=>playFolder,async v=>{playFolder=await api("set_play_folder",v);refresh()} ,"Path to converted PC game folder",{label:"PC game path",live:v=>api("set_play_folder",v)}),btn("Browse PC game…",async()=>{const p=await api("pick_play_folder");if(p){playFolder=p;renderCards();refresh()}},{k:"browseplay"})),note(playFolder?"Selected: "+playFolder:"No PC game selected; automatic output-folder lookup will be attempted."));
  }
- const logb=()=>[el("span","sp"),btn("Export report…",makeReport,{k:"rep",tip:"Saves a report file with the test info of GAME_TESTING.md (host, GPU, variables, exit code), the automatic reading and the FULL log. Ready to attach on Discord or GitHub."}),btn("Clear log",()=>{log=[];$("#log").textContent=""},{k:"clr"})];
+ const logb=()=>[el("span","sp"),btn("Export report…",makeReport,{k:"rep",tip:"Saves a report file with the test info of GAME_TESTING.md (host, GPU, variables, exit code), the automatic reading and the FULL log. Ready to attach on Discord or GitHub."}),btn("Debug package…",debugPack,{k:"dbgpk",tip:"Saves a zip with the bug report, the full report, your settings and the .registry.json files. User name, computer name and home folder are hidden; check it before you share it."}),btn("Copy for bug",copyBug,{k:"cpb",tip:"Copies a short report (versions, host report, last 60 log lines, personal names hidden) to paste in a GitHub issue."}),btn("Clear log",()=>{log=[];$("#log").textContent=""},{k:"clr"})];
   const mkopts=()=>btn("AnyPS5 settings…",()=>openSettings(),{k:"opts",icon:"tune",tip:"Conversion, Source build, Runtime, Input and Appearance settings."});
  if(view=="play") {
   card("Play a converted game",note("Launch and shortcut use the converted PC game path above. If it is empty, the app tries the configured output folder using the PS5 source game's name."),
@@ -515,13 +598,14 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
     btn("Create shortcut…",shortcutExe,{k:"mkshort",icon:"link",sub:"With your current settings",tip:"Automatically finds the converted executable using the Converted PC game path and creates a shortcut with the current runtime settings."})),
    note("A shortcut keeps the settings it was created with: after changing them, create it again."));
   card("Game settings",combo("Language (ANYPS5_LANGUAGE)",[["","(default: English US)"],...S.languages.map(([n,x])=>[String(n),natv(x),String(n)])],()=>String(cfg.runtime.language).trim(),x=>cfgSet("runtime","language",x),"lang"),
-   combo("Present mode",S.present_modes.map(x=>[x,x||"(default)"]),()=>cfg.runtime.present_mode,x=>cfgSet("runtime","present_mode",x),"present",{hint:"Empty = fifo (vsync). If the window is off-screen (Wayland, Linux) try fifo_latest_ready."}),hrow(btn("Open runtime settings (GPU, fonts…)",()=>openSettings("Runtime"),{k:"rt",icon:"tune"}),btn("Open input settings (keys and mouse)",()=>openSettings("Input"),{k:"keys",icon:"kbd"}),btn("Open screenshots folder",()=>api("open_screenshots_folder"),{k:"shots",icon:"ext",tip:"Opens the folder with the F12 screenshots of the game."})));
+   combo("Present mode",S.present_modes.map(x=>[x,x||"(default)"]),()=>cfg.runtime.present_mode,x=>cfgSet("runtime","present_mode",x),"present",{hint:"Empty = fifo (vsync). If the window is off-screen (Wayland, Linux) try fifo_latest_ready."}),hrow(btn("Open runtime settings (GPU, fonts…)",()=>openSettings("Runtime"),{k:"rt",icon:"tune"}),btn("Open input settings (keys and mouse)",()=>openSettings("Input"),{k:"keys",icon:"kbd"}),btn("Screenshot gallery",openGallery,{k:"gal",icon:"ext",tip:"Shows the latest screenshots of the game."})));
   {const gf=card("Game folders (saves and trophies)",note("Select or launch a converted game first. Save-data backups are ZIP archives."));
    const msg=el("div","muted");msg.textContent="Checking game folders…";gf.append(msg);
    const refreshGameFolders=()=>Promise.resolve(api("game_folders_info")).then(r=>{if(!gf.isConnected)return;
     msg.textContent=(r&&r.package?"Package: "+r.package:"No converted package selected")+
+      (r&&r.trophy&&r.trophies?" · Trophies unlocked: "+r.trophies.unlocked+(r.trophies.files.length>1?" ("+r.trophies.files.map(f=>f.name+": "+f.unlocked).join(", ")+")":"")+(r.trophies.damaged.length?" · WARNING: damaged file "+r.trophies.damaged.join(", ")+" (the game stops when it reads it; reset _trophy or fix it)":""):"")+
       (r&&r.ampr_dump?" · WARNING: app0/ampr_assets.index found. This is a repacked ampr_emu dump; decompress it before use.":"");
-    msg.classList.toggle("warn",!!(r&&r.ampr_dump));
+    msg.classList.toggle("warn",!!(r&&(r.ampr_dump||(r.trophies&&r.trophies.damaged.length))));
    }).catch(()=>{msg.textContent="Unable to inspect game folders."});
    refreshGameFolders();
    const folderButtons=[];
@@ -533,7 +617,7 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
    folderButtons.push(btn("Reset _trophy",async()=>{if(!await ask("Reset trophy data","Delete all trophy data in _trophy? This resets saved unlocks and statistics for this package.","Reset trophies","Cancel"))return;const r=await api("clear_game_trophies");if(!r||!r.ok)toast(r&&r.error||"Unable to reset trophies","err");else toast("Trophy data reset.","ok")},{k:"cleartrophy"}));
    gf.append(hrow(btn("Refresh folder status",refreshGameFolders,{k:"gamefoldersrefresh"}),...folderButtons));root.append(gf)}
  }else{
- const st=el("div","stat");[["eboot","eboot.bin"],["modules","Modules (sce_module/prx)"],["dirs","sce_sys"],["unwrapper","unwrap_self.py"],["relinker","Relinker"],["libs","prx-*.zip (libs zip file)"],["cpu","CPU (AVX2, Intel/AMD)"],["space","Disk space needed"]]
+ const st=el("div","stat");[["eboot","eboot.bin"],["modules","Modules (sce_module/prx)"],["dirs","sce_sys"],["unwrapper","unwrap_self.py"],["relinker","Relinker"],["libs","prx-*.zip (libs zip file)"],["cpu","CPU (AVX2, Intel/AMD)"],["gpu","GPU (Vulkan)"],["memory","RAM and page file"],["nvidia","NVIDIA driver"],["udmabuf","/dev/udmabuf"],["space","Disk space needed"]]
   .forEach(([k,t])=>{const v=el("span","","—");v.id="st-"+k;st.append(el("span","",t),v)});{const rw=el("div","readyrow"),rd=el("span","ready");rd.id="ready";rd.textContent="Checking…";rw.append(rd,btn("Open game and module settings",()=>openSettings("Game and modules"),{k:"os1",icon:"tune",tip:"Game and modules tab: --module-dir, --executable, --sce-module-path, unwrap of modules…"}));fold("st","Requirements check (details)",st).prepend(rw)}
  const m=card("2. Choose what to do",radio("Convert to PC  —  builds the package with the executable for your system",rel,()=>setMain("settings","mode","relink"),"m2"),
   radio("Unwrap only  —  eboot.bin and modules (SELF → ELF, with backup)",!rel,()=>setMain("settings","mode","unwrap"),"m1"));
@@ -570,8 +654,8 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
   set(from);vzs.push(()=>set(src,1));return w};
  const ut=fold("ut","Tools and updates: where they come from",hrow(el("span","lbl","Source:"),radio("Local files (manual)",!gh&&!rls,()=>setMain("relinker","relinker_source","prebuilt"),"s1"),radio("Release from GitHub repo (auto-update)",rls,()=>setMain("relinker","relinker_source","release"),"s3"),radio("Build from GitHub source (auto-update)",gh,()=>setMain("relinker","relinker_source","github"),"s2")),
   vz("repo",hrow(el("span","lbl","Repository:"),field("repo",()=>r.repo_url,v=>setMain("relinker","repo_url",v||S.default_repo),"",{label:"Repository"}),
-   btn("Default",()=>setMain("relinker","repo_url",S.default_repo),{k:"repodef"}),vz("dl",btn("Download now",()=>act("download"),{k:"dl"})),vz("build",btn("Build now",()=>act("build"),{k:"build"}))),1),
-  vz("imp",hrow(el("span","lbl","Local files:"),btn("Import files…",importTools,{k:"imptools",tip:"Copy unwrap_self.py, relinker-*, prx-*.zip (and import_audit.py / pad_input.py) into the app data folder."}),el("span","muted","unwrap_self.py · relinker-* · prx-*.zip")),1),
+   btn("Default",()=>setMain("relinker","repo_url",S.default_repo),{k:"repodef"}),vz("dl",btn("Download now",()=>act("download"),{k:"dl",off:running})),vz("build",btn("Build now",()=>act("build"),{k:"build",off:running})),btn("Stop",()=>api("cancel"),{k:"stopdl",off:!running,tip:"Stops the download or build in progress."}),btn("Relinker version",async()=>{const r=await api("relinker_version");if(r)toast(r.text,r.level==="ok"?"ok":r.level)},{k:"relver",tip:"Runs relinker --version. The version used is also saved in conversion_info.json inside each converted package."})),1),
+  vz("imp",hrow(el("span","lbl","Local files:"),btn("Import files…",importTools,{k:"imptools",tip:"Copy the files the app uses into the app data folder: unwrap_self.py, relinker-*, prx-*.zip, nid_patcher, anyps5-input.ini (input map), fonts (.ttf/.otf/.ttc) and import_audit.py / pad_input.py."}),el("span","muted","unwrap_self.py · relinker-* · prx-*.zip · nid_patcher · anyps5-input.ini · fonts")),1),
   note("Used by unwrap, libs and relink. Local files: the files you import (or put) in the app data folder. Release: latest GitHub release. Build: compiles the repository with CMake. Branch/tag and CMake target: AnyPS5 settings → Source build."));
   if(from!==src)requestAnimationFrame(()=>requestAnimationFrame(()=>vzs.forEach(f=>f())));
   const sc=S.schema.Conversion.find(it=>/autorun/.test(it.label||"")),ar=sc&&yes(cfg[sc.section][sc.key]),
@@ -597,9 +681,10 @@ function applyStatus(){const rd=$("#ready");if(rd){
    else if(convOk){cls="ok";txt=unw?"✔ Ready to unwrap and convert":gameSel?"✔ Ready to convert":"✔ Ready for relink only (no unwrap)"}
    else if(unw){cls="ok";txt="✔ Ready for unwrap only"}}
   rd.className="ready "+cls;rd.textContent=txt}
+
 status.forEach(([k,,v,lv])=>{const e=$("#st-"+k);if(e){e.textContent=v;e.className=lv=="muted"?"muted-c":lv}});
  const e=$("#st-space");if(e){e.textContent=space?space.text:"—";e.className=space?space.level:"muted-c"}}
-function setRunning(b){running=b;const t=$('[data-k="stop"]');if(t)dis(t,!b);["start","restore","play"].forEach(k=>{const e=$(`#cards [data-k="${k}"]`);e&&dis(e,b&&k!="play")})}
+function setRunning(b){running=b;document.querySelectorAll('[data-k="stop"],[data-k="stopdl"]').forEach(t=>dis(t,!b));document.querySelectorAll('[data-k="dl"],[data-k="build"]').forEach(t=>dis(t,b));["start","restore","play"].forEach(k=>{const e=$(`#cards [data-k="${k}"]`);e&&dis(e,b&&k!="play")})}
 // ---------- settings dialog (tabs like the Tk version) ----------
 // ---------- visual input mapping (controller diagram) ----------
 const PAD_NAMES=["Cross","Circle","Triangle","Square","L1","R1","L2","R2","L3","R3","Options","Up","Right","Down","Left","LeftStickLeft","LeftStickRight","LeftStickUp","LeftStickDown","RightStickLeft","RightStickRight","RightStickUp","RightStickDown","TouchLeft","TouchRight","StickModifier","Shake","ToggleMouse","ToggleFullscreen","TogglePerformanceOverlay","Screenshot"];
@@ -718,11 +803,11 @@ function padEditor(get,set,redraw,root){const c={get,set,redraw,root},top=(y)=>(
  wrap.append(pad);
  const grp=(title,names)=>{const g=el("div","pgrp"),gr=el("div","pcross");g.append(el("span","sl",title));
   ["Up","Left","Right","Down"].forEach(d=>{const a=names+d,ch=padChip(c,a,PAD_LABEL[a],"st",null);ch.style.gridArea=d.toLowerCase();gr.append(ch)});g.append(gr);return g};
- const ex=el("div","pgrp");ex.append(el("span","sl","Extras"));["StickModifier","Shake","ToggleMouse","ToggleFullscreen","TogglePerformanceOverlay","Screenshot"].forEach(a=>ex.append(padChip(c,a,PAD_LABEL[a],"st",null)));
+ const ex=el("div","pgrp pextra");ex.append(el("span","sl","Extras"));const eg=el("div","pextra-grid");["StickModifier","Shake","ToggleMouse","ToggleFullscreen","TogglePerformanceOverlay","Screenshot"].forEach(a=>eg.append(padChip(c,a,PAD_LABEL[a],"st",null)));ex.append(eg);
  const row=el("div","padrow");row.append(grp("Left stick","LeftStick"),grp("Right stick","RightStick"),ex);
  const box=el("div","");box.append(note("Click a button, then press the key, mouse button or wheel direction to use. + adds an alternate input, × goes back to the default (shown dimmed on each button). Keys are saved by physical position on the keyboard, so a key keeps working whatever the layout. Controllers you plug in always work and are not affected."),wrap,row,padSettings(c));return box}
 const tabItems=t=>t=="Game and modules"?S.schema.Conversion.filter(it=>M.test(it.label||"")):t=="Conversion"?S.schema.Conversion.filter(it=>!M.test(it.label||"")):(S.schema[t]||[]);
-const RESETX={"Game and modules":[],"Conversion":[["relinker","target"],["relinker","rosetta"]],"Source build":[],"Runtime":[["runtime","language"],["runtime","present_mode"],["runtime","overlay_pos"],["runtime","env_catalog"]]};
+const RESETX={"Game and modules":[],"Conversion":[["relinker","target"],["relinker","rosetta"]],"Source build":[["relinker","relinker_source"],["relinker","repo_url"]],"Runtime":[["runtime","language"],["runtime","present_mode"],["runtime","overlay_pos"],["runtime","env_catalog"]]};
 function storageDone(path){const m=el("div","modal updm"),b=el("div","cfm");b.setAttribute("role","alertdialog");b.setAttribute("aria-modal","true");m.done=()=>{};
  const go=btn("Close the app",()=>api("force_quit"),{pri:1,k:"st-quit"});
  b.append(el("h2","","Storage folder moved"),el("p","","Everything is now in:\n"+path+"\n\nClose the app and open it again to use the new folder."),hrow(go));
@@ -756,8 +841,16 @@ function envCatalogCard(D,advOpen,draw){const c=el("section","card"),d=document.
  wb.append(wi);d.append(sm,wb);foldAnim(d,sm,wb,"rtenv");c.append(d);
  if(!ENVCAT)Promise.resolve(api("env_catalog")).then(r=>{ENVCAT=r||[];sm.textContent="All environment variables ("+ENVCAT.length+" documented"+(cnt()?", "+cnt()+" set":"")+")";render()}).catch(()=>{info.textContent="Unable to load the variable list."});else render();
  return c}
+function openGallery(){const m=el("div","modal"),d=el("div","dlg"),grid=el("div","");grid.style.cssText="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;max-height:60vh;overflow:auto";d.setAttribute("role","dialog");m.done=()=>closeM(m);d.append(el("h2","","Screenshots"),grid);m.append(d);document.body.append(m);
+ const info=note("Loading…");grid.before(info);
+ Promise.resolve(api("list_screenshots",12)).then(r=>{if(!r||!r.ok){info.textContent=(r&&r.error)||"Unable to read the screenshots.";return}
+  if(!r.items.length){info.textContent="No screenshots yet: press F12 in the game.";return}
+  info.textContent="Latest "+r.items.length+" of "+r.total+" · "+r.path;
+  r.items.forEach(it=>{const c=el("div",""),im=el("img");im.alt=it.name;im.title=it.name+" (click to open)";im.style.cssText="width:100%;border-radius:6px;cursor:pointer;background:rgba(128,128,128,.2);aspect-ratio:16/9;object-fit:cover";im.onclick=()=>api("open_screenshot",it.name);c.append(im);grid.append(c);
+   Promise.resolve(api("screenshot_data",it.name)).then(x=>{if(x&&x.ok)im.src=x.uri})})}).catch(e=>{info.textContent=String(e&&e.message||e)});
+ d.append(hrow(btn("Open folder",()=>api("open_screenshots_folder"),{k:"galf",icon:"ext"}),btn("Close",()=>m.done(),{pri:1,k:"galc"})));m.addEventListener("click",e=>{if(e.target===m)m.done()})}
 function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.runtime}};let sq="",srchEl=null,tab=t0||"Conversion",inText=S.input,inMsg="",mapRun=false,mapMsg="",patMsg=null,catMsg=null,inMode="visual",A={...ui},stPath=S.storage.path,stMsg="",stBusy=0;
- const m=el("div","modal"),d=el("div","dlg"),body=el("div","dbody"),tabs=el("div","hrow tabs");d.setAttribute("role","dialog");m.append(d);m.done=()=>{applyUI(ui);closeM(m)};
+ const m=el("div","modal"),d=el("div","dlg"),body=el("div","dbody"),tabs=el("div","hrow tabs");d.setAttribute("role","dialog");m.append(d);m.done=()=>{applyUI(ui);sndSync(cfg.runtime);closeM(m)};
  const plat=(p,T)=>!p||p=="all"||(p=="win"&&T=="windows")||(p=="nowin"&&T!="windows")||(p=="linux"&&T=="linux")||(p=="macos"&&T=="macos")||(p=="host"&&T==S.host);
  const item=it=>{const T=D.relinker.target,off=!plat(it.plat,T),tag=it.plat&&it.plat!="all"?TAG[it.plat]:null,lab=LABEL[it.key]||it.label,v=()=>D[it.section][it.key],set=x=>{D[it.section][it.key]=x;draw()},w=el("div","si");
   if(it.type=="flag"){w.append(check(lab,it.hint,()=>yes(v()),x=>set(x?"yes":"no"),it.key,{off,tag}));
@@ -809,7 +902,12 @@ if(it.key==="trace_dir"||it.key==="videoout_telemetry_dir")w.append(hrow(btn("Op
     const bg=el("div","si");bg.append(el("span","sl","Animated background"),hrow(...BGS.map(([k,l])=>radio(l,A.bg==k,()=>setA("bg",k),"bg"+k))),note("Animation stops automatically if your system asks for reduced motion."));
     const bb=el("div","si");bb.append(el("span","sl","Buttons"),check("Bubble animation on hover","Buttons grow slightly when the pointer is over them.",()=>A.bubble!==false&&A.bubble!=="false",v=>setA("bubble",v),"bubble"));
     const dc=el("div","si");dc.append(el("span","sl","Discord"),check("Disable Discord Rich Presence","Stops showing that you are using AnyPS5 GUI on your Discord profile.",()=>yes(D.runtime.no_discord_rpc),v=>{D.runtime.no_discord_rpc=v?"yes":"no";draw()},"no_discord_rpc"));
-    body.append(sw,hx,bg,bb,dc,hrow(btn("Reset appearance",()=>{A={...UIDEF};applyUI(A);draw()},{k:"uireset",icon:"reset"})),note("Changes preview live and are kept when you press Save and close."))}
+    const sd=el("div","si"),sr=el("div","prow"),rg=document.createElement("input"),pc=el("span","muted",""),pp=()=>{rg.style.setProperty("--p",rg.value+"%");pc.textContent=rg.value+"%"};
+    rg.type="range";rg.min=0;rg.max=100;rg.step=5;rg.value=Math.max(0,Math.min(100,Number(D.runtime.sound_volume)||0));rg.dataset.k="sound_volume";rg.setAttribute("aria-label","Sound volume");pp();
+    rg.oninput=()=>{D.runtime.sound_volume=rg.value;pp();sndSync(D.runtime)};rg.onchange=()=>SND.play("ok");
+    sr.append(el("span","",""),rg,pc);sr.firstChild.textContent="Volume";if(!yes(D.runtime.sound_fx))rg.disabled=true;
+    sd.append(el("span","sl","Sound"),check("Sound effects","Short clicks and chimes, made by the app. They only play while this window is in focus.",()=>yes(D.runtime.sound_fx),v=>{D.runtime.sound_fx=v?"yes":"no";sndSync(D.runtime);if(v)SND.play("ok");draw()},"sound_fx"),sr);
+    body.append(sw,hx,bg,bb,sd,dc,hrow(btn("Reset appearance",()=>{A={...UIDEF};applyUI(A);["no_discord_rpc","sound_fx","sound_volume"].forEach(k=>{if(S.defaults&&S.defaults.runtime&&k in S.defaults.runtime)D.runtime[k]=S.defaults.runtime[k]});sndSync(D.runtime);draw()},{k:"uireset",icon:"reset"})),note("Changes preview live and are kept when you press Save and close."))}
   if(tab=="Storage"){const st=S.storage,cur=st.path,same=()=>stPath.trim()==cur;
    body.append(note("Folder where the app keeps the downloaded tools, builds, backups and settings (config.ini). Default: your user data folder, so it survives updates."));
    if(st.problem)body.append(note("⚠ "+st.problem));
@@ -838,7 +936,7 @@ if(it.key==="trace_dir"||it.key==="videoout_telemetry_dir")w.append(hrow(btn("Op
      if(r.errors.length&&!await ask("Import with errors",r.name+" has problems and AnyPS5 would stop at startup: "+r.errors.join("; ")+". Import it anyway, to fix it here?"))return;
      inText=r.text;PADL=null;inMsg="Imported "+r.name+". Check it, then press Save and close to apply it (Cancel discards it).";draw()},{k:"imp",icon:"imp",tip:"Load an input configuration (.ini) made by someone else. It replaces what you see here; nothing is written until Save and close."}),btn("Export settings",async()=>{const r=await api("export_input",inText);if(!r)return;if(r.error){inMsg=r.error;draw();return}
      inMsg="Exported to "+r.name+".";draw()},{k:"exp",icon:"exp",tip:"Save the configuration shown here to an .ini file you can share or import later. Nothing else changes."}),
-    btn(mapRun?"Stop input mapper":"Open web input mapper",async()=>{let r;try{r=await api(mapRun?"stop_input_mapper":"start_input_mapper")}catch(e){r={ok:false,running:mapRun,text:String(e&&e.message||e)}}if(r){mapRun=!!r.running;mapMsg=r.text||""}draw()},{k:"mapper",icon:"ext",tip:"Starts the browser-based key mapper (needs Node.js 22 or newer) and opens it at http://127.0.0.1:4173. Export the .ini there, then press Import settings here. The server is stopped with the button or when this app closes."}));
+    btn(mapRun?"Stop input mapper":"Open web input mapper",async()=>{let r;if(!mapRun){mapMsg="Starting the input mapper (the first time it may be downloaded)…";draw()}try{r=await api(mapRun?"stop_input_mapper":"start_input_mapper")}catch(e){r={ok:false,running:mapRun,text:String(e&&e.message||e)}}if(r){mapRun=!!r.running;mapMsg=r.text||""}draw()},{k:"mapper",icon:"ext",tip:"Starts the browser-based key mapper (needs Node.js 22 or newer) and opens it at http://127.0.0.1:4173. Export the .ini there, then press Import settings here. The server is stopped with the button or when this app closes."}));
    Promise.resolve(api("input_mapper_status")).then(r=>{if(r&&!!r.running!==mapRun&&d.isConnected){mapRun=!!r.running;draw()}}).catch(()=>{});
    const mapNote=mapMsg?note(mapMsg):null;if(mapNote){mapNote.style.whiteSpace="pre-wrap"}
    const vis=inMode=="visual",sw=hrow(el("span","lbl","View"),radio("Controller",vis,()=>{inMode="visual";draw()},"vwv"),radio("Text file",!vis,()=>{inMode="text";PADL=null;draw()},"vwt"));
@@ -861,13 +959,13 @@ if(it.key==="trace_dir"||it.key==="videoout_telemetry_dir")w.append(hrow(btn("Op
      toast("Exported to "+r.name+".","ok")},{k:"exp"+tab,icon:"exp",tip:"Save this section's options, as shown here, to a file you can share or import later."})))}
   body.scrollTop=top;const n=fk&&d.querySelector(`[data-k="${fk}"]`);if(n&&n.dataset.nav)n.focus()}
  async function save(){const vals={relinker:{target:D.relinker.target},runtime:{language:D.runtime.language,present_mode:D.runtime.present_mode,overlay_pos:D.runtime.overlay_pos}};
-  for(const t of Object.values(S.schema))for(const it of t)vals[it.section][it.key]=D[it.section][it.key];vals.runtime.env_catalog=D.runtime.env_catalog||"";
+  for(const t of Object.values(S.schema))for(const it of t)vals[it.section][it.key]=D[it.section][it.key];for(const t of Object.values(RESETX))for(const[s,k]of t)vals[s][k]=D[s][k];vals.runtime.env_catalog=D.runtime.env_catalog||"";vals.runtime.sound_fx=D.runtime.sound_fx;vals.runtime.sound_volume=D.runtime.sound_volume;
   let w=true;const errs=await api("check_input",inText);
   if(errs.length){if(!await ask("Invalid input",S.input_name+" contains errors and AnyPS5 would stop at startup. Save the other settings anyway (without the input file)?"))return;w=false}
   const r=await api("save_settings",vals,inText,w);if(r&&r.error)return toast(r.error,"err");
   closeM(m);
-  try{for(const s in vals)Object.assign(cfg[s]||(cfg[s]={}),vals[s]);if(w)S.input=inText;ui={...A};try{await api("set_ui",ui)}catch(e){}renderCards();refresh();toast("Settings saved","ok")}catch(e){toast("Settings saved","ok")}}
- srchEl=field("search",()=>sq,v=>{sq=v;draw()},"Search settings… e.g. language, rpath, deadzone",{label:"Search settings",live:v=>{sq=v;draw()}});d.append(el("h2","","AnyPS5 Settings"),srchEl,tabs,body,(()=>{const f=hrow(el("span","sp"),btn("Cancel",()=>{applyUI(ui);closeM(m)},{k:"cancel"}),btn("Save and close",save,{pri:1,k:"save"}));f.style.justifyContent="flex-end";return f})());
+  try{for(const s in vals)Object.assign(cfg[s]||(cfg[s]={}),vals[s]);if(w)S.input=inText;ui={...A};sndSync(cfg.runtime);try{await api("set_ui",ui)}catch(e){}renderCards();refresh();toast("Settings saved","ok")}catch(e){toast("Settings saved","ok")}}
+ srchEl=field("search",()=>sq,v=>{sq=v;draw()},"Search settings… e.g. language, rpath, deadzone",{label:"Search settings",live:v=>{sq=v;draw()}});d.append(el("h2","","AnyPS5 Settings"),srchEl,tabs,body,(()=>{const f=hrow(el("span","sp"),btn("Cancel",()=>{applyUI(ui);sndSync(cfg.runtime);closeM(m)},{k:"cancel"}),btn("Save and close",save,{pri:1,k:"save"}));f.style.justifyContent="flex-end";return f})());
  document.body.append(m);draw();srchEl.focus()}
 // ---------- log / run ----------
 function addLine([k,t]){const l=$("#log"),I={ok:"✔ ",warn:"⚠ ",err:"✖ ",info:"ℹ ",detail:"    ",step:"▸ ",progress:"… "};
@@ -876,7 +974,7 @@ function setPct(p){const b=$("#pb");b.className=running&&(p==null||p=="idle")?"i
 async function tick(){const r=await api("poll");
  r.lines.forEach(x=>{if(x[0]=="progress"&&log.length&&log[log.length-1][0]=="progress")log.pop();log.push(x);addLine(x)});
  if(r.pct!="keep")pct=r.pct;const was=running;running=r.running;setRunning(running);setPct(pct);
- if(was&&!running){clearInterval(poller);poller=null;pct="idle";setPct(pct);refresh();if(yes(cfg.settings.notify))toast(r.cancelled?"Operation cancelled":r.ok?"Operation completed successfully":"Operation finished with errors",r.cancelled?"warn":r.ok?"ok":"err")}}
+ if(was&&!running){clearInterval(poller);poller=null;pct="idle";setPct(pct);refresh();{const lv=r.cancelled?"warn":r.ok?"ok":"err",sn=r.ok&&!r.cancelled?"done":lv,msg=r.cancelled?"Operation cancelled":r.ok?"Operation completed successfully":"Operation finished with errors";if(yes(cfg.settings.notify))toast(msg,lv,sn);else SND.play(sn)}}}
 async function playExe(){if(running)return toast("An operation is already running.","warn");await api("play_exe");$("#log").scrollIntoView({block:"nearest"});await tick()}
 async function shortcutExe(){if(running)return toast("An operation is already running.","warn");await api("shortcut_exe");$("#log").scrollIntoView({block:"nearest"});await tick()}
 async function act(a){if(running)return toast("An operation is already running.","warn");
@@ -966,5 +1064,5 @@ function checkUpdate(){api("check_update").then(u=>{if(!u)return;
 document.getElementById("origin").onclick=e=>{e.preventDefault();api("open_origin_page")};
 // ---------- start ----------
 (async()=>{if(!window.pywebview)await new Promise(r=>addEventListener("pywebviewready",r,{once:true}));
- S=await api("get_state");if(S.version)$("#ver").textContent="v"+S.version;ui={...UIDEF,...(S.ui||{})};if(ui.bg=="orbs")ui.bg="accent";applyUI(ui);renderTop();cfg=S.cfg;{const o=cfg.settings.open_sections;if(o)advOpen=Object.fromEntries(o.split(",").filter(x=>x&&x!="none").map(k=>[k,1]))}folder=S.folder;renderCards();await refresh();const f=$('[data-k="folder"]');f&&f.focus();checkUpdate()})();
+ S=await api("get_state");if(S.version)$("#ver").textContent="v"+S.version;ui={...UIDEF,...(S.ui||{})};if(ui.bg=="orbs")ui.bg="accent";applyUI(ui);renderTop();cfg=S.cfg;sndSync(cfg.runtime);{const o=cfg.settings.open_sections;if(o)advOpen=Object.fromEntries(o.split(",").filter(x=>x&&x!="none").map(k=>[k,1]))}folder=S.folder;renderCards();await refresh();const f=$('[data-k="folder"]');f&&f.focus();checkUpdate()})();
 </script></body></html>

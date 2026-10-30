@@ -64,6 +64,7 @@ Optional: `pip install tkinterdnd2` enables folder drag & drop.
 Game archives: .zip and .rar (the prx-*.zip libs: only .zip). .zip works out of the box; .rar needs 7-Zip
 (7z/7zz in PATH or in the app data folder) or `pip install rarfile` (+ UnRAR/WinRAR).
 """
+import base64
 import configparser
 import hashlib
 import json
@@ -232,11 +233,11 @@ DEFAULTS = {
     "auto_module_dirs": "yes",
     "relinker_source": "release", "repo_url": DEFAULT_REPO_URL, "repo_ref": "",
     "release_tag": "", "release_update": "yes",
-    "repo_target": "", "repo_update": "yes", "repo_cmake_args": "", "repo_build_jobs": "",
+    "repo_target": "", "repo_update": "yes", "repo_update_ask": "yes", "repo_cmake_args": "", "repo_build_jobs": "",
     "repo_libs_from_repo": "yes",
     "sce_module_path": "", "autorun": "no", "trap_syscall_stubs": "no",
     "lazy_binding": "no", "skip_sce_module": "no", "exclude_sce_modules": "",
-    "skip_syscall_check": "no", "patches_file": "", "no_patches": "no",
+    "skip_syscall_check": "no", "patches_file": "", "no_patches": "no", "extra_args": "",
     "frame_red_zone": "no",
   },
   "runtime": {
@@ -257,7 +258,8 @@ DEFAULTS = {
     "pipeline_journal_max_mib": "", "pipeline_journal_threads": "", "pipeline_store_entries": "",
     "address_copy_max_mib": "", "pm4_ring": "", "skip_refused_draws": "no", "mimalloc": "no",
     "gpu_wait_timeout_ms": "", "stall_watchdog_secs": "", "hang_dump_secs": "", "crash_stack_bytes": "",
-    "no_discord_rpc": "no", "env_catalog": "",
+    "no_discord_rpc": "no", "env_catalog": "", "host_report": "yes", "rumble": "100", "game_mode": "off", "pad_speaker_db": "0", "log_file": "",
+    "sound_fx": "yes", "sound_volume": "60",
     "playgo_unlisted_chunks": "installed",
   },
 }
@@ -272,6 +274,8 @@ class Cancelled(Exception):
 # ─────────────────────────────────────────────────────────────
 _unwrapper = None
 _unwrapper_path = None
+UPDATE_PROMPT = None   # set by the UI: function(info, cancel) -> {"update": bool} or None (asks about a new commit)
+_DECLINED_REPOS = set()  # repository folders for which the user chose "keep this build" in this run
 _active_rl = None  # relinker options in use (set by the logic/UI): decides where unwrap_self.py comes from
 REPO_UNWRAP_REL = ("tools", UNWRAP_SCRIPT_NAME)  # position in the official repo: tools/unwrap_self.py
 
@@ -657,6 +661,38 @@ def memory_status():
   if free < DIRECT_MEMORY_MIB:
     return (base + f"  ⚠  less than {DIRECT_MEMORY_MIB} MiB: close other programs or increase the page file", "warn")
   return (base + "  ✔", "ok")
+
+
+BAD_NVIDIA_DRIVERS = {"610.47": "known crash in nvgpucomp64.dll (see USAGE.md)"}
+
+
+def nvidia_status():
+  """(text, level) for the NVIDIA driver, or None when there is no NVIDIA GPU / nvidia-smi."""
+  if not any(g["vendor"] == "nvidia" for g in gpu_info()["gpus"]):
+    return None
+  exe = shutil.which("nvidia-smi")
+  if not exe:
+    return ("NVIDIA GPU found, driver version could not be read (nvidia-smi missing)", "muted")
+  ver = _run_text([exe, "--query-gpu=driver_version", "--format=csv,noheader"]).strip().splitlines()
+  ver = ver[0].strip() if ver else ""
+  if not ver:
+    return ("NVIDIA driver version could not be read", "muted")
+  if ver in BAD_NVIDIA_DRIVERS:
+    return (f"driver {ver}  ✖  {BAD_NVIDIA_DRIVERS[ver]}: install another driver version", "err")
+  return (f"driver {ver}  ✔", "ok")
+
+
+def udmabuf_status():
+  """(text, level) for /dev/udmabuf on Linux (not needed with the proprietary NVIDIA driver). None elsewhere."""
+  if not sys.platform.startswith("linux"):
+    return None
+  path = "/dev/udmabuf"
+  if not os.path.exists(path):
+    return ("/dev/udmabuf not present  (only needed with Mesa drivers: sudo modprobe udmabuf)", "warn")
+  if os.access(path, os.R_OK | os.W_OK):
+    return ("/dev/udmabuf accessible  ✔", "ok")
+  return ("/dev/udmabuf not accessible  ✖  run: sudo usermod -aG kvm $USER  (then log in again) "
+          "or: sudo setfacl -m u:$USER:rw /dev/udmabuf", "err")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -2670,7 +2706,7 @@ def ensure_source_repo(rl, log, cancel, holder):
       open(p["mark"], "w").close()
     except OSError:
       pass
-  elif yes(rl.get("repo_update", "yes")):
+  elif yes(rl.get("repo_update", "yes")) and p["root"] not in _DECLINED_REPOS:
     log("step", "Updating the repository")
     for cmd, label in (([ "git", "fetch", "--depth", "1", "origin", p["ref"] or "HEAD"], "git fetch"),
                        (["git", "reset", "--hard", "FETCH_HEAD"], "git reset")):
@@ -2989,6 +3025,120 @@ def ensure_repo_unwrapper(rl, log, cancel, holder):
   return False
 
 
+def _compare_url(url, old, new):
+  """Link to the 'what changed' page of the repository (GitHub only), '' for other hosts."""
+  m = re.match(r"^(?:https://github\.com/|git@github\.com:)([^/\s]+)/([^/\s]+?)(?:\.git)?/?$", (url or "").strip())
+  if not m:
+    return ""
+  return "https://github.com/%s/%s/compare/%s...%s" % (m.group(1), m.group(2), old, new)
+
+
+def repo_changes(url, repo, old, new, ref, env, limit=12):
+  """What changed between the commit already built and the remote one, for the update popup.
+  Reads at most `limit` commit titles (hash, date, title) with a shallow `git fetch` that only
+  fills FETCH_HEAD (the working tree is not touched). Everything is best effort: on any failure
+  the popup simply shows the two hashes and the link."""
+  info = {"commits": [], "partial": False, "old_date": "", "new_date": "", "compare": _compare_url(url, old, new)}
+  if not os.path.isdir(repo):
+    return info
+  code, _ = _capture(["git", "fetch", "--depth", "50", "--no-tags", "--no-recurse-submodules", "origin", ref or "HEAD"],
+                     cwd=repo, env=env)
+  if code != 0:
+    return info
+  _, d = _capture(["git", "log", "-1", "--date=format-local:%Y-%m-%d %H:%M", "--format=%cd", old], cwd=repo, env=env)
+  info["old_date"] = d.strip()
+  _, d = _capture(["git", "log", "-1", "--date=format-local:%Y-%m-%d %H:%M", "--format=%cd", "FETCH_HEAD"], cwd=repo, env=env)
+  info["new_date"] = d.strip()
+  # the old commit is reachable from the fetched history only if fewer than ~50 commits are new
+  reach, _ = _capture(["git", "merge-base", "--is-ancestor", old, "FETCH_HEAD"], cwd=repo, env=env)
+  rng = (old + "..FETCH_HEAD") if reach == 0 else "FETCH_HEAD"
+  code, out = _capture(["git", "log", "-n", str(limit + 1), "--no-merges", "--date=format-local:%Y-%m-%d %H:%M", "--format=%h%x1f%cd%x1f%s", rng],
+                       cwd=repo, env=env)
+  if code != 0:
+    return info
+  rows = [l.split("\x1f") for l in out.splitlines() if l.count("\x1f") == 2]
+  info["partial"] = reach != 0 or len(rows) > limit  # "and more": the list is cut
+  info["commits"] = [{"h": r[0], "d": r[1], "s": r[2][:140]} for r in rows[:limit]]
+  return info
+
+
+def remote_commit(url, ref, env):
+  """Commit the remote branch/tag points to, read with `git ls-remote` (no download). '' if unknown
+  (offline, ref given as a raw commit hash, ...): the caller then goes through the normal update."""
+  patterns = [ref, ref + "^{}"] if ref else ["HEAD"]  # "^{}" gives the commit of an annotated tag
+  code, out = _capture(["git", "ls-remote", "--", url] + patterns, env=env)
+  if code != 0 or not out:
+    return ""
+  found = {}
+  for line in out.splitlines():
+    parts = line.split()
+    if len(parts) == 2:
+      found[parts[1]] = parts[0]
+  if not ref:
+    return found.get("HEAD", "")
+  for name in ("refs/tags/%s^{}" % ref, "refs/heads/" + ref, "refs/tags/" + ref, ref):
+    if name in found:
+      return found[name]
+  return ""
+
+
+def fast_build_args(extra_args, log):
+  """CMake arguments that speed the build up, added only when the user did not choose them:
+  the Ninja generator (Linux/macOS; on Windows the toolchain detection already picks it) and a
+  compiler cache (ccache or sccache) when installed."""
+  args = []
+  if (os.name != "nt" and not any(a.startswith("-G") for a in extra_args)
+      and not os.environ.get("CMAKE_GENERATOR") and shutil.which("ninja")):
+    args += ["-G", "Ninja"]
+    log("info", "Build speed: Ninja generator")
+  launcher = shutil.which("ccache") or shutil.which("sccache")
+  if launcher and not any("COMPILER_LAUNCHER" in a for a in extra_args):
+    args += ["-DCMAKE_C_COMPILER_LAUNCHER=" + launcher, "-DCMAKE_CXX_COMPILER_LAUNCHER=" + launcher]
+    log("info", "Build speed: compiler cache " + os.path.basename(launcher))
+  return args
+
+
+def make_build_log(log):
+  """Wraps log(): turns the '[12/345]' (Ninja) and '[ 42%]' (Makefiles) lines of the build into a
+  progress bar with elapsed and estimated remaining time. Other lines pass through unchanged."""
+  t0 = time.time()
+  state = {"last": 0.0}
+  ninja = re.compile(r"^\[\s*(\d+)/(\d+)\]")
+  make = re.compile(r"^\[\s*(\d+)%\]")
+
+  def update(pct, done, total):
+    now = time.time()
+    if now - state["last"] < 0.25 and pct < 100:
+      return
+    state["last"] = now
+    elapsed = now - t0
+    text = "Building: %.0f%%" % pct
+    if total:
+      text += " (%d/%d steps)" % (done, total)
+    text += " · elapsed " + format_duration(elapsed)
+    if elapsed > 5 and 1 <= pct < 100:
+      text += " · about %s remaining" % format_duration(elapsed * (100 - pct) / pct)
+    log("percent", pct)
+    log("progress", text)
+
+  def blog(kind, msg):
+    if kind in ("info", "progress") and isinstance(msg, str):
+      m = ninja.match(msg)
+      if m and int(m.group(2)):
+        update(int(m.group(1)) * 100.0 / int(m.group(2)), int(m.group(1)), int(m.group(2)))
+      else:
+        m = make.match(msg)
+        if m:
+          update(float(m.group(1)), 0, 0)
+        else:
+          log(kind, msg)
+          return
+      if kind == "progress":
+        return  # the bar line above replaces it
+    log(kind, msg)
+  return blog
+
+
 def ensure_source_relinker(rl, log, cancel, holder):
   """Clone/update the repository and build the relinker with CMake. Reuses the previous build
   when the commit did not change. Returns the path of the executable, or None on failure."""
@@ -2998,6 +3148,8 @@ def ensure_source_relinker(rl, log, cancel, holder):
     return None
   p = source_paths(rl)
   repo, build = p["repo"], p["build"]
+  t_start = time.time()
+  _DECLINED_REPOS.discard(p["root"])
   env = dict(os.environ, GIT_TERMINAL_PROMPT="0")  # never wait for credentials
   update = yes(rl.get("repo_update", "yes"))
   logfile = os.path.join(p["root"], "build.log")
@@ -3025,17 +3177,52 @@ def ensure_source_relinker(rl, log, cancel, holder):
   user_target = rl.get("repo_target", "").strip()
   if not any(a.startswith("-DANYPS5_RELINKER_ONLY") for a in extra_args):
     extra_args = extra_args + ["-DANYPS5_RELINKER_ONLY=ON"]  # BUILD.md: relinker without SDL/Vulkan/FFmpeg
+  extra_args = fast_build_args(extra_args, log) + extra_args
   log("info", f"Repository: {p['url']}" + (f"  (branch/tag {p['ref']})" if p["ref"] else ""))
   log("detail", f"Working folder: {p['root']}")
   os.makedirs(p["root"], exist_ok=True)
   previous = read_source_build(p)
+  env_key = env.get("CXXFLAGS", "") + "|" + " ".join(extra_args)
+  env_mark = os.path.join(build, ".manager_env")
+
+  # 0. nothing to do if the remote commit is the one already built (no fetch, no submodules, no CMake)
+  if previous and update and os.path.isfile(p["mark"]) and previous["target"] == user_target:
+    log("step", "(1/3) Checking for a new commit")
+    try:
+      same_settings = open(env_mark, encoding="utf-8").read() == env_key
+    except OSError:
+      same_settings = False
+    remote = remote_commit(p["url"], p["ref"], env)
+    if remote and remote == previous["commit"] and same_settings:
+      log("ok", f"Relinker already up to date (commit {remote[:12]}): nothing to download or build.")
+      return previous["binary"]
+    if remote and remote != previous["commit"]:
+      log("info", f"New commit on the remote: {remote[:12]}")
+      # a build already exists and the repository changed: let the user decide (only when the
+      # settings are unchanged, otherwise a rebuild is needed anyway)
+      if same_settings and UPDATE_PROMPT and yes(rl.get("repo_update_ask", "yes")):
+        log("step", "A new version of the repository is available: waiting for your choice")
+        prompt_info = {"url": p["url"], "old": previous["commit"][:12], "new": remote[:12]}
+        try:
+          prompt_info.update(repo_changes(p["url"], repo, previous["commit"], remote, p["ref"], env))
+        except Exception:
+          pass  # the list of changes is only a courtesy
+        check_cancel(cancel)
+        answer = UPDATE_PROMPT(prompt_info, cancel)
+        check_cancel(cancel)
+        if answer and not answer.get("update", True):
+          _DECLINED_REPOS.add(p["root"])
+          log("ok", f"Keeping the current build (commit {previous['commit'][:12]}).")
+          return previous["binary"]
+        log("info", "Updating and rebuilding.")
 
   # 1. clone or update
   if not os.path.isfile(p["mark"]):
     if os.path.isdir(repo):
       _rmtree_force(repo)  # incomplete clone from a previous attempt
-    log("step", "Cloning the repository (with submodules)")
-    cmd = ["git", "clone", "--recurse-submodules", "--shallow-submodules", "--depth", "1"]
+    log("step", "(1/3) Cloning the repository (shallow, with submodules)")
+    cmd = ["git", "clone", "--recurse-submodules", "--shallow-submodules", "--depth", "1",
+           "--no-tags", "--jobs", "4"]
     if p["ref"]:
       cmd += ["--branch", p["ref"]]
     cmd += ["--", p["url"], repo]
@@ -3051,11 +3238,12 @@ def ensure_source_relinker(rl, log, cancel, holder):
     except OSError:
       pass
   elif update:
-    log("step", "Updating the repository")
-    fetch = ["git", "fetch", "--depth", "1", "origin", p["ref"] or "HEAD"]
+    log("step", "(1/3) Updating the repository")
+    fetch = ["git", "fetch", "--depth", "1", "--no-tags", "origin", p["ref"] or "HEAD"]
     steps = [(fetch, "git fetch"), (["git", "reset", "--hard", "FETCH_HEAD"], "git reset"),
              (["git", "submodule", "sync", "--recursive"], "git submodule sync"),
-             (["git", "submodule", "update", "--init", "--recursive", "--depth", "1"], "git submodule update")]
+             (["git", "submodule", "update", "--init", "--recursive", "--depth", "1", "--jobs", "4"],
+              "git submodule update")]
     for cmd, label in steps:
       code = stream_process(cmd, log, cancel, holder, label, cwd=repo, env=env)
       if code != 0:
@@ -3086,14 +3274,12 @@ def ensure_source_relinker(rl, log, cancel, holder):
     return previous["binary"]
 
   # 4. configure + build
-  log("step", "Configuring (CMake, Release)")
+  log("step", "(2/3) Configuring (CMake, Release)")
   # CXXFLAGS is only read on the first configure: if it changed, start from a clean build folder
-  env_mark = os.path.join(build, ".manager_env")
   try:
     old_env = open(env_mark, encoding="utf-8").read() if os.path.isfile(env_mark) else None
   except OSError:
     old_env = None
-  env_key = env.get("CXXFLAGS", "") + "|" + " ".join(extra_args)
   if os.path.isdir(build) and old_env != env_key:
     log("info", "Build settings changed: starting from a clean build folder.")
     _rmtree_force(build)
@@ -3112,14 +3298,18 @@ def ensure_source_relinker(rl, log, cancel, holder):
   check_cancel(cancel)
 
   started = time.time()
+  blog = make_build_log(log)
   base = ["cmake", "--build", build, "--config", "Release", "--parallel", str(build_parallel_jobs(rl))]
   attempts = [user_target] if user_target else [RELINKER_TARGET_GUESS, ""]
   built_ok = False
   for target in attempts:
-    log("step", f"Building ({'target ' + target if target else 'all targets'}) - this can take a few minutes")
+    log("step", f"(3/3) Building ({'target ' + target if target else 'all targets'})")
     del errors[:]
-    code = stream_process(base + (["--target", target] if target else []), log, cancel, holder,
+    log("percent", None)
+    code = stream_process(base + (["--target", target] if target else []), blog, cancel, holder,
                           "cmake --build", env=env, errors=errors, logfile=logfile)
+    log("percent", None)
+    log("progress", "")
     if code == 0:
       built_ok = True
       break
@@ -3147,7 +3337,7 @@ def ensure_source_relinker(rl, log, cancel, holder):
     except OSError:
       pass
   write_source_build(p, commit, user_target, binary)
-  log("ok", f"Relinker built: {binary}")
+  log("ok", f"Relinker built in {format_duration(time.time() - t_start)}: {binary}")
   return binary
 
 
@@ -3229,6 +3419,16 @@ def validate_relink_options(intel, rl):
     return "--patches conflicts with --no-patches."
   if pf and not os.path.isfile(os.path.abspath(pf)):
     return f"--patches: '{pf}' is not an existing file."
+  extra, err = parse_extra_args(rl)
+  if err:
+    return err
+  if extra:
+    managed = {a for a in build_relink_command("relinker", intel, dict(rl, extra_args=""), "in", "out")
+               if a.startswith("--")}
+    for a in extra:
+      flag = a.split("=", 1)[0]
+      if flag.startswith("--") and flag in managed:
+        return f"Extra arguments: {flag} is already set by the options above; remove one of them."
   if yes(rl.get("autorun", "no")) and target != host_target():
     return ("--autorun needs the target system to be the one of this computer ("
             + TARGETS[host_target()]["label"].split(" (")[0] + ").")
@@ -3287,8 +3487,21 @@ def build_relink_command(relinker, intel, rl, input_file, out_exe):
     cmd.append("--no-patches")
   elif rl.get("patches_file", "").strip():
     cmd += ["--patches", os.path.abspath(rl["patches_file"].strip())]
+  extra, _err = parse_extra_args(rl)
+  cmd += extra
   cmd += [input_file, out_exe]
   return cmd
+
+
+def parse_extra_args(rl):
+  """Free-form relinker arguments (field "extra_args"). Returns (list, error or None)."""
+  text = (rl.get("extra_args", "") or "").strip()
+  if not text:
+    return [], None
+  try:
+    return shlex.split(text, posix=(os.name != "nt")), None
+  except ValueError as e:
+    return [], f"Extra arguments: {e}"
 
 
 def verify_patches(rl, folder):
@@ -3439,6 +3652,9 @@ def find_nid_patcher(rl):
     found = find_built_relinker([(paths["build"], False)], "nid_patcher")
     if found:
       return found
+  local = os.path.join(DATA_DIR, "nid_patcher.exe" if os.name == "nt" else "nid_patcher")
+  if os.path.isfile(local):  # imported with Local files
+    return local
   return shutil.which("nid_patcher")
 
 
@@ -3511,6 +3727,28 @@ def verify_output(rl, output_path):
   if res.returncode == 1:
     return "err", "Output mismatch (the converted file does not hold the patches):\n" + out
   return "err", "Verification failed:\n" + out
+
+
+def anyps5_build_info(rl):
+  """Which AnyPS5 build the relinker comes from: release tag or source commit (for conversion_info.json)."""
+  info = {"anyps5_source": rl.get("relinker_source", "") or "custom"}
+  try:
+    if rl.get("relinker_source") == "release":
+      cur = read_release_current(rl)
+      if cur:
+        info["anyps5_release_tag"] = cur["tag"]
+      info["anyps5_repo"] = normalize_repo_url(rl.get("repo_url", ""))
+    elif rl.get("relinker_source") == "github":
+      paths = source_paths(rl)
+      built = read_source_build(paths) if paths else None
+      if built:
+        info["anyps5_commit"] = built["commit"]
+      if paths:
+        info["anyps5_repo"] = paths["url"]
+        info["anyps5_ref"] = paths["ref"]
+  except Exception:
+    pass
+  return info
 
 
 def relinker_version(rl):
@@ -3634,6 +3872,16 @@ def validate_runtime_options(rt, rl=None):
   sdir = rt.get("screenshots_dir", "").strip()
   if sdir and not os.path.isabs(sdir):
     return "ANYPS5_SCREENSHOTS must be an absolute path."
+  spk = str(rt.get("pad_speaker_db", "0")).strip().lower()
+  if spk not in ("", "mute", "off", "-inf"):
+    try:
+      if not -60 <= float(spk) <= 0:
+        raise ValueError
+    except ValueError:
+      return "APS5_PAD_SPEAKER_FALLBACK_DB must be a number from -60 to 0, or mute."
+  lf = rt.get("log_file", "").strip()
+  if lf and (not os.path.isabs(lf) or os.path.isdir(lf)):
+    return "ANYPS5_LOG_FILE must be an absolute path to a file, not a folder."
   adv_err = validate_advanced_runtime(rt)
   if adv_err:
     return adv_err
@@ -4179,6 +4427,85 @@ def find_input_mapper(rl):
   return None
 
 
+def download_input_mapper(rl, log, cancel):
+  """Release option: tools/input-mapper is not a release asset, so it is taken from the source
+  archive of the release tag (else of the default branch) and unpacked into <data>/tools/input-mapper.
+  Returns '' on success, otherwise the error text."""
+  paths = release_paths(rl)
+  gh = github_owner_repo(rl.get("repo_url", "")) if paths else None
+  if not gh:
+    return "The Release option needs a github.com repository URL to download the input mapper."
+  owner, repo = gh
+  cur = read_release_current(rl)
+  refs = []
+  if cur:
+    refs.append((cur["tag"], "refs/tags/" + cur["tag"], cur["tag"]))
+  refs.append(("HEAD", "HEAD", "the default branch"))
+  prefix = "tools/input-mapper/"
+  dest = os.path.join(DATA_DIR, INPUT_MAPPER_REL)
+  tmp_dir = dest + ".part"
+  os.makedirs(os.path.dirname(dest), exist_ok=True)
+  for ref, path_ref, desc in refs:
+    check_cancel(cancel)
+    archive = os.path.join(DATA_DIR, "input-mapper-source.zip.part")
+    url = "https://github.com/%s/%s/archive/%s.zip" % (owner, repo, path_ref)
+    if not _download_file(url, archive, 0, "", log, cancel, "input-mapper (%s)" % desc, quiet=True):
+      continue
+    try:
+      if os.path.isdir(tmp_dir):
+        _rmtree_force(tmp_dir)
+      found = False
+      with zipfile.ZipFile(archive) as z:
+        for info in z.infolist():
+          name = info.filename
+          top, _, rest = name.partition("/")  # "<repo>-<tag>/tools/input-mapper/..."
+          if not rest.startswith(prefix) or info.is_dir():
+            continue
+          rel = rest[len(prefix):]
+          parts = rel.split("/")
+          if not rel or any(x in ("", ".", "..") for x in parts) or ":" in rel or rel.startswith("/"):
+            continue  # never write outside the mapper folder
+          target = os.path.join(tmp_dir, *parts)
+          os.makedirs(os.path.dirname(target), exist_ok=True)
+          with z.open(info) as src, open(target, "wb") as out:
+            shutil.copyfileobj(src, out)
+          found = True
+      if not found or not os.path.isfile(os.path.join(tmp_dir, "package.json")):
+        continue  # this ref has no input mapper: try the default branch
+      if os.path.isdir(dest):
+        _rmtree_force(dest)
+      os.replace(tmp_dir, dest)
+      return ""
+    except (OSError, zipfile.BadZipFile) as e:
+      return "Unable to unpack the input mapper: %s" % e
+    finally:
+      try:
+        os.remove(archive)
+      except OSError:
+        pass
+      if os.path.isdir(tmp_dir):
+        _rmtree_force(tmp_dir)
+  return "tools/input-mapper was not found in the repository (release or default branch), or the download failed. Check the connection."
+
+
+def install_input_mapper_deps(mapper_dir, npm):
+  """npm install for the mapper if its package.json lists dependencies and node_modules is missing."""
+  try:
+    with open(os.path.join(mapper_dir, "package.json"), encoding="utf-8") as f:
+      deps = (json.load(f) or {}).get("dependencies") or {}
+  except (OSError, ValueError):
+    return ""
+  if not deps or os.path.isdir(os.path.join(mapper_dir, "node_modules")):
+    return ""
+  kw = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
+  try:
+    res = subprocess.run([npm, "install", "--omit=dev", "--no-audit", "--no-fund"], cwd=mapper_dir,
+                         capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, **kw)
+  except (OSError, subprocess.SubprocessError) as e:
+    return "npm install of the input mapper failed: %s" % e
+  return "" if res.returncode == 0 else "npm install of the input mapper failed (exit code %d)." % res.returncode
+
+
 def node_status():
   """(path, major, text): node executable, its major version and an error text ('' when Node 22+ is available)."""
   node = shutil.which("node")
@@ -4287,6 +4614,20 @@ def runtime_env(rt, target, pkg_dir):
     env["APS5_LOG_TIMESTAMPS"] = "1"
     if target == "windows":
       env["APS5_CRASH_INDIRECT_MEMORY"] = "1"  # crash report: bytes behind each register pointer
+  rumble = str(rt.get("rumble", "100")).strip()
+  if rumble.isdigit() and 0 <= int(rumble) < 100:
+    env["ANYPS5_RUMBLE"] = rumble  # USAGE/ENVIRONMENT.md: 0-100 %, 100 = as the title asks
+  spk = str(rt.get("pad_speaker_db", "0")).strip().lower()
+  if spk in ("mute", "off", "-inf"):
+    env["APS5_PAD_SPEAKER_FALLBACK_DB"] = "mute"
+  elif spk not in ("", "0", "-0", "0.0"):  # 0 dB = default, variable left unset
+    env["APS5_PAD_SPEAKER_FALLBACK_DB"] = spk
+  if rt.get("log_file", "").strip():
+    env["ANYPS5_LOG_FILE"] = rt["log_file"].strip()
+  if rt.get("game_mode", "off") in ("on", "auto"):
+    env["APS5_GAME_MODE"] = rt["game_mode"]  # Feral GameMode on Linux, activity on macOS
+  if yes(rt.get("host_report", "yes")):
+    env["ANYPS5_HOST_REPORT"] = "1"  # USAGE.md: host report on stderr, once, for bug reports
   if rt.get("pad_input_file", "").strip():
     env["APS5_PAD_INPUT_FILE"] = rt["pad_input_file"].strip()
   if rt["trace_calls"].strip() and target == "windows":
@@ -5026,8 +5367,71 @@ def missing_runtime_dlls(pkg_dir, target):
   return [d for d in MINGW_RUNTIME_DLLS if d.lower() not in names]
 
 
+def preflight_checks(pkg_dir, target, exe):
+  """Checks before starting. Returns (errors, warnings): plain texts instead of cryptic start-up errors."""
+  errors, warnings = [], []
+  app0 = os.path.join(pkg_dir, "app0")
+  if not os.path.isfile(exe):
+    errors.append(f"{os.path.basename(exe)} was not found in the package: convert the game again.")
+  pj = os.path.join(app0, "sce_sys", "param.json")
+  if not os.path.isfile(pj):
+    warnings.append("app0/sce_sys/param.json is missing: the title name and id cannot be read.")
+  else:
+    try:
+      with open(pj, encoding="utf-8-sig") as f:
+        j = json.load(f)
+      loc = j.get("localizedParameters") or {}
+      if not j.get("titleId") and not j.get("contentId"):
+        warnings.append("param.json has no titleId.")
+      if not any(isinstance(v, dict) and v.get("titleName") for v in loc.values()):
+        warnings.append("param.json has no titleName.")
+    except (OSError, ValueError):
+      warnings.append("app0/sce_sys/param.json cannot be read (damaged file?).")
+  if not os.path.isfile(os.path.join(app0, "eboot.bin")) and not os.path.isdir(os.path.join(pkg_dir, "app0")):
+    errors.append("the app0 folder is missing from the package.")
+  elif not os.path.isfile(os.path.join(app0, "eboot.bin")):
+    warnings.append("app0/eboot.bin is missing: the title may not start.")
+  libs = os.path.join(pkg_dir, LIBS_DIR_NAME)
+  if target == "windows" and os.path.isdir(libs):
+    prx = [n for n in os.listdir(libs) if n.lower().endswith(".prx")]
+    if prx:
+      errors.append(f"{LIBS_DIR_NAME}/ contains original .prx files ({', '.join(prx[:3])}"
+                    f"{'...' if len(prx) > 3 else ''}): on Windows they cause error 193. Remove them or convert again.")
+  return errors, warnings
+
+
+def fix_exec_permissions(pkg_dir, target, exe, log=None):
+  """Linux/macOS: give back the execute bit lost after a zip or a download. Returns the fixed files."""
+  fixed = []
+  if os.name == "nt" or target == "windows":
+    return fixed
+  cands = [exe]
+  for d in (pkg_dir, os.path.join(pkg_dir, "app0")):
+    try:
+      cands += [os.path.join(d, n) for n in os.listdir(d) if n.endswith((".sh", ".elf", ".so"))]
+    except OSError:
+      pass
+  for f in cands:
+    if os.path.isfile(f) and not os.access(f, os.X_OK) and (f == exe or not f.endswith(".so")):
+      try:
+        os.chmod(f, os.stat(f).st_mode | 0o111)
+        fixed.append(f)
+        if log:
+          log("warn", f"{os.path.basename(f)} had no execute permission: fixed (chmod +x).")
+      except OSError:
+        pass
+  return fixed
+
+
 def launch_game(pkg_dir, target, cfg, exe=None, log=None):
   exe = exe or os.path.join(pkg_dir, TARGETS[target]["exe"])
+  fix_exec_permissions(pkg_dir, target, exe, log)
+  errors, warnings = preflight_checks(pkg_dir, target, exe)
+  if log:
+    for w in warnings:
+      log("warn", "Check before start: " + w)
+  if errors:
+    raise OSError("Check before start: " + " ".join(errors))
   if not os.path.isfile(exe):
     raise FileNotFoundError(exe)
   missing = missing_runtime_dlls(pkg_dir, target)
@@ -5620,6 +6024,19 @@ def _do_relink(folder, cfg, log, cancel, holder, created, mover=None):
   log("ok", f"{info['exe']} created.")
   check_cancel(cancel)
 
+  # Relinker version used for this conversion: logged and saved in the package (useful for support)
+  try:
+    _lv, _vt = relinker_version(cfg["relinker"])
+    _vt = (_vt or "").strip()
+    log("info" if _lv == "ok" else "warn", "Relinker version: " + (_vt.splitlines()[0] if _vt else "unknown"))
+    with open(os.path.join(pkg_dir, "conversion_info.json"), "w", encoding="utf-8") as _f:
+      json.dump({"relinker_version": _vt, "relinker_version_ok": _lv == "ok", "target": target,
+                 **anyps5_build_info(cfg["relinker"]),
+                 "game": game_name, "converted_at": time.strftime("%Y-%m-%d %H:%M:%S")},
+                _f, indent=2, ensure_ascii=False)
+  except Exception as _e:
+    log("warn", f"Could not save the relinker version: {_e}")
+
   # 7. Shortcut named after the game
   if yes(rl["make_launcher"]):
     log("step", "[7] Game shortcut")
@@ -5830,6 +6247,22 @@ def battery_status():
   return ""
 
 
+# Known errors: (pattern in the log, what to do). Shown in the reading of the report.
+KNOWN_ERRORS = [
+  (r"nvgpucomp64\.dll", "crash in nvgpucomp64.dll: known NVIDIA driver problem (e.g. 610.47); install another driver version"),
+  (r"/dev/udmabuf", "/dev/udmabuf is not usable: on Linux add your user to the kvm group (sudo usermod -aG kvm $USER) and log in again"),
+  (r"Ran out of memory|std::bad_alloc|out of memory", "out of memory: close other programs and raise the Windows paging file (direct memory needs up to 13.8 GiB)"),
+  (r"Conflicting guest output filename", "two files would be written with the same name: check the output folder and the unwrapped game for duplicate names"),
+  (r"(?:error|code)\s*:?\s*126\b|LoadLibrary.*126", "error 126: DLLs missing in libs/ (copy them from mingw64/bin or use the release libs)"),
+  (r"(?:error|code)\s*:?\s*193\b|LoadLibrary.*193", "error 193: a wrong-architecture or original .prx file is in libs/; remove it and convert again"),
+  (r"execv failed: Permission denied", "execute permission lost: run chmod +x on the executable (the GUI does it before start)"),
+]
+
+
+def known_error_notes(text):
+  return [msg for pat, msg in KNOWN_ERRORS if re.search(pat, text, re.IGNORECASE)]
+
+
 def analyze_log(text):
   """Facts read from a run log: GPU, presents per 10 s, milestones and what stopped the title."""
   gpu = re.findall(r"Selected GPU name=(.+)", text)
@@ -5853,6 +6286,8 @@ def analyze_log(text):
     notes.append("[gpu] host import budget detected: APS5_HOST_IMPORT_MIB affects pinned host-import memory budget; change it only for controlled comparisons, not as a general tuning setting")
   if re.search(r"^\[texture-cache\]", text, re.MULTILINE):
     notes.append("[texture-cache] diagnostics detected: APS5_TEXTURE_CACHE_MIB controls the texture-cache budget; change it only for controlled comparisons, not as a general tuning setting")
+  notes += [n for n in known_error_notes(text) if n not in notes and not (
+    "chmod" in n and any("chmod" in x for x in notes))]
   return {"gpu": gpu[-1].strip() if gpu else "", "presents": presents, "stop": stop[-3:],
           "level": levels[-1].strip() if levels else "", "notes": notes}
 
@@ -5930,6 +6365,111 @@ def build_report(cfg, target, game, pkg_dir, log_text, exit_code=None, tail=None
   return "\n".join(out) + "\n"
 
 
+def redact_personal(text):
+  """Hide user name, computer name and home folder in text meant for a public issue."""
+  names = {os.environ.get(k, "") for k in ("USERNAME", "USER", "COMPUTERNAME", "HOSTNAME")}
+  home = os.path.expanduser("~")
+  if home and home != "~":
+    text = text.replace(home, "~").replace(home.replace("\\", "/"), "~")
+  for n in names:
+    if len(n) >= 3:
+      text = re.sub(re.escape(n), "<redacted>", text, flags=re.I)
+  return text
+
+
+def build_bug_report(cfg, target, game, pkg_dir, log_text, exit_code=None, tail=60):
+  """Short report to paste in a GitHub issue: header, host report block (if any), last log lines."""
+  full = build_report(cfg, target, game, pkg_dir, log_text, exit_code, tail=tail)
+  lines = (log_text or "").splitlines()
+  start = next((i for i, l in enumerate(lines) if "host report" in l.lower()), None)
+  host = []
+  if start is not None:
+    for l in lines[start:start + 40]:
+      if host and not l.strip():
+        break
+      host.append(l)
+  head = full.split("=" * 60)[0] + "".join(full.split("=" * 60)[1:3])
+  parts = [head.rstrip(), "", "Host report:" if host else "Host report: (not in the log)"] + host
+  parts += ["", f"Last {min(tail, len(lines))} log lines:", *lines[-tail:]]
+  return redact_personal("\n".join(parts) + "\n")
+
+
+def trophy_summary(pkg):
+  """Counts the unlocked trophies stored in <pkg>/_trophy (formats from AnyPS5 USAGE.md and libSceNpTrophy):
+  PS5 `<user>_<label>.txt` has one `<trophy id> <unlock time>` line per trophy, `.stats.txt` holds statistics
+  (not counted), PS4 `trophyNN.<user>` has one trophy id per line. Damaged files are listed, not guessed."""
+  res = {"exists": False, "unlocked": 0, "files": [], "stats_files": 0, "damaged": []}
+  d = os.path.join(pkg, "_trophy") if pkg else ""
+  if not d or not os.path.isdir(d):
+    return res
+  res["exists"] = True
+  try:
+    names = sorted(os.listdir(d))
+  except OSError:
+    return res
+  for name in names:
+    path = os.path.join(d, name)
+    if not os.path.isfile(path) or name.endswith(".tmp"):
+      continue
+    if name.endswith(".stats.txt"):
+      res["stats_files"] += 1
+      continue
+    ps5 = name.endswith(".txt")
+    ps4 = re.fullmatch(r"trophy\d+\.-?\d+", name) is not None
+    if not (ps5 or ps4):
+      continue
+    ids, bad = set(), False
+    try:
+      with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+          parts = line.split()
+          if not parts and ps4:
+            continue  # the PS4 reader skips whitespace; for PS5 a blank line is damage (USAGE.md)
+          if ps5 and len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+            ids.add(int(parts[0]))
+          elif ps4 and len(parts) == 1 and parts[0].isdigit():
+            ids.add(int(parts[0]))
+          else:
+            bad = True
+    except OSError:
+      bad = True
+    if bad:
+      res["damaged"].append(name)
+    res["files"].append({"name": name, "unlocked": len(ids)})
+    res["unlocked"] += len(ids)
+  return res
+
+
+def build_debug_zip(path, cfg, target, game, pkg_dir, log_text, exit_code=None):
+  """Writes a zip for support: bug report, full report, settings and .registry.json files.
+  User name, computer name and home folder are replaced in every text file. Returns the list of names added."""
+  added = []
+  with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+    def put(name, text):
+      z.writestr(name, redact_personal(text))
+      added.append(name)
+    put("bug-report.txt", build_bug_report(cfg, target, game, pkg_dir, log_text or "", exit_code))
+    put("report.txt", build_report(cfg, target, game, pkg_dir, log_text or "", exit_code, tail=0))
+    try:
+      with open(CONFIG_FILE, encoding="utf-8", errors="replace") as f:
+        put("config.ini", f.read())
+    except OSError:
+      pass
+    total = 0
+    if pkg_dir and os.path.isdir(pkg_dir):
+      for n in sorted(os.listdir(pkg_dir)):
+        p = os.path.join(pkg_dir, n)
+        if n.endswith(".registry.json") and os.path.isfile(p):
+          size = os.path.getsize(p)
+          if total + size > 20 * 1024 * 1024:
+            put("registry-skipped.txt", f"{n} skipped: the registry files exceed 20 MB in total.\n")
+            continue
+          total += size
+          with open(p, encoding="utf-8", errors="replace") as f:
+            put("registry/" + n, f.read())
+  return added
+
+
 # ─────────────────────────────────────────────────────────────
 #  Front end (pywebview): the interface is index.html, this is only the bridge
 # ─────────────────────────────────────────────────────────────
@@ -5940,7 +6480,7 @@ L = sys.modules[__name__]   # the logic lives in this same file
 HERE = SCRIPT_DIR
 
 # ---------- GUI update check ----------
-APP_VERSION = "1.1.3"
+APP_VERSION = "1.1.4"
 GUI_REPO_OWNER = "Lenny4250gh"
 GUI_REPO_NAME = "AnyPS5-GUI"
 GUI_RELEASES_URL = "https://github.com/%s/%s/releases/latest" % (GUI_REPO_OWNER, GUI_REPO_NAME)
@@ -6648,6 +7188,14 @@ SCHEMA = {'Conversion': [{'type': 'flag',
                  'hint': 'Byte patches applied during conversion. Empty = relinker-patches.toml next to '
                          'eboot.bin is used if present. Use Verify patches to check the file against the '
                          'selected game (unwrapped) without writing anything.'},
+                {'type': 'text',
+                 'section': 'relinker',
+                 'key': 'extra_args',
+                 'label': 'Extra arguments (passed as they are)',
+                 'plat': 'all',
+                 'hint': 'Options of newer relinker versions that this GUI does not know yet, e.g. '
+                         '--new-option 1. Split like a shell command line (quotes allowed). An option already '
+                         'set by the GUI is refused. If the relinker rejects an option, its message is shown in the log.'},
                 {'type': 'flag',
                  'section': 'relinker',
                  'key': 'no_patches',
@@ -6743,6 +7291,14 @@ SCHEMA = {'Conversion': [{'type': 'flag',
                    'plat': None,
                    'hint': 'ON = fetch the latest commit and rebuild only if it changed. OFF = reuse the '
                            'existing build.'},
+                  {'type': 'flag',
+                   'section': 'relinker',
+                   'key': 'repo_update_ask',
+                   'label': 'Ask before updating and rebuilding',
+                   'plat': None,
+                   'hint': 'ON = when a new version of the repository is available and a build already exists, '
+                           'a popup asks whether to update and rebuild or keep the current build. '
+                           'OFF = the choice is not asked: it follows "Check for updates before every relink".'},
                   {'type': 'text',
                    'section': 'relinker',
                    'key': 'repo_build_jobs',
@@ -6859,6 +7415,38 @@ SCHEMA = {'Conversion': [{'type': 'flag',
               'label': 'Copy … into the package (Input tab)',
               'plat': 'all',
               'hint': None},
+             {'type': 'select',
+              'section': 'runtime',
+              'key': 'rumble',
+              'label': 'Controller vibration, % (ANYPS5_RUMBLE)',
+              'plat': 'all',
+              'values': ['100', '75', '50', '25', '0'],
+              'hint': '100 = as the title asks (variable not set). 0 turns off motor rumble, impulse triggers '
+                      'and controller-speaker haptics. DualSense adaptive triggers are not scaled.'},
+             {'type': 'select',
+              'section': 'runtime',
+              'key': 'pad_speaker_db',
+              'label': 'Controller speaker gain, dB (APS5_PAD_SPEAKER_FALLBACK_DB)',
+              'plat': 'all',
+              'values': ['0', '-6', '-12', '-24', '-40', '-60', 'mute'],
+              'hint': 'Only for sound a title sends to the controller speaker when no controller speaker is '
+                      'present (it is mixed into the main audio). 0 = unchanged (variable not set), '
+                      'mute = silence that copy. Main audio is not affected.'},
+             {'type': 'text',
+              'section': 'runtime',
+              'key': 'log_file',
+              'label': 'Log file (ANYPS5_LOG_FILE)',
+              'plat': 'all',
+              'hint': 'Absolute path of a file where AnyPS5 saves the log of the run. Empty = not set.'},
+             {'type': 'select',
+              'section': 'runtime',
+              'key': 'game_mode',
+              'label': 'Host game mode (APS5_GAME_MODE)',
+              'plat': 'host',
+              'values': ['off', 'on', 'auto'],
+              'hint': 'Asks the system for its performance mode while the title runs: Feral GameMode on Linux '
+                      '(libgamemode.so.0), a latency-critical activity on macOS. on logs a missing library; '
+                      'auto stays silent. Not used on Windows.'},
              {'type': 'text',
               'section': 'runtime',
               'key': 'pad_input_file',
@@ -7163,6 +7751,14 @@ def _advanced_runtime_items():
 SCHEMA['Runtime'] += _advanced_runtime_items()
 
 
+SCHEMA['Runtime'] = SCHEMA.get('Runtime', []) + [{'type': 'flag',
+                         'section': 'runtime',
+                         'key': 'host_report',
+                         'label': 'ANYPS5_HOST_REPORT=1',
+                         'plat': 'all',
+                         'hint': 'Prints OS, CPU, GPU, driver and Vulkan support once at start. '
+                                 'Used by the "Copy for bug" button.'}]
+
 SCHEMA['Appearance'] = [{'type': 'flag',
                          'section': 'runtime',
                          'key': 'no_discord_rpc',
@@ -7194,6 +7790,9 @@ class Api:
     self._upd = {"state": "idle"}  # progress of the GUI self-update
     self._mov = {"state": "idle"}  # progress of moving the data folder
     self.relocated = False         # True once the data folder was moved: the app must be reopened
+    self._ru_ev = None             # waiting for the answer of the "new repository version" popup
+    self._ru_answer = None
+    L.UPDATE_PROMPT = self._ask_repo_update
 
   # ---------- closing the window ----------
   def on_closing(self):
@@ -7213,6 +7812,37 @@ class Api:
           self._quit_asked = False
       threading.Thread(target=ask, daemon=True).start()
     return False
+
+  # ---------- "new version of the repository" popup ----------
+  def _ask_repo_update(self, info, cancel):
+    """Called by the build thread: shows the popup in the page and waits for the answer.
+    Returns {"update": bool} or None if the popup cannot be shown (then the update goes ahead)."""
+    ev = threading.Event()
+    self._ru_ev, self._ru_answer = ev, None
+    try:
+      shown = webview.windows[0].evaluate_js(
+          "(window.askRepoUpdate ? (window.askRepoUpdate(%s), true) : false)" % json.dumps(info))
+    except Exception:
+      shown = False
+    if shown is not True:
+      return None
+    while not ev.wait(0.2):
+      if cancel.is_set():
+        return None
+    return self._ru_answer
+
+  def repo_update_answer(self, update, remember):
+    """Answer of the popup. With 'remember' (do not show again) the choice becomes the setting:
+    update -> 'Check for updates' ON, keep -> OFF; the question is not asked again."""
+    update, remember = bool(update), bool(remember)
+    if remember and not self.relocated:
+      self.cfg["relinker"]["repo_update"] = "yes" if update else "no"
+      self.cfg["relinker"]["repo_update_ask"] = "no"
+      L.save_config(self.cfg)
+    self._ru_answer = {"update": update, "remember": remember}
+    if self._ru_ev is not None:
+      self._ru_ev.set()
+    return True
 
   def quit_answered(self):
     self._quit_asked = False
@@ -7268,11 +7898,20 @@ class Api:
     if not npm:
       return {"ok": False, "running": False, "text": "npm was not found (it comes with Node.js). Reinstall Node.js 22 or newer."}
     found = L.find_input_mapper(self.cfg["relinker"])
+    if not found and self.cfg["relinker"].get("relinker_source") == "release":
+      # Release option: tools/input-mapper is not in the release files, download it like unwrap_self.py
+      err = L.download_input_mapper(self.cfg["relinker"], lambda *a, **k: None, threading.Event())
+      if err:
+        return {"ok": False, "running": False, "text": err}
+      found = L.find_input_mapper(self.cfg["relinker"])
     if not found:
       return {"ok": False, "running": False,
-              "text": "tools/input-mapper was not found. Clone the repository (Source build) or copy the "
-                      "tools/input-mapper folder into the app data folder under tools/."}
-    base, _mapper = found
+              "text": "tools/input-mapper was not found. Clone the repository (Source build), choose Release "
+                      "to download it, or copy the tools/input-mapper folder into the app data folder under tools/."}
+    base, mapper_dir = found
+    err = L.install_input_mapper_deps(mapper_dir, npm)
+    if err:
+      return {"ok": False, "running": False, "text": err}
     kw = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {"start_new_session": True}
     env = dict(os.environ)
     env["PORT"] = str(L.INPUT_MAPPER_PORT)
@@ -7498,6 +8137,7 @@ class Api:
             "sd": os.path.isdir(os.path.join(pkg, "_sd")) if pkg else False,
             "sd_mem": os.path.isdir(os.path.join(pkg, "_sd_mem")) if pkg else False,
             "trophy": os.path.isdir(os.path.join(pkg, "_trophy")) if pkg else False,
+            "trophies": L.trophy_summary(pkg),
             "ampr_dump": os.path.isfile(os.path.join(app0, "ampr_assets.index")) if app0 else False}
 
   def env_catalog(self):
@@ -7566,6 +8206,27 @@ class Api:
     except OSError as e:
       return {"ok": False, "error": str(e)}
 
+  def game_trophies_info(self):
+    """Number of unlocked trophies in the selected package (see trophy_summary)."""
+    return L.trophy_summary(self._selected_game_package())
+
+  def export_debug_package(self, log_text):
+    """Support zip (reports, settings, .registry.json) with the personal names hidden; asks where to save it."""
+    cfg = {sec: dict(v) for sec, v in self.cfg.items()}
+    target = cfg["relinker"]["target"]
+    pkg = self.game_pkg or self._selected_game_package()
+    game = os.path.basename(pkg.rstrip("/\\")) if pkg else (self.game_name() if self.folder else "")
+    kind = getattr(getattr(webview, "FileDialog", None), "SAVE", None) or webview.SAVE_DIALOG
+    res = webview.windows[0].create_file_dialog(kind, save_filename="anyps5-debug-" + time.strftime("%Y%m%d-%H%M%S") + ".zip")
+    if not res:
+      return {"ok": False, "cancelled": True}
+    path = res if isinstance(res, str) else res[0]
+    try:
+      added = L.build_debug_zip(path, cfg, target, game, pkg, log_text or "", self.game_exit)
+    except Exception as e:
+      return {"ok": False, "error": str(e)}
+    return {"ok": True, "path": path, "files": added}
+
   def open_screenshots_folder(self):
     """Opens the folder of the F12 screenshots: ANYPS5_SCREENSHOTS, or anyps5-screenshots/ next to the
     executable of the last started game (or of the game package selected in the app)."""
@@ -7598,6 +8259,51 @@ class Api:
       self.q.put(("err", f"Unable to open {path}"))
       return False
     return True
+
+  def _shots_folder(self):
+    """Existing screenshots folder of the selected/last game, else \"\"."""
+    rt = dict(self.cfg["runtime"])
+    pkg = self.game_pkg or self._selected_game_package()
+    path = L.screenshots_dir(pkg, rt)
+    return path if path and os.path.isabs(path) and os.path.isdir(path) else ""
+
+  def list_screenshots(self, limit=12):
+    """Newest PNG/JPG screenshots: [{name, size}] (the gallery loads each thumbnail with screenshot_data)."""
+    path = self._shots_folder()
+    if not path:
+      return {"ok": True, "items": [], "path": ""}
+    items = []
+    try:
+      for n in os.listdir(path):
+        if n.lower().endswith((".png", ".jpg", ".jpeg", ".bmp")):
+          st = os.stat(os.path.join(path, n))
+          items.append((st.st_mtime, n, st.st_size))
+    except OSError as e:
+      return {"ok": False, "error": str(e)}
+    items.sort(reverse=True)
+    return {"ok": True, "path": path, "total": len(items),
+            "items": [{"name": n, "size": z} for _m, n, z in items[:max(1, min(int(limit), 40))]]}
+
+  def screenshot_data(self, name):
+    """One screenshot as a data: URI (files above 12 MB are refused)."""
+    path = self._shots_folder()
+    if not path or name != os.path.basename(str(name)):
+      return {"ok": False, "error": "Invalid screenshot."}
+    f = os.path.join(path, name)
+    try:
+      if not os.path.isfile(f) or os.path.getsize(f) > 12 * 1024 * 1024:
+        return {"ok": False, "error": "Screenshot not available or too large."}
+      mime = "image/png" if name.lower().endswith(".png") else "image/bmp" if name.lower().endswith(".bmp") else "image/jpeg"
+      with open(f, "rb") as fh:
+        return {"ok": True, "uri": "data:%s;base64,%s" % (mime, base64.b64encode(fh.read()).decode("ascii"))}
+    except OSError as e:
+      return {"ok": False, "error": str(e)}
+
+  def open_screenshot(self, name):
+    path = self._shots_folder()
+    if not path or name != os.path.basename(str(name)):
+      return False
+    return bool(L.open_path(os.path.join(path, name)))
 
   def open_runtime_folder(self, key, rt_values=None):
     """Opens the folder of a Runtime setting (trace files or video-out telemetry)."""
@@ -7642,6 +8348,25 @@ class Api:
   def open_origin_page(self):
     import webbrowser
     webbrowser.open("https://github.com/Lenny4250gh/AnyPS5-GUI")  # fixed URL
+    return True
+
+  def open_feedback(self, kind=""):
+    """Opens the GitHub issues of the GUI. Only the fixed repo URL is used; the only data added to it are
+    the app version and the system, visible and editable in the browser before the user posts anything."""
+    import platform
+    import webbrowser
+    from urllib.parse import urlencode
+    base = "https://github.com/%s/%s/issues" % (GUI_REPO_OWNER, GUI_REPO_NAME)
+    if kind == "bug":
+      system = "%s; target %s" % (platform.platform(), self.cfg["relinker"].get("target", ""))
+      url = base + "/new?" + urlencode({"template": "bug.yml", "version": APP_VERSION, "system": system})
+    elif kind == "idea":
+      url = base + "/new?" + urlencode({"template": "suggestion.yml"})
+    elif kind == "all":
+      url = base
+    else:
+      url = base + "/new/choose"
+    webbrowser.open(url)
     return True
 
   def pick_folder(self):
@@ -7739,6 +8464,14 @@ class Api:
     self.folder = (path or "").strip().strip('"')
     return self.folder
 
+  def make_bug_report(self, log_text):
+    """Short, redacted text to paste in an issue."""
+    cfg = {sec: dict(v) for sec, v in self.cfg.items()}
+    target = cfg["relinker"]["target"]
+    pkg = self.game_pkg
+    game = os.path.basename(pkg.rstrip("/\\")) if pkg else ""
+    return L.build_bug_report(cfg, target, game, pkg, log_text or "", self.game_exit)
+
   def make_report(self, log_text):
     """Test report (GAME_TESTING.md points 1-8) as plain text; the UI saves it to a file."""
     cfg = {sec: dict(v) for sec, v in self.cfg.items()}
@@ -7824,6 +8557,12 @@ class Api:
     mem = L.memory_status()
     if mem and target == "windows":
       rows.append(["memory", "Memory", *mem])
+    nv = L.nvidia_status()
+    if nv:
+      rows.append(["nvidia", "NVIDIA driver", *nv])
+    ud = L.udmabuf_status()
+    if ud and target not in ("windows", "macos"):
+      rows.append(["udmabuf", "/dev/udmabuf", *ud])
     return clean(rows)
 
   def gpu_names(self):
@@ -8184,6 +8923,16 @@ class Api:
       return name, None
     if low in ("import_audit.py", "pad_input.py"):
       return os.path.join("tools", name), None
+    if low == L.INPUT_INI_NAME:
+      return L.INPUT_INI_NAME, None
+    if low.endswith((".ttf", ".otf", ".ttc")):
+      return os.path.join(L.FONTS_DIR_NAME, name), None
+    if low.startswith("nid_patcher"):
+      if os.name == "nt" and not low.endswith(".exe"):
+        return None, "not a Windows nid_patcher (.exe)"
+      if os.name != "nt" and (low.endswith(".exe") or low.endswith(L.NOT_BINARY_EXT)):
+        return None, "not a nid_patcher for this system"
+      return name, None
     return None, "not a file the program uses"
 
   def pick_tool_files(self):
@@ -8191,7 +8940,7 @@ class Api:
     kind = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
     res = webview.windows[0].create_file_dialog(
       kind, allow_multiple=True,
-      file_types=("Tool files (*.py;*.zip;*.exe)", "All files (*.*)"))
+      file_types=("Tool files (*.py;*.zip;*.exe;*.ini;*.ttf;*.otf;*.ttc)", "All files (*.*)"))
     if not res:
       return []
     paths = [res] if isinstance(res, str) else list(res)
@@ -8228,7 +8977,7 @@ class Api:
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         tmp = dest + ".part"
         shutil.copyfile(it["src"], tmp)
-        if os.name != "nt" and rel.lower().startswith(L.RELINKER_PREFIX):
+        if os.name != "nt" and rel.lower().startswith((L.RELINKER_PREFIX, "nid_patcher")):
           os.chmod(tmp, os.stat(tmp).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         os.replace(tmp, dest)
         done.append(rel)
@@ -8401,7 +9150,7 @@ def main():
   _html = load_embedded_ui()
   _src = {"html": _html} if _html else {"url": find_ui()}
   api = Api()
-  window = webview.create_window("AnyPS5 GUI - Unofficial | v" + APP_VERSION, js_api=api, width=1280, height=760,
+  window = webview.create_window("AnyPS5 GUI | v" + APP_VERSION, js_api=api, width=1280, height=760,
                                  min_size=(900, 560), background_color="#111312", **_src)
   window.events.closing += api.on_closing  # asks for confirmation if an operation is running
 
