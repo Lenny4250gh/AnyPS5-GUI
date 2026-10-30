@@ -319,11 +319,20 @@ Shows what is missing before you start, and downloads the tools for you when nee
 
 ### Discord Rich Presence
 
-While the app is open it shows *In the launcher*. During a conversion or a tool download it shows the current phase (Preparing, Copying game files, Relinking…) with an elapsed-time counter, and while a converted game is running it shows *Playing a converted game*. It never shows which game you play.
+While the app is open and Discord is running on the same computer, your profile shows *In the launcher* with the status *Idle*. During an operation it shows the current phase:
 
-The presence includes a *Get AnyPS5 GUI* button that opens this README). Discord does not display this button on your own profile, only to other users.
+| Operation | Shown on Discord |
+|:--|:--|
+| Conversion / unwrap | *Converting game* or *Unwrapping game*, with the current step (Copying game files, Unwrapping game files, Copying libs, Relinking, Checking imports, Finishing…) |
+| Tools download | *Downloading tools* |
+| Source build | *Building converter (relinker)* |
+| Backup restore | *Restoring backup* |
 
-Turn it off with *Disable Discord Rich Presence* in the Appearance settings.
+When the operation ends or is cancelled, the status goes back to *In the launcher*. The presence has no timer and no buttons, and it does not change while a converted game is running. It never shows which game you play.
+
+If Discord is not running, the presence is silently skipped.
+
+Turn it off with *Disable Discord Rich Presence* in the Appearance settings: it takes effect immediately, no restart needed.
 
 ---
 
