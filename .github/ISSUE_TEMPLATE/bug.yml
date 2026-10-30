@@ -1,0 +1,43 @@
+name: Bug report
+description: Something does not work in AnyPS5 GUI
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Problems with the converted game itself (graphics, crashes inside the game) usually belong to the AnyPS5 project, not to this GUI.
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Shown in the top right corner of the app.
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: Operating system and target system.
+    validations:
+      required: true
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened?
+      description: What you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log
+      description: Paste the log from the app. Remove anything personal first, such as your user name in a path.
+      render: text

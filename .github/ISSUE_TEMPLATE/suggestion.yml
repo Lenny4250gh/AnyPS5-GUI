@@ -1,0 +1,16 @@
+name: Suggestion
+description: An idea or a feature you would like in AnyPS5 GUI
+title: "[Idea] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would it help?
+      description: The problem you are trying to solve.
