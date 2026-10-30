@@ -7,8 +7,9 @@
 <p align="center">
   <strong>Dump → Unwrap → Relink → Play.</strong><br>
   <br>
-  A graphical interface for <a href="https://github.com/boykopovar/AnyPS5">AnyPS5</a>.<br>
-  Unwrap, convert (relink) and launch your own PS5 game dumps on PC — without the command line.
+  Every <a href="https://github.com/boykopovar/AnyPS5">AnyPS5</a> option, one window away.<br>
+  Unwrap, convert (relink) and launch your own PS5 game dumps on PC:<br>
+  simple enough for beginners, flexible enough for power users.
 </p>
 
 <p align="center">
@@ -22,6 +23,7 @@
   <a href="#download">Download</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#what-is-this-for">About</a> ·
+  <a href="#who-is-it-for">Who is it for</a> ·
   <a href="#highlights">Highlights</a> ·
   <a href="#feature-guide">Feature guide</a> ·
   <a href="#installation--requirements">Installation</a> ·
@@ -42,6 +44,7 @@
 | [Download](#download) | Builds for Windows, Linux and macOS |
 | [Quick start](#quick-start) | From dump to launch in 5 steps |
 | [What is this for?](#what-is-this-for) | What the GUI does and the typical flow |
+| [Who is it for?](#who-is-it-for) | Beginners and experienced users |
 | [Highlights](#highlights) | The best features at a glance |
 | [Feature guide](#feature-guide) | Every page and setting, in detail |
 | [Where the tools come from](#where-the-tools-come-from) | Local files, GitHub release or build from source |
@@ -99,14 +102,25 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 
 [AnyPS5](https://github.com/boykopovar/AnyPS5) is a command-line project that takes a **PS5 game dump you own** and turns it into a program that runs natively on a PC (Windows, Linux or macOS). It does this in a few separate steps, each with its own tool and its own options: unwrapping the executables, converting (relinking) them against replacement system libraries, and launching the result with the right environment variables.
 
-**AnyPS5 GUI** puts all of that behind a normal window:
+**AnyPS5 GUI** brings all of those steps, and **all of their parameters**, into a normal window. Nothing is limited to a "basic mode": every relinker option, every runtime variable and every input setting is available, and an *Extra arguments* field lets you pass options that are newer than the GUI itself.
 
 | | |
 |:--|:--|
-| **No command line** | You pick a folder, press a button, read the log. |
+| **All of AnyPS5, not just the basics** | Every relinker option, runtime variable and input setting is available in the interface. Nothing is hidden behind a simplified view. |
+| **No command line required** | You pick a folder, press a button, read the log. |
 | **Everything in one place** | The tools (relinker, system libs, `unwrap_self.py`) are downloaded or built for you, kept up to date and checked before every run. |
 | **Safe defaults, explained options** | Every relinker option has a short description and is automatically disabled when it does not fit the selected target (e.g. Windows-only flags). |
+| **Less work than the terminal** | Saved settings, shortcuts, one-click tool updates and shareable setup files replace the usual pile of commands, scripts and environment variables. |
 | **From dump to launch** | After converting, the same app launches the game, creates a shortcut and edits the controller mapping. |
+
+### Who is it for?
+
+AnyPS5 GUI is built for two kinds of users, and works for both without compromise.
+
+| | |
+|:--|:--|
+| **If you do not use the command line** | Pick a folder, press a button, read the log. The app checks your PC, downloads the tools, picks sensible defaults for your system and explains every option in plain words, so you can go from dump to launch without writing a single command. |
+| **If you do** | You keep full control and save time. All the relinker options and runtime variables are in one place, with the ones that do not fit the target disabled for you. There are no flags to remember and no long commands to retype: save a setup and reuse it, share it as a file, switch between the official repository, a fork, a branch or an older tag in a few clicks, pass anything the GUI does not know yet through *Extra arguments*, and export a ready-to-post bug report. See [Advanced: forks and custom builds](#advanced-forks-and-custom-builds). |
 
 ### The typical flow
 
@@ -131,29 +145,29 @@ What you get besides "a window instead of a command line":
 
 ### Control
 
--  **Interactive input editor.** Click a button on the controller, press a key, mouse button or wheel direction, done. Alternate inputs, stick deadzones, mouse-as-stick (sensitivity, curve, smoothing, decay), and the new Stick modifier/scale are all in the same screen. Prefer text? Edit `anyps5-input.ini` directly, with a validity check.
--  **Options that make sense.** Every relinker option is explained and disabled automatically when it does not fit the selected target.
--  **Runtime settings and shortcuts.** GPU, language, present mode, fonts, tracing and more, passed to the game as environment variables, or saved in a shortcut.
--  **Share your settings as a file.** Export any section (conversion, runtime, input) as a small file and import someone else's. Handy to help a friend, or to post a working setup for a game.
+- **Every option, in one place.** All relinker options, runtime variables and input settings are exposed, each with a short explanation, and disabled automatically when they do not fit the selected target. Options newer than the GUI can be passed through *Extra arguments*.
+- **Interactive input editor.** Click a button on the controller, press a key, mouse button or wheel direction, done. Alternate inputs, stick deadzones, mouse-as-stick (sensitivity, curve, smoothing, decay), and the new Stick modifier/scale are all in the same screen. Prefer text? Edit `anyps5-input.ini` directly, with a validity check.
+- **Runtime settings and shortcuts.** GPU, language, present mode, fonts, tracing and more, passed to the game as environment variables, or saved in a shortcut.
+- **Share your settings as a file.** Export any section (conversion, runtime, input) as a small file and import someone else's. Handy to help a friend, or to post a working setup for a game.
 
 ### Tools and repositories
 
--  **Use any repository, not only the official one.** Point the GUI at a fork, a branch or an older tag and it downloads that release or builds it from source. Each repository gets its own folder, so testing a fork never mixes files with the official one. See [Advanced: forks and custom builds](#advanced-forks-and-custom-builds).
--  **Tools handled for you.** Relinker, system libs and `unwrap_self.py` are downloaded (checked with SHA-256) or built, and kept up to date.
--  **Self-updating.** The app checks this repository's latest release and can replace itself and restart.
--  **Asks before rebuilding.** When the repository has new commits and you already have a build, a popup shows the changes (commit titles and a link to GitHub) and lets you update and rebuild or keep your build.
--  **Faster, clearer builds.** Nothing is downloaded or built when the remote commit is the one you already have; builds show a progress bar with elapsed and remaining time, use Ninja and a compiler cache (ccache/sccache) when installed, and clone with parallel jobs.
+- **Use any repository, not only the official one.** Point the GUI at a fork, a branch or an older tag and it downloads that release or builds it from source. Each repository gets its own folder, so testing a fork never mixes files with the official one. See [Advanced: forks and custom builds](#advanced-forks-and-custom-builds).
+- **Tools handled for you.** Relinker, system libs and `unwrap_self.py` are downloaded (checked with SHA-256) or built, and kept up to date.
+- **Self-updating.** The app checks this repository's latest release and can replace itself and restart.
+- **Asks before rebuilding.** When the repository has new commits and you already have a build, a popup shows the changes (commit titles and a link to GitHub) and lets you update and rebuild or keep your build.
+- **Smarter, clearer builds.** Nothing is downloaded or built when the remote commit is the one you already have; builds show a progress bar with elapsed and remaining time, use Ninja and a compiler cache (ccache/sccache) when installed, and clone with parallel jobs.
 
 ### Safety and diagnostics
 
--  **Safe unwrap.** Original files are backed up, with a *Restore backup* button.
--  **Checks your computer.** The requirements list also tells you if your CPU (AVX2 and the other extensions AnyPS5 needs, Intel/AMD/Apple silicon), your GPU (Vulkan, software renderers, several GPUs) or, on Windows, your memory and page file are likely to cause trouble.
--  **One-click test report.** *Export report…* saves a file with your system info, runtime variables, exit code, an automatic reading of the log and the full log, ready to attach to a Discord message or a GitHub issue.
--  **Report or suggest.** A button in the top bar opens the GitHub issues of this project with your app version and system already filled in.
+- **Safe unwrap.** Original files are backed up, with a *Restore backup* button.
+- **Checks your computer.** The requirements list also tells you if your CPU (AVX2 and the other extensions AnyPS5 needs, Intel/AMD/Apple silicon), your GPU (Vulkan, software renderers, several GPUs) or, on Windows, your memory and page file are likely to cause trouble.
+- **One-click test report.** *Export report…* saves a file with your system info, runtime variables, exit code, an automatic reading of the log and the full log, ready to attach to a Discord message or a GitHub issue.
+- **Report or suggest.** A button in the top bar opens the GitHub issues of this project with your app version and system already filled in.
 
 ### Comfort
 
--  **Sound effects.** Short clicks and chimes, made by the app, with a volume slider (you can turn them off).
+- **Sound effects.** Short clicks and chimes, made by the app, with a volume slider (you can turn them off).
 
 ---
 
@@ -286,7 +300,7 @@ Shows what is missing before you start, and downloads the tools for you when nee
 - **Export report…** (below the log) saves a text file with the points of `GAME_TESTING.md`: GUI build, title ID and content version, CPU, OS, GPU, power source, system, runtime variables, `--to-intel`, how far the game got, exit code and presents per 10 s. It also contains the full log (the title's own `anyps5.log` / `run.log` when present) and an automatic reading of it (software renderer, stalled title, device lost, GPU out of memory, missing permissions). Measured data and the automatic reading are kept apart. Fields the GUI cannot know are left as *(fill in)*. Known errors (NVIDIA driver crash, `/dev/udmabuf`, out of memory, error 126/193, lost execute permission, duplicate output names) are explained with what to do.
 - **Copy for bug** copies a short report (versions, host report, last 60 log lines) to paste in a GitHub issue.
 - **Debug package…** saves a zip with the bug report, the full report, your settings and the `.registry.json` files.
--  In both, user name, computer name and home folder are hidden: **check the content before you share it.**
+- In both, user name, computer name and home folder are hidden: **check the content before you share it.**
 - **Report or suggest** (top bar) opens the GitHub issues of this project: report a bug (a form with your app version and system filled in), suggest something, or see the open issues. You need a GitHub account to post, and nothing else is sent.
 
 ### Updates
