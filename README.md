@@ -46,6 +46,10 @@ What you get besides "a window instead of a command line":
 - **Runtime settings and shortcuts.** GPU, language, present mode, fonts, tracing and more, passed to the game as environment variables, or saved in a shortcut.
 - **Self-updating.** The app checks this repository's latest release and can replace itself and restart.
 - **Checks your computer.** The requirements list also tells you if your CPU (AVX2 and the other extensions AnyPS5 needs, Intel/AMD/Apple silicon), your GPU (Vulkan, software renderers, several GPUs) or, on Windows, your memory and page file are likely to cause trouble.
+- **Asks before rebuilding.** When the repository has new commits and you already have a build, a popup shows the changes (commit titles and a link to GitHub) and lets you update and rebuild or keep your build.
+- **Faster, clearer builds.** Nothing is downloaded or built when the remote commit is the one you already have; builds show a progress bar with elapsed and remaining time, use Ninja and a compiler cache (ccache/sccache) when installed, and clone with parallel jobs.
+- **Report or suggest.** A button in the top bar opens the GitHub issues of this project with your app version and system already filled in.
+- **Sound effects.** Short clicks and chimes, made by the app, with a volume slider (you can turn them off).
 - **One-click test report.** *Export report…* saves a file with your system info, runtime variables, exit code, an automatic reading of the log and the full log, ready to attach to a Discord message or a GitHub issue.
 
 ## Download (no build needed)
@@ -109,10 +113,14 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
   - **CPU:** x86-64 with AVX2, FMA, F16C, BMI1/2, LZCNT and MOVBE. Apple silicon is reported (use the macOS system with `--to-rosetta`) and Intel CPUs are reminded to turn on `--to-intel`.
   - **GPU:** detected through Vulkan. Warns about software renderers (very slow), a missing Vulkan loader on Linux, several GPUs (choose one with `ANYPS5_GPU`) or an `ANYPS5_GPU` value that matches nothing.
   - **Memory (Windows):** free commit (RAM + page file) against the direct memory a title can commit.
+  - **NVIDIA driver:** reads the driver version and warns about versions known to crash (currently 610.47, crash in `nvgpucomp64.dll`).
+  - **`/dev/udmabuf` (Linux):** tells you if it is missing or not accessible and how to fix it (only needed with Mesa drivers, not with the proprietary NVIDIA driver).
 - **First-run defaults:** without a config file, the system is set to your own, `--to-intel` is on for Intel CPUs and `--to-rosetta` is on for Apple silicon.
 - **Rosetta:** the *Apple silicon via Rosetta (--to-rosetta)* option sits under the system choice and is hidden when the Windows system is selected.
 - **Tools source:** choose where the relinker, libs and `unwrap_self.py` come from (see [below](#where-the-tools-come-from)).
 - **Options:** all relinker options, each marked with the systems it applies to. Options that do not fit the selected target are disabled automatically.
+- **Extra arguments:** a free-text field to pass options of newer relinker versions that the GUI does not know yet (split like a shell command line). An option already set by the GUI is refused.
+- **Relinker version:** the *Relinker version* button runs `relinker --version`. After each conversion the version used, the source (release tag or commit), the repository and the target are saved in `conversion_info.json` inside the package (useful for support).
 - **Audit:** runs `import_audit.py` (if present) after the relink and logs a one-line summary: how many imports are implemented, stubbed (load but throw when called) or absent (the game will not load), plus the first absent names.
 
 > <img src="docs/screenshots/1.png" width="600" alt="Convert Page">
@@ -122,6 +130,7 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 - **Launch** a converted game with your current settings, or **create a shortcut** that starts it with the right variables. The shortcut is named after the real game title read from the game's `param.json` (e.g. *Dreaming Sarah* instead of `PPSA02929`); if the title can't be read, the folder name is used.
 - **Browse PC game…** opens the folder picker directly in your output folder, where your converted games are.
 - **Exit code explained:** when the game ends, the log shows its exit code in plain words (missing library, segmentation fault, access violation, timeout…).
+- **Check before start:** before launching, the app checks the package (executable, `app0`, `sce_sys/param.json`, original `.prx` files in `libs/` on Windows) and shows a plain message instead of a cryptic start-up error. On Linux/macOS it restores the execute permission lost after a zip or a download.
 - **Launch protection (Windows):** if the MinGW runtime DLLs are missing from `libs/`, the game is not started and you get a clear message instead of error 126 on every library.
 
 > <img src="docs/screenshots/3.png" width="600" alt="Play Page">
@@ -137,10 +146,13 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 - Any section of the settings can be exported as a shareable file.
 
 **Test report**
-- **Export report…** (below the log) saves a text file with the points of `GAME_TESTING.md`: GUI build, title ID and content version, CPU, OS, GPU, power source, system, runtime variables, `--to-intel`, how far the game got, exit code and presents per 10 s. It also contains the full log (the title's own `anyps5.log` / `run.log` when present) and an automatic reading of it (software renderer, stalled title, device lost, GPU out of memory, missing permissions). Measured data and the automatic reading are kept apart. Fields the GUI cannot know are left as *(fill in)*.
+- **Export report…** (below the log) saves a text file with the points of `GAME_TESTING.md`: GUI build, title ID and content version, CPU, OS, GPU, power source, system, runtime variables, `--to-intel`, how far the game got, exit code and presents per 10 s. It also contains the full log (the title's own `anyps5.log` / `run.log` when present) and an automatic reading of it (software renderer, stalled title, device lost, GPU out of memory, missing permissions). Measured data and the automatic reading are kept apart. Fields the GUI cannot know are left as *(fill in)*. Known errors (NVIDIA driver crash, `/dev/udmabuf`, out of memory, error 126/193, lost execute permission, duplicate output names) are explained with what to do.
+- **Copy for bug** copies a short report (versions, host report, last 60 log lines) to paste in a GitHub issue. **Debug package…** saves a zip with the bug report, the full report, your settings and the `.registry.json` files. In both, user name, computer name and home folder are hidden: check the content before you share it.
+- **Report or suggest** (top bar) opens the GitHub issues of this project: report a bug (a form with your app version and system filled in), suggest something, or see the open issues. You need a GitHub account to post, and nothing else is sent.
 
 **Updates**
 - The app checks the latest release of this repository and, when a newer one exists, can download it for your system, replace itself and restart.
+- **New version of the tools repository:** with *Build from GitHub source*, the app compares the remote commit with the one you built (no download needed). If it is the same, nothing is fetched or built. If it is newer, a popup shows the date, the latest commit titles and a link to all the changes on GitHub; choose *Update and rebuild* or *Keep this build*. *Do not show this message again* saves your choice (see *Ask before updating and rebuilding* below).
 
 **Input**
 - Visual controller editor: click a button, then press a key, mouse button or wheel direction. Alternate inputs supported.
@@ -156,7 +168,8 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 **Converted game data and screenshots**
 - The **Play** view has a separate path for the converted PC game package, independent from the PS5 source path used for conversion. Launch and shortcut creation use the selected converted package; when no path is selected, the app attempts the configured output folder (`Converted games` by default).
 - **Game folders (saves and trophies)** lets you open `_sd`, `_sd_mem` and `_trophy`. Save-data folders can be backed up as ZIP files; trophy data can be reset after a confirmation prompt. These actions operate on the selected/last-launched package, so check the displayed package path first.
-- **Screenshots:** the runtime `ANYPS5_SCREENSHOTS` setting accepts an absolute folder. When empty, screenshots go to `anyps5-screenshots/` next to the game executable. Use **Open screenshots folder** to open it; the folder may not exist until the first F12 screenshot.
+- **Trophies:** after a run, the app counts the unlocked trophies in `_trophy` (PS5 and PS4 formats) and warns about damaged files, because the game stops when it reads one.
+- **Screenshots:** the runtime `ANYPS5_SCREENSHOTS` setting accepts an absolute folder. When empty, screenshots go to `anyps5-screenshots/` next to the game executable. The **Screenshot gallery** in the Play view shows the latest ones (click to open) and has a button for the folder; the folder may not exist until the first F12 screenshot.
 - **Shader cache:** Runtime settings show the effective AnyPS5 shader-cache path and current size, allow a custom absolute path through `ANYPS5_SHADER_CACHE_DIR`, and provide a clear-cache action. Clearing removes the AnyPS5 cache at that configured path, not the graphics driver's cache. `ANYPS5_NO_SHADER_CACHE` disables the on-disk cache; shaders may need to be rebuilt on later runs.
 
 **Conversion patches and fixed-base options**
@@ -165,6 +178,7 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 
 **Runtime diagnostics and overlay**
 - The performance overlay can be enabled from the first frame and positioned in any corner. In-game **F10** toggles its visibility.
+- New runtime settings: **controller vibration** (`ANYPS5_RUMBLE`, 0–100 %), **controller speaker gain** (`APS5_PAD_SPEAKER_FALLBACK_DB`, 0 to −60 dB or mute), **log file** (`ANYPS5_LOG_FILE`, absolute path), **host game mode** (`APS5_GAME_MODE`: Feral GameMode on Linux, activity on macOS; not used on Windows) and **`ANYPS5_HOST_REPORT=1`** (OS, CPU, GPU, driver and Vulkan support printed once at start; ON by default and used by *Copy for bug*). A variable is set only when you change it from the default.
 - `APS5_PLAYGO_UNLISTED_CHUNKS` can be set to `installed` or `absent` to control how unlisted PlayGo chunks are treated.
 - **Test diagnostics (for bug reports)** enables extra profiling/log timestamp variables and, on Windows, crash indirect-memory diagnostics. It can slow the game slightly, so leave it off for performance comparisons.
 - Automatic log interpretation now calls out host-import memory-budget and texture-cache diagnostics, with notes about the corresponding tuning variables.
@@ -174,6 +188,7 @@ Settings (runtime, input, appearance) can be changed at any time from their tabs
 
 **Appearance**
 - Choose the main color (presets or custom hex) and the animated background (soft grid, orbs or none). It stops automatically if your system asks for reduced motion.
+- **Sound effects:** short sounds generated by the app (no audio files) for buttons, tabs, dialogs, success and errors. Turn them off or change the volume in Appearance. They play only while the window has focus.
 
 > <img src="docs/screenshots/9.png" width="600" alt="Appearance settings">
 
@@ -183,11 +198,11 @@ The relinker, libs and `unwrap_self.py` are chosen in **Advanced: where the tool
 
 | Source | What it does |
 | ------ | ------------ |
-| **Local files (manual)** | Uses the files you provide. Press **Import files…** and pick `unwrap_self.py`, `relinker-*` and `prx-*.zip` (optionally `import_audit.py` and `pad_input.py`): they are copied into the app folder (see [Download](#download-no-build-needed)). If a file already exists you are asked whether to replace it. |
-| **Release from GitHub repo (auto-update)** | Downloads the latest release (or a tag you choose) of a GitHub repository (**Download now**). |
+| **Local files (manual)** | Uses the files you provide. Press **Import files…** and pick `unwrap_self.py`, `relinker-*` and `prx-*.zip` (optionally `nid_patcher`, `anyps5-input.ini`, fonts `.ttf`/`.otf`/`.ttc`, `import_audit.py` and `pad_input.py`): they are copied into the app folder (see [Download](#download-no-build-needed)). If a file already exists you are asked whether to replace it. |
+| **Release from GitHub repo (auto-update)** | Downloads the latest release (or a tag you choose) of a GitHub repository (**Download now**). The web input mapper (`tools/input-mapper`) is not a release file, so it is downloaded from the source of the same tag the first time you open it. |
 | **Build from GitHub source (auto-update)** | Clones the repository and builds it (**Build now**); needs git, CMake and a C/C++ compiler. |
 
-Only the controls that apply to the selected source are shown. By default both GitHub sources point to the official [AnyPS5](https://github.com/boykopovar/AnyPS5) repository, but the repository is just a setting: see the next section.
+**Download now** and **Build now** are disabled while an operation runs; the **Stop** button next to them cancels it. Only the controls that apply to the selected source are shown. By default both GitHub sources point to the official [AnyPS5](https://github.com/boykopovar/AnyPS5) repository, but the repository is just a setting: see the next section.
 
 ## Using a different repository (forks and custom builds)
 
@@ -202,8 +217,10 @@ The **Repository URL** field is not tied to AnyPS5. You can point the GUI at a *
 | **Check for a newer release before every run** | Release | ON = asks GitHub which release is current and downloads only the missing files. OFF = reuses what was already downloaded (works offline). |
 | **Branch or tag** | Build | Empty = the repository's default branch. |
 | **CMake target** | Build | Empty = tries the target `relinker` first and, if it does not exist, builds everything. Also used as the name of the executable to pick up. |
-| **Extra CMake arguments** | Build | Added to the configure step, e.g. `-G Ninja -DCMAKE_CXX_COMPILER=clang++`. |
-| **Check for updates before every relink** | Build | ON = fetches the latest commit and rebuilds only if it changed. OFF = reuses the existing build. |
+| **Extra CMake arguments** | Build | Added to the configure step, e.g. `-G Ninja -DCMAKE_CXX_COMPILER=clang++`. Without your own choice, the GUI adds the Ninja generator (Linux/macOS, if `ninja` is installed) and a compiler cache (`ccache` or `sccache`, if installed). |
+| **Check for updates before every relink** | Build | ON = checks the latest commit and rebuilds only if it changed. OFF = reuses the existing build. |
+| **Ask before updating and rebuilding** | Build | ON (default) = when a build already exists and the repository is newer, a popup asks whether to update or keep the build. OFF = no question: it follows *Check for updates before every relink*. |
+| **Extra arguments (passed as they are)** | Conversion | Relinker options the GUI does not know yet, e.g. `--new-option 1`. Quotes allowed. An option already set by the GUI is refused. |
 | **Build the libs (.prx) from the repository** | Build | ON = also builds the `libs` target and uses those libs instead of a `prx-*.zip`. Much slower (full CMake configuration, downloads FFmpeg, needs the SDL/Vulkan build dependencies). |
 | **Build jobs (parallel compilers)** | Build | Empty = automatic: about half of your CPU threads, more if you have a lot of RAM. A higher number (e.g. 12 or 16 on a 16-thread CPU) builds faster but uses more RAM; if the PC slows down or freezes, lower it. An interrupted build resumes where it stopped. |
 
@@ -248,7 +265,7 @@ and, in the repository at the same tag: `tools/unwrap_self.py`.
 
 #### For the **Build from source** option
 
-The GUI runs `git clone --recurse-submodules --depth 1` (adding `--branch <ref>` if you set one), then CMake in `Release` mode. Your repository needs:
+The GUI runs a shallow `git clone --recurse-submodules --depth 1` (without tags, with parallel jobs) (adding `--branch <ref>` if you set one), then CMake in `Release` mode. Your repository needs:
 
 - A **`CMakeLists.txt` in the root**. Without it the build stops with an error.
 - A CMake target that produces the relinker executable, by default named **`relinker`** (or set your own in *CMake target*). The GUI finds the built executable by looking for a file whose name contains the target name. If the target does not exist and you did not set one, it builds everything and searches again.
@@ -259,7 +276,7 @@ The GUI runs `git clone --recurse-submodules --depth 1` (adding `--branch <ref>`
 
 If you also enable **Build the libs from the repository**, the repo must have a CMake target **`libs`** whose output goes to `<build>/core/libs/libs/*.prx`. Only the `.prx` files that match the folder names under `core/libs/prx/` are kept, the same selection as the official `tools/package_release.py`.
 
-The build is remembered by **commit and target**: if the commit did not change and you did not change the target, the existing relinker is reused and nothing is rebuilt.
+The build is remembered by **commit and target**: the GUI reads the remote commit without downloading anything, and if it did not change and you did not change the target or the build settings, the existing relinker is reused and nothing is fetched or rebuilt. The build log shows a progress bar with elapsed and remaining time, and the total time at the end.
 
 **Tools needed to build.** `git`, `cmake` and a C/C++ compiler must be in your `PATH` (on Debian/Ubuntu: `sudo apt install git cmake build-essential`). On Windows the project supports only the MinGW-w64 GCC 15.2.0 (WinLibs, with Ninja) toolchain, and the GUI can install git, CMake and that toolchain for you with one click (the toolchain is about 270 MB, saved in `toolchain/` inside the app folder). Visual Studio cannot link this project.
 
@@ -299,7 +316,7 @@ When running from source on Linux, pywebview needs a WebKitGTK or Qt backend, se
 
 ## Support
 
-- Problems with **this GUI** (it doesn't open, a button does nothing, a wrong option): open an [issue](https://github.com/Lenny4250gh/AnyPS5-GUI/issues). Please include your OS, the GUI version and any error shown, and attach the file from **Export report…** if it is about a game.
+- Problems with **this GUI** (it doesn't open, a button does nothing, a wrong option): use the **Report or suggest** button in the app, or open an [issue](https://github.com/Lenny4250gh/AnyPS5-GUI/issues). Please include your OS, the GUI version and any error shown, and paste **Copy for bug** or attach the file from **Export report…** / **Debug package…** if it is about a game.
 - Problems with **AnyPS5 itself** (a game doesn't start, crashes, missing library functions): this GUI cannot fix them. Attach the report from **Export report…** and ask in the official [AnyPS5 Discord](https://discord.gg/BHFztBPUe) or in the [Game bring-up discussions](https://github.com/boykopovar/AnyPS5/discussions/categories/game-bring-up), and read the [usage guide](https://github.com/boykopovar/AnyPS5/blob/main/docs/user/USAGE.md).
 
 ## License
