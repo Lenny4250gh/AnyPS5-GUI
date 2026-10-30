@@ -12,34 +12,6 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Badge - publishing
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          cat > /tmp/setbadge.sh <<'SH'
-          #!/usr/bin/env bash
-          set -e
-          msg="$1"; color="$2"
-          cd "$(mktemp -d)"
-          git init -q
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git fetch -q origin badges; then
-            git checkout -q -B badges FETCH_HEAD
-          else
-            git checkout -q --orphan badges
-          fi
-          printf '{"schemaVersion":1,"label":"NEW RELEASE","message":"%s","color":"%s"}\n' "$msg" "$color" > release.json
-          git add release.json
-          git diff --cached --quiet && exit 0
-          git commit -q -m "Release badge: $msg"
-          git push -q origin badges
-          SH
-          chmod +x /tmp/setbadge.sh
-          /tmp/setbadge.sh publishing blue
-
       - name: Find the finished build for this commit
         id: find
         env:
@@ -65,16 +37,3 @@ jobs:
         with:
           files: release/*
           generate_release_notes: true
-
-      - name: Badge - result
-        if: always()
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-          JOB_STATUS: ${{ job.status }}
-        run: |
-          case "$JOB_STATUS" in
-            success)   /tmp/setbadge.sh idle yellow ;;
-            cancelled) /tmp/setbadge.sh cancelled lightgrey ;;
-            *)         /tmp/setbadge.sh failing red ;;
-          esac
