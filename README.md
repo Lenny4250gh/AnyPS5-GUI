@@ -28,22 +28,34 @@
 ## Download
 
 <p align="center">
-  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest">
-    <img src="https://img.shields.io/badge/⬇%20DOWNLOAD-LATEST%20VERSION-2ea44f?style=for-the-badge" alt="Download the latest version">
+  Choose your operating system:
+</p>
+
+<p align="center">
+  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest/download/AnyPS5_GUI-windows.exe">
+    <img src="https://img.shields.io/badge/Download-Windows%20(.exe)-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows">
+  </a>
+  &nbsp;
+  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest/download/AnyPS5_GUI-linux">
+    <img src="https://img.shields.io/badge/Download-Linux- FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Download for Linux">
+  </a>
+  &nbsp;
+  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest/download/AnyPS5_GUI-macos.zip">
+    <img src="https://img.shields.io/badge/Download-macOS%20(.zip)-555555?style=for-the-badge&logo=apple&logoColor=white" alt="Download for macOS">
   </a>
 </p>
 
 <p align="center">
-  Open the latest release and download the file for your operating system.
+  Each button downloads the latest available build for that platform.
+  <br>
+  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases">View all releases and changelogs</a>
 </p>
 
-| Your system | Download | How to open it |
+| Platform | File | After downloading |
 |:--|:--|:--|
 | **Windows** | `AnyPS5_GUI-windows.exe` | Double-click the file. |
 | **Linux** | `AnyPS5_GUI-linux` | Run `chmod +x AnyPS5_GUI-linux`, then open it. |
 | **macOS** | `AnyPS5_GUI-macos.zip` | Extract the ZIP and open the app. If blocked, right-click it and choose **Open**. |
-
-[See all versions and release notes](https://github.com/Lenny4250gh/AnyPS5-GUI/releases).
 
 > **Note:** You do not need to install Python or compile the app when using a release build.
 
