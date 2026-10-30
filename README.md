@@ -1,332 +1,331 @@
-# AnyPS5 GUI
+<p align="center">
+  <img src="Icon/icon.png" alt="AnyPS5 GUI logo" width="128">
+</p>
 
-[![License: GPL-2.0](https://img.shields.io/badge/license-GPL--2.0--only-blue)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/Lenny4250gh/AnyPS5-GUI)](https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest)
-[![Build](https://github.com/Lenny4250gh/AnyPS5-GUI/actions/workflows/build.yml/badge.svg)](https://github.com/Lenny4250gh/AnyPS5-GUI/actions/workflows/build.yml)
+<h1 align="center">AnyPS5 GUI</h1>
 
-A graphical interface for [AnyPS5](https://github.com/boykopovar/AnyPS5): unwrap, convert (relink), and run PS5 games on PC without touching the command line.
+<p align="center">
+  A simple graphical interface for <a href="https://github.com/boykopovar/AnyPS5">AnyPS5</a>.<br>
+  Convert and launch your own PS5 game dumps on PC without using the command line.
+</p>
 
-> **Unofficial.** Not affiliated with Sony or with the AnyPS5 project. This tool contains **no games, no firmware, no keys and no decryption**. Use it only on software you legitimately own (your own dumps or homebrew).
+<p align="center">
+  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest"><img src="https://img.shields.io/github/v/release/Lenny4250gh/AnyPS5-GUI?style=for-the-badge&label=Latest%20version" alt="Latest release"></a>
+  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases"><img src="https://img.shields.io/github/downloads/Lenny4250gh/AnyPS5-GUI/total?style=for-the-badge&label=Downloads" alt="Downloads"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0--only-blue?style=for-the-badge" alt="GPL-2.0-only license"></a>
+</p>
 
-## What is this for?
+<p align="center">
+  <a href="#download">Download</a> ·
+  <a href="#getting-started">Getting started</a> ·
+  <a href="#what-does-it-do">What it does</a> ·
+  <a href="#help">Help</a> ·
+  <a href="#advanced">Advanced</a>
+</p>
 
-[AnyPS5](https://github.com/boykopovar/AnyPS5) is a command-line project that takes a **PS5 game dump you own** and turns it into a program that runs natively on a PC (Windows, Linux or macOS). It does this in a few separate steps, each with its own tool and its own options: unwrapping the executables, converting relinking them against replacement system libraries, and launching the result with the right environment variables.
+---
 
-**AnyPS5 GUI** puts all of that behind a normal window:
+## Download
 
-- **No command line.** You pick a folder, press a button, read the log.
-- **Everything in one place.** The tools (relinker, system libs, `unwrap_self.py`) are downloaded or built for you, kept up to date and checked before every run.
-- **Safe defaults, explained options.** Every relinker option has a short description and is automatically disabled when it does not fit the selected target (e.g. Windows-only flags).
-- **From dump to launch.** After converting, the same app launches the game, creates a shortcut and edits the controller mapping.
+<p align="center">
+  <a href="https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest">
+    <img src="https://img.shields.io/badge/⬇%20DOWNLOAD-LATEST%20VERSION-2ea44f?style=for-the-badge" alt="Download the latest version">
+  </a>
+</p>
 
-In short, the typical flow is:
+<p align="center">
+  Open the latest release and download the file for your operating system.
+</p>
 
-```
-game dump (folder / .zip / .rar)
-        │  Unwrap   (SELF/fSELF → ELF, with backup)
-        ▼
-   Relink  ──►  <GAME>-<system>/   (app0 + libs + executable)
-        │
-        ▼
-   Launch / shortcut   (runtime settings + input mapping)
-```
+| Your system | Download | How to open it |
+|:--|:--|:--|
+| **Windows** | `AnyPS5_GUI-windows.exe` | Double-click the file. |
+| **Linux** | `AnyPS5_GUI-linux` | Run `chmod +x AnyPS5_GUI-linux`, then open it. |
+| **macOS** | `AnyPS5_GUI-macos.zip` | Extract the ZIP and open the app. If blocked, right-click it and choose **Open**. |
 
-The GUI does **not** do the conversion itself: it drives the official AnyPS5 tools and shows what they do.
+[See all versions and release notes](https://github.com/Lenny4250gh/AnyPS5-GUI/releases).
 
-## Highlights
+> **Note:** You do not need to install Python or compile the app when using a release build.
 
-What you get besides "a window instead of a command line":
+---
 
-- **Interactive input editor.** Click a button on the controller, press a key, mouse button or wheel direction, done. Alternate inputs, stick deadzones, mouse-as-stick (sensitivity, curve, smoothing, decay), and the new Stick modifier/scale are all in the same screen. Prefer text? Edit `anyps5-input.ini` directly, with a validity check.
-- **Share your settings as a file.** Export any section (conversion, runtime, input) as a small file and import someone else's. Handy to help a friend, or to post a working setup for a game.
-- **Use any repository, not only the official one.** Point the GUI at a fork, a branch or an older tag and it downloads that release or builds it from source. Each repository gets its own folder, so testing a fork never mixes files with the official one. See [Using a different repository](#using-a-different-repository-forks-and-custom-builds).
-- **Tools handled for you.** Relinker, system libs and `unwrap_self.py` are downloaded (checked with SHA-256) or built, and kept up to date.
-- **Options that make sense.** Every relinker option is explained and disabled automatically when it does not fit the selected target.
-- **Safe unwrap.** Original files are backed up, with a *Restore backup* button.
-- **Runtime settings and shortcuts.** GPU, language, present mode, fonts, tracing and more, passed to the game as environment variables, or saved in a shortcut.
-- **Self-updating.** The app checks this repository's latest release and can replace itself and restart.
-- **Checks your computer.** The requirements list also tells you if your CPU (AVX2 and the other extensions AnyPS5 needs, Intel/AMD/Apple silicon), your GPU (Vulkan, software renderers, several GPUs) or, on Windows, your memory and page file are likely to cause trouble.
-- **Asks before rebuilding.** When the repository has new commits and you already have a build, a popup shows the changes (commit titles and a link to GitHub) and lets you update and rebuild or keep your build.
-- **Faster, clearer builds.** Nothing is downloaded or built when the remote commit is the one you already have; builds show a progress bar with elapsed and remaining time, use Ninja and a compiler cache (ccache/sccache) when installed, and clone with parallel jobs.
-- **Report or suggest.** A button in the top bar opens the GitHub issues of this project with your app version and system already filled in.
-- **Sound effects.** Short clicks and chimes, made by the app, with a volume slider (you can turn them off).
-- **One-click test report.** *Export report…* saves a file with your system info, runtime variables, exit code, an automatic reading of the log and the full log, ready to attach to a Discord message or a GitHub issue.
+## Getting started
 
-## Download (no build needed)
+The usual process is just: **select your game → convert it → launch it**.
 
-1. Open the [**Releases**](https://github.com/Lenny4250gh/AnyPS5-GUI/releases/latest) page.
-2. Download the file for your system:
+### 1. Select your game
 
-   | System  | File                                                  |
-   | ------- | ----------------------------------------------------- |
-   | Windows | `AnyPS5_GUI-windows.exe`                              |
-   | Linux   | `AnyPS5_GUI-linux` (then `chmod +x AnyPS5_GUI-linux`) |
-   | macOS   | `AnyPS5_GUI-macos.zip`                                |
+Open AnyPS5 GUI and choose **Convert a game**.
 
-3. *(Optional but recommended)* verify the file: compare its SHA-256 with the `sha256:` value GitHub shows next to each file on the release page:
-   - Windows (PowerShell): `Get-FileHash .\AnyPS5_GUI-windows.exe -Algorithm SHA256`
-   - Linux: `sha256sum AnyPS5_GUI-linux`
-   - macOS: `shasum -a 256 AnyPS5_GUI-macos.zip`
-4. Run it. The first time it creates an `AnyPS5_GUI` folder in your user data folder (so it survives updates), where it keeps the downloaded tools (relinker, libs, `unwrap_self.py`), `config.ini`, backups and so on. You can move it from **Settings → Storage**. To keep everything next to the program instead, put an empty file named `portable` next to it (in that mode the folder is called `Utilities/`).
+Select the folder containing your own game dump. You can also select a `.zip` archive; `.rar` archives require 7-Zip.
 
-   | System  | Default app folder                          |
-   | ------- | ------------------------------------------- |
-   | Windows | `%APPDATA%\AnyPS5_GUI` (Roaming)            |
-   | macOS   | `~/Library/Application Support/AnyPS5_GUI`  |
-   | Linux   | `~/.local/share/AnyPS5_GUI`                 |
+### 2. Convert it
 
-All three files are built automatically by GitHub Actions on real Windows, macOS and Linux machines, straight from the source in this repository. You can inspect the [workflow](.github/workflows/build.yml) and the [build runs](https://github.com/Lenny4250gh/AnyPS5-GUI/actions).
+Before starting, check the **Requirements** panel. It tells you if something is missing and can download the required AnyPS5 tools.
 
-### Upgrading from an older version
+Then:
 
-The first versions kept a `Utilities/` folder next to the program. On startup the app moves it automatically to the new location (your user data folder, or the one chosen in **Settings → Storage**):
+- Press **Unwrap** only if the game contains decrypted `SELF` / `fSELF` files that need to be converted to `ELF`.
+- Press **Relink** to create the PC package for your selected target system.
 
-- Only what the app itself uses is moved: tools (`unwrap_self.py`, `relinker-*`, `prx-*.zip`, `tools/`), `config.ini`, `anyps5-input.ini`, backups, fonts and 7-Zip files.
-- Items that already exist in the new folder are not overwritten, and any other file you left in the old folder stays where it is.
-- The old folder is removed (sent to the trash) only if nothing else is left in it.
-- The big folders `release/`, `source/`, `toolchain/`, `extracted/` and `update/` are moved only if the old and new folders are on the same drive; otherwise they stay behind and are downloaded or rebuilt when needed.
+The converted game is saved in the output folder. By default, this is a folder named `Converted games` next to the app. You can change it in Settings.
 
-### Requirements and warnings
+### 3. Launch the game
 
-- **Windows:** needs the Microsoft Edge WebView2 runtime (already present on up-to-date Windows 10/11). SmartScreen or your antivirus may warn about the file: it is not code-signed, and PyInstaller one-file programs are often flagged as false positives. If you don't trust the binary, read the source and [build it yourself](#build-from-source) (it takes a minute).
-- **macOS:** the app is not signed. Right-click the app → **Open** the first time (or run `xattr -cr AnyPS5_GUI.app`).
-- **Linux:** the binary bundles Qt, but it still needs a few system libraries. On Debian/Ubuntu: `sudo apt install libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libdbus-1-3`.
+Open **Play a game**, select the converted game package and press **Launch**.
 
-## Quick start
+You can also create a shortcut to launch that package again later.
 
-1. Open the app and go to **Convert a game**.
-2. Check the **requirements**: the app tells you what is missing (tools, CPU, GPU, memory) and can download the tools for you. On the first run it already picks the system, `--to-intel` and `--to-rosetta` options that fit your computer.
-3. Pick your game folder (your own dump), or a `.zip` / `.rar` of it: archives are extracted automatically.
-4. Run **Unwrap** if your files are decrypted SELF/fSELF, then **Relink**. The result is a `<GAME>-<system>` package in your output folder (by default a `Converted games` folder next to the program; change it in the settings).
-5. Go to **Play a game** and press **Launch**, or create a shortcut.
+---
 
-Settings (runtime, input, appearance) can be changed at any time from their tabs.
+## What does it do?
 
-## Features
+AnyPS5 GUI is the graphical interface for [AnyPS5](https://github.com/boykopovar/AnyPS5). It helps you use the AnyPS5 tools without typing commands.
 
-**Convert a game**
-- **Unwrap:** already-decrypted SELF/fSELF → ELF, using the official `unwrap_self.py` (the original files are backed up, with a *Restore backup* button).
-- **Relink:** builds the `<GAME>-<system>` package (app0 + libs + executable) for Windows, Linux or macOS.
-- **Output folder:** converted games go to the output folder you choose in the settings. When it is empty, the default is a `Converted games` folder next to the program, created automatically.
-- **Game archives:** the game can be a folder or a `.zip` / `.rar` (`.rar` needs 7-Zip installed).
-- **Requirements check:** shows what is missing before you start, and downloads the tools for you when needed. It also checks:
-  - **CPU:** x86-64 with AVX2, FMA, F16C, BMI1/2, LZCNT and MOVBE. Apple silicon is reported (use the macOS system with `--to-rosetta`) and Intel CPUs are reminded to turn on `--to-intel`.
-  - **GPU:** detected through Vulkan. Warns about software renderers (very slow), a missing Vulkan loader on Linux, several GPUs (choose one with `ANYPS5_GPU`) or an `ANYPS5_GPU` value that matches nothing.
-  - **Memory (Windows):** free commit (RAM + page file) against the direct memory a title can commit.
-  - **NVIDIA driver:** reads the driver version and warns about versions known to crash (currently 610.47, crash in `nvgpucomp64.dll`).
-  - **`/dev/udmabuf` (Linux):** tells you if it is missing or not accessible and how to fix it (only needed with Mesa drivers, not with the proprietary NVIDIA driver).
-- **First-run defaults:** without a config file, the system is set to your own, `--to-intel` is on for Intel CPUs and `--to-rosetta` is on for Apple silicon.
-- **Rosetta:** the *Apple silicon via Rosetta (--to-rosetta)* option sits under the system choice and is hidden when the Windows system is selected.
-- **Tools source:** choose where the relinker, libs and `unwrap_self.py` come from (see [below](#where-the-tools-come-from)).
-- **Options:** all relinker options, each marked with the systems it applies to. Options that do not fit the selected target are disabled automatically.
-- **Extra arguments:** a free-text field to pass options of newer relinker versions that the GUI does not know yet (split like a shell command line). An option already set by the GUI is refused.
-- **Relinker version:** the *Relinker version* button runs `relinker --version`. After each conversion the version used, the source (release tag or commit), the repository and the target are saved in `conversion_info.json` inside the package (useful for support).
-- **Audit:** runs `import_audit.py` (if present) after the relink and logs a one-line summary: how many imports are implemented, stubbed (load but throw when called) or absent (the game will not load), plus the first absent names.
+It can:
 
-> <img src="docs/screenshots/1.png" width="600" alt="Convert Page">
-> <img src="docs/screenshots/2.png" width="600" alt="Convert Page 2">
+- **Unwrap** supported decrypted `SELF` / `fSELF` files.
+- **Relink** a game dump for Windows, Linux or macOS.
+- **Launch** a converted game and save its runtime settings.
+- **Configure controls**, including keyboard, mouse and controller mappings.
+- **Check requirements** and help obtain the tools needed for conversion.
 
-**Play a game**
-- **Launch** a converted game with your current settings, or **create a shortcut** that starts it with the right variables. The shortcut is named after the real game title read from the game's `param.json` (e.g. *Dreaming Sarah* instead of `PPSA02929`); if the title can't be read, the folder name is used.
-- **Browse PC game…** opens the folder picker directly in your output folder, where your converted games are.
-- **Exit code explained:** when the game ends, the log shows its exit code in plain words (missing library, segmentation fault, access violation, timeout…).
-- **Check before start:** before launching, the app checks the package (executable, `app0`, `sce_sys/param.json`, original `.prx` files in `libs/` on Windows) and shows a plain message instead of a cryptic start-up error. On Linux/macOS it restores the execute permission lost after a zip or a download.
-- **Launch protection (Windows):** if the MinGW runtime DLLs are missing from `libs/`, the game is not started and you get a clear message instead of error 126 on every library.
+The GUI does not perform the conversion by itself: it runs the AnyPS5 tools and shows their progress and logs.
 
-> <img src="docs/screenshots/3.png" width="600" alt="Play Page">
+## Main features
 
-**Settings**
+<details>
+<summary><strong>Game conversion</strong></summary>
 
-- **Game and modules, Conversion, Source build**
-- **Runtime settings:** Language, GPU, present mode, fonts, tracing and more, passed to the game as environment variables.
-> <img src="docs/screenshots/7.png" width="600" alt="Runtime settings">
+- Select a game folder or a `.zip` / `.rar` archive (`.rar` requires 7-Zip).
+- Check CPU, GPU and other requirements before conversion.
+- Download or build the required AnyPS5 tools from the selected source.
+- Unwrap supported decrypted `SELF` / `fSELF` files. Original files are backed up and can be restored.
+- Relink the game for Windows, Linux or macOS.
+- Choose where converted games are saved.
+- Configure relinker options, patches and fixed-base options where supported.
+- View the operation log and export a report if something goes wrong.
 
-- **ANYPS5_GPU** suggests the GPUs detected on your computer.
-- **Storage:** see where the app keeps its tools, builds, backups and `config.ini`, and move everything to another folder with one click.
-- Any section of the settings can be exported as a shareable file.
+</details>
 
-**Test report**
-- **Export report…** (below the log) saves a text file with the points of `GAME_TESTING.md`: GUI build, title ID and content version, CPU, OS, GPU, power source, system, runtime variables, `--to-intel`, how far the game got, exit code and presents per 10 s. It also contains the full log (the title's own `anyps5.log` / `run.log` when present) and an automatic reading of it (software renderer, stalled title, device lost, GPU out of memory, missing permissions). Measured data and the automatic reading are kept apart. Fields the GUI cannot know are left as *(fill in)*. Known errors (NVIDIA driver crash, `/dev/udmabuf`, out of memory, error 126/193, lost execute permission, duplicate output names) are explained with what to do.
-- **Copy for bug** copies a short report (versions, host report, last 60 log lines) to paste in a GitHub issue. **Debug package…** saves a zip with the bug report, the full report, your settings and the `.registry.json` files. In both, user name, computer name and home folder are hidden: check the content before you share it.
-- **Report or suggest** (top bar) opens the GitHub issues of this project: report a bug (a form with your app version and system filled in), suggest something, or see the open issues. You need a GitHub account to post, and nothing else is sent.
+<details>
+<summary><strong>Launching and runtime settings</strong></summary>
 
-**Updates**
-- The app checks the latest release of this repository and, when a newer one exists, can download it for your system, replace itself and restart.
-- **New version of the tools repository:** with *Build from GitHub source*, the app compares the remote commit with the one you built (no download needed). If it is the same, nothing is fetched or built. If it is newer, a popup shows the date, the latest commit titles and a link to all the changes on GitHub; choose *Update and rebuild* or *Keep this build*. *Do not show this message again* saves your choice (see *Ask before updating and rebuilding* below).
+The **Play a game** page lets you select a converted package and launch it.
 
-**Input**
-- Visual controller editor: click a button, then press a key, mouse button or wheel direction. Alternate inputs supported.
+Runtime settings include options such as:
 
-> <img src="docs/screenshots/4.png" width="600" alt="Input mapping">
+- Graphics and presentation settings.
+- Language and fonts.
+- Performance overlay and diagnostics.
+- Screenshot folder and shader cache.
+- Controller vibration and speaker volume.
+- Host game mode and other environment variables.
 
-- Stick deadzones and mouse-as-stick settings (sensitivity, curve, smoothing, decay).
-> <img src="docs/screenshots/5.png" width="600" alt="Input deadzones and mouse settings">
+The app only sets optional runtime variables when you change them from their defaults. You can also create a shortcut with the selected launch settings.
 
-- Import / export your settings, or edit `anyps5-input.ini` directly in text view (with validity check).
-> <img src="docs/screenshots/6.png" width="600" alt="Input deadzones and mouse settings">
+</details>
 
-**Converted game data and screenshots**
-- The **Play** view has a separate path for the converted PC game package, independent from the PS5 source path used for conversion. Launch and shortcut creation use the selected converted package; when no path is selected, the app attempts the configured output folder (`Converted games` by default).
-- **Game folders (saves and trophies)** lets you open `_sd`, `_sd_mem` and `_trophy`. Save-data folders can be backed up as ZIP files; trophy data can be reset after a confirmation prompt. These actions operate on the selected/last-launched package, so check the displayed package path first.
-- **Trophies:** after a run, the app counts the unlocked trophies in `_trophy` (PS5 and PS4 formats) and warns about damaged files, because the game stops when it reads one.
-- **Screenshots:** the runtime `ANYPS5_SCREENSHOTS` setting accepts an absolute folder. When empty, screenshots go to `anyps5-screenshots/` next to the game executable. The **Screenshot gallery** in the Play view shows the latest ones (click to open) and has a button for the folder; the folder may not exist until the first F12 screenshot.
-- **Shader cache:** Runtime settings show the effective AnyPS5 shader-cache path and current size, allow a custom absolute path through `ANYPS5_SHADER_CACHE_DIR`, and provide a clear-cache action. Clearing removes the AnyPS5 cache at that configured path, not the graphics driver's cache. `ANYPS5_NO_SHADER_CACHE` disables the on-disk cache; shaders may need to be rebuilt on later runs.
+<details>
+<summary><strong>Controls and input</strong></summary>
 
-**Conversion patches and fixed-base options**
-- `--patches` accepts a patch file. If no explicit file is supplied, the relinker may use `relinker-patches.toml` next to `eboot.bin` when present. **Verify patches** checks the selected patch file against the selected unwrapped game executable without writing changes. `--no-patches` explicitly disables patches and conflicts with `--patches`.
-- `--linux-fixed-base` and `--macos-fixed-base` are now exposed for their respective targets, alongside the existing Windows fixed-base option. Values are validated for address format, alignment and target compatibility; Linux fixed-base also conflicts with `--lazy-binding`.
+- Configure controller buttons by clicking a control and pressing a keyboard key, mouse button or wheel direction.
+- Set alternate inputs and stick deadzones.
+- Configure mouse movement as a stick, including sensitivity, curve, smoothing and decay.
+- Import and export input settings.
+- Edit `anyps5-input.ini` directly in the text editor, which checks whether the file is valid.
 
-**Runtime diagnostics and overlay**
-- The performance overlay can be enabled from the first frame and positioned in any corner. In-game **F10** toggles its visibility.
-- New runtime settings: **controller vibration** (`ANYPS5_RUMBLE`, 0–100 %), **controller speaker gain** (`APS5_PAD_SPEAKER_FALLBACK_DB`, 0 to −60 dB or mute), **log file** (`ANYPS5_LOG_FILE`, absolute path), **host game mode** (`APS5_GAME_MODE`: Feral GameMode on Linux, activity on macOS; not used on Windows) and **`ANYPS5_HOST_REPORT=1`** (OS, CPU, GPU, driver and Vulkan support printed once at start; ON by default and used by *Copy for bug*). A variable is set only when you change it from the default.
-- `APS5_PLAYGO_UNLISTED_CHUNKS` can be set to `installed` or `absent` to control how unlisted PlayGo chunks are treated.
-- **Test diagnostics (for bug reports)** enables extra profiling/log timestamp variables and, on Windows, crash indirect-memory diagnostics. It can slow the game slightly, so leave it off for performance comparisons.
-- Automatic log interpretation now calls out host-import memory-budget and texture-cache diagnostics, with notes about the corresponding tuning variables.
+</details>
 
-**Discord Rich Presence**
-- While the app is open it shows *In the launcher* and, during a conversion, the current phase (Preparing, Copying game files, Copying libs, Relinking…). It does not show which game you play. Turn it off with *Disable Discord Rich Presence* in the Appearance settings.
+<details>
+<summary><strong>Game data, screenshots and diagnostics</strong></summary>
 
-**Appearance**
-- Choose the main color (presets or custom hex) and the animated background (soft grid, orbs or none). It stops automatically if your system asks for reduced motion.
-- **Sound effects:** short sounds generated by the app (no audio files) for buttons, tabs, dialogs, success and errors. Turn them off or change the volume in Appearance. They play only while the window has focus.
+- Open the selected game's `_sd`, `_sd_mem` and `_trophy` folders.
+- Back up save-data folders as ZIP files.
+- Reset trophy data after a confirmation prompt.
+- View screenshots in the app's gallery. The default screenshot folder is `anyps5-screenshots/` next to the game executable; it is created when the first screenshot is taken.
+- View and clear the AnyPS5 shader cache.
+- Export a diagnostic report containing system information, runtime variables and logs.
 
-> <img src="docs/screenshots/9.png" width="600" alt="Appearance settings">
+**Be careful:** resetting trophy data is destructive. Check the selected game package path before managing saves or trophies.
 
-### Where the tools come from
+</details>
 
-The relinker, libs and `unwrap_self.py` are chosen in **Advanced: where the tools come from** (Convert a game page):
+<details>
+<summary><strong>Appearance and Discord</strong></summary>
+
+- Choose the app's accent color and background.
+- Enable, disable or adjust the volume of the app's sound effects.
+- Discord Rich Presence shows when the launcher is open and the current conversion phase. It does not show the game you are playing. You can disable it in Appearance settings.
+
+</details>
+
+---
+
+## Help
+
+### The app does not open
+
+- **Windows:** the app needs Microsoft Edge WebView2 Runtime. It is already included on most up-to-date Windows 10/11 installations.
+- **macOS:** the app is not signed. Try right-clicking it and selecting **Open**.
+- **Linux:** install the system libraries listed in [Requirements](#requirements).
+
+### Windows or antivirus shows a warning
+
+The release is not code-signed, and PyInstaller applications can sometimes trigger SmartScreen or antivirus warnings. Only run software you trust. You can inspect the source code or build the app yourself using the instructions below.
+
+### Conversion or launch fails
+
+1. Open the app's log and read the first reported error.
+2. Check the **Requirements** panel.
+3. Use **Export report…** or **Copy for bug** to collect diagnostic information.
+4. If the issue is with this GUI, [open an issue](https://github.com/Lenny4250gh/AnyPS5-GUI/issues) and include your operating system, app version and report.
+
+If the game itself fails because of an AnyPS5 compatibility issue, ask in the [official AnyPS5 Discord](https://discord.gg/BHFztBPUe) or the [AnyPS5 game bring-up discussions](https://github.com/boykopovar/AnyPS5/discussions/categories/game-bring-up).
+
+### Where can I find the full changelog?
+
+The [GitHub Releases page](https://github.com/Lenny4250gh/AnyPS5-GUI/releases) contains the notes for each version. Long version-by-version change lists are kept there so this page stays easy to read.
+
+---
+
+## Advanced
+
+The sections below are for users who want to change the tool source, build the app themselves or inspect technical details. You can leave them closed if you only want to download and use the program.
+
+<details>
+<summary><strong>Installation details and requirements</strong></summary>
+
+### First launch and app data
+
+On first launch, the app creates an `AnyPS5_GUI` data folder in your user profile. It stores downloaded tools, settings, backups and other app data.
+
+| System | Default folder |
+|:--|:--|
+| Windows | `%APPDATA%\AnyPS5_GUI` |
+| macOS | `~/Library/Application Support/AnyPS5_GUI` |
+| Linux | `~/.local/share/AnyPS5_GUI` |
+
+You can move this folder from **Settings → Storage**.
+
+To keep app data next to the program instead, create an empty file named `portable` next to the executable. In portable mode, the app uses a `Utilities/` folder.
+
+### Requirements
+
+- **Windows:** Microsoft Edge WebView2 Runtime.
+- **macOS:** the app is unsigned; the first launch may need right-click → **Open**. You can also run `xattr -cr AnyPS5_GUI.app`.
+- **Linux:** on Debian/Ubuntu, install:
+  ```bash
+  sudo apt install libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libdbus-1-3
+  ```
+
+The app also checks the CPU and GPU requirements needed by AnyPS5 before conversion.
+
+### Verify a downloaded file (optional)
+
+Compare the SHA-256 checksum with the value shown on the GitHub release page:
+
+- Windows (PowerShell): `Get-FileHash .\AnyPS5_GUI-windows.exe -Algorithm SHA256`
+- Linux: `sha256sum AnyPS5_GUI-linux`
+- macOS: `shasum -a 256 AnyPS5_GUI-macos.zip`
+
+</details>
+
+<details>
+<summary><strong>Using a different AnyPS5 repository</strong></summary>
+
+By default, the GUI uses the official [AnyPS5 repository](https://github.com/boykopovar/AnyPS5). You can change **Repository URL** in **Advanced: where the tools come from** to use a fork or another compatible repository.
+
+There are two ways to get tools from a repository:
 
 | Source | What it does |
-| ------ | ------------ |
-| **Local files (manual)** | Uses the files you provide. Press **Import files…** and pick `unwrap_self.py`, `relinker-*` and `prx-*.zip` (optionally `nid_patcher`, `anyps5-input.ini`, fonts `.ttf`/`.otf`/`.ttc`, `import_audit.py` and `pad_input.py`): they are copied into the app folder (see [Download](#download-no-build-needed)). If a file already exists you are asked whether to replace it. |
-| **Release from GitHub repo (auto-update)** | Downloads the latest release (or a tag you choose) of a GitHub repository (**Download now**). The web input mapper (`tools/input-mapper`) is not a release file, so it is downloaded from the source of the same tag the first time you open it. |
-| **Build from GitHub source (auto-update)** | Clones the repository and builds it (**Build now**); needs git, CMake and a C/C++ compiler. |
+|:--|:--|
+| **Release from GitHub repo** | Downloads the tools attached to a GitHub release or tag. |
+| **Build from GitHub source** | Clones the repository and builds the relinker with CMake. |
 
-**Download now** and **Build now** are disabled while an operation runs; the **Stop** button next to them cancels it. Only the controls that apply to the selected source are shown. By default both GitHub sources point to the official [AnyPS5](https://github.com/boykopovar/AnyPS5) repository, but the repository is just a setting: see the next section.
+Each repository has its own folder, so files from different forks are kept separate.
 
-## Using a different repository (forks and custom builds)
+### Release repository format
 
-The **Repository URL** field is not tied to AnyPS5. You can point the GUI at a **fork** or at any repository that follows the same layout, and the app will download its releases or build it from source. This is useful to try a fork with extra fixes, a branch that is still in development, or an older version.
+A compatible release should include:
 
-### Settings
+- `relinker-*` — executable for the operating system.
+- `prx-*.zip` — archive containing `libs/` or `libs-<system>/`.
+- `USAGE.md`, `INPUT_MAPPING.md` or `release-notes.md` — optional documentation.
 
-| Setting | Used by | Meaning |
-| ------- | ------- | ------- |
-| **Repository URL** | Release, Build | Accepts `https://github.com/owner/repo`, `github.com/owner/repo` or just `owner/repo`. Empty = the official AnyPS5 repository. The **Release** source only works with `github.com` URLs; the **Build** source also accepts any URL `git` can clone (`https`, `ssh`, `git`, `file`, `user@host:path`). |
-| **Release tag** | Release | Empty = latest release. Set e.g. `v0.1.2` to pin a version. |
-| **Check for a newer release before every run** | Release | ON = asks GitHub which release is current and downloads only the missing files. OFF = reuses what was already downloaded (works offline). |
-| **Branch or tag** | Build | Empty = the repository's default branch. |
-| **CMake target** | Build | Empty = tries the target `relinker` first and, if it does not exist, builds everything. Also used as the name of the executable to pick up. |
-| **Extra CMake arguments** | Build | Added to the configure step, e.g. `-G Ninja -DCMAKE_CXX_COMPILER=clang++`. Without your own choice, the GUI adds the Ninja generator (Linux/macOS, if `ninja` is installed) and a compiler cache (`ccache` or `sccache`, if installed). |
-| **Check for updates before every relink** | Build | ON = checks the latest commit and rebuilds only if it changed. OFF = reuses the existing build. |
-| **Ask before updating and rebuilding** | Build | ON (default) = when a build already exists and the repository is newer, a popup asks whether to update or keep the build. OFF = no question: it follows *Check for updates before every relink*. |
-| **Extra arguments (passed as they are)** | Conversion | Relinker options the GUI does not know yet, e.g. `--new-option 1`. Quotes allowed. An option already set by the GUI is refused. |
-| **Build the libs (.prx) from the repository** | Build | ON = also builds the `libs` target and uses those libs instead of a `prx-*.zip`. Much slower (full CMake configuration, downloads FFmpeg, needs the SDL/Vulkan build dependencies). |
-| **Build jobs (parallel compilers)** | Build | Empty = automatic: about half of your CPU threads, more if you have a lot of RAM. A higher number (e.g. 12 or 16 on a 16-thread CPU) builds faster but uses more RAM; if the PC slows down or freezes, lower it. An interrupted build resumes where it stopped. |
+The repository should also contain `tools/unwrap_self.py` at the selected tag or on its default branch.
 
-Each repository gets its own folder, so switching between the official repo and a fork does not mix files:
+Downloads are checked using SHA-256 when GitHub provides a checksum.
 
-```
-AnyPS5_GUI/              (the app folder)
-├── release/<repo>/<tag>/    files downloaded from a GitHub release
-├── source/<repo>-<hash>/    clone + CMake build of a repository
-└── ...                      files imported manually (Local source)
+### Build repository format
+
+The repository should have:
+
+- A root `CMakeLists.txt`.
+- A CMake target that builds the relinker (normally named `relinker`).
+- The expected AnyPS5 folders, including `core/`, `3rdparty/`, `cmake/` and `tools/`.
+- `tools/unwrap_self.py`.
+
+Building requires `git`, `cmake` and a C/C++ compiler. On Debian/Ubuntu:
+
+```bash
+sudo apt install git cmake build-essential
 ```
 
-### What a repository must contain
+On Windows, the project uses the MinGW-w64 GCC toolchain supported by the AnyPS5 build. The GUI can install the required build tools.
 
-#### For the **Release** source
+Only use repositories you trust: the GUI downloads and runs code from the selected repository on your computer.
 
-The GUI asks the GitHub API for the release (`latest`, or the tag you set) and looks at its **assets** by name. Names are matched case-insensitively:
+</details>
 
-| Asset | Required | Rules |
-| ----- | :------: | ----- |
-| `relinker-*` | yes | The relinker executable **for the OS the GUI runs on**. On Windows it must end in `.exe`; on Linux/macOS it must have no extension (so `relinker-v0.1.2` is fine, `relinker-v0.1.2.zip` or `.md`, `.txt`, `.json`, `.sha256`… are ignored). If several match, the last one in alphabetical order (the newest version) is used. |
-| `prx-*.zip` | yes | The system libs. The zip must contain a folder named `libs` or `libs-<system>` (`libs-windows`, `libs-linux`, `libs-macos`; the system-specific one is preferred). The zip is read as it is, no need to extract it. If the name contains `windows` or `linux` the right one is chosen for the selected target (**macOS uses the `linux` zip**); otherwise any `prx-*.zip` is used. |
-| `USAGE.md`, `INPUT_MAPPING.md`, `release-notes.md` | no | Small documentation files, downloaded if present. |
-| `unwrap_self.py` | no (see below) | Not read from the assets. |
+<details>
+<summary><strong>Build AnyPS5 GUI from source</strong></summary>
 
-`unwrap_self.py` is **not** a release asset: it is downloaded from `tools/unwrap_self.py` **at the same tag** of the repository. If that tag does not contain it, the GUI falls back to the default branch (and warns you); if it is not there either, it falls back to the copy in the app folder.
+Requires Python 3.9+ (the CI uses Python 3.11).
 
-Downloads are verified against the SHA-256 that GitHub publishes for each asset. If GitHub cannot be reached, the release already downloaded is reused. GitHub allows about 60 API requests per hour without a token: set the `GITHUB_TOKEN` (or `GH_TOKEN`) environment variable to raise the limit.
-
-Minimal example of a compatible release:
-
-```
-v1.2.3
-├── relinker-v1.2.3.exe        (Windows build of the relinker)
-├── relinker-v1.2.3            (Linux/macOS build, no extension)
-├── prx-windows-v1.2.3.zip     (contains libs/ or libs-windows/)
-├── prx-linux-v1.2.3.zip       (contains libs/ or libs-linux/)
-└── USAGE.md                   (optional)
-```
-
-and, in the repository at the same tag: `tools/unwrap_self.py`.
-
-#### For the **Build from source** option
-
-The GUI runs a shallow `git clone --recurse-submodules --depth 1` (without tags, with parallel jobs) (adding `--branch <ref>` if you set one), then CMake in `Release` mode. Your repository needs:
-
-- A **`CMakeLists.txt` in the root**. Without it the build stops with an error.
-- A CMake target that produces the relinker executable, by default named **`relinker`** (or set your own in *CMake target*). The GUI finds the built executable by looking for a file whose name contains the target name. If the target does not exist and you did not set one, it builds everything and searches again.
-- Support for the CMake option **`-DANYPS5_RELINKER_ONLY=ON`**, which the GUI passes automatically so the relinker is built without SDL, Vulkan and FFmpeg. (If you pass your own `-DANYPS5_RELINKER_ONLY=…` in the extra arguments, yours wins.)
-- The AnyPS5 folder layout: the folders `core/`, `3rdparty/`, `cmake/` and `tools/` are expected. A missing one is only a warning, but a very different layout probably will not work.
-- **`tools/unwrap_self.py`**, used for the Unwrap step (the cloned copy replaces the one in the app folder).
-- Optional: `tools/pad_input.py` (controller helper) and `tools/import_audit.py` (audit after relink), picked up from the clone if present.
-
-If you also enable **Build the libs from the repository**, the repo must have a CMake target **`libs`** whose output goes to `<build>/core/libs/libs/*.prx`. Only the `.prx` files that match the folder names under `core/libs/prx/` are kept, the same selection as the official `tools/package_release.py`.
-
-The build is remembered by **commit and target**: the GUI reads the remote commit without downloading anything, and if it did not change and you did not change the target or the build settings, the existing relinker is reused and nothing is fetched or rebuilt. The build log shows a progress bar with elapsed and remaining time, and the total time at the end.
-
-**Tools needed to build.** `git`, `cmake` and a C/C++ compiler must be in your `PATH` (on Debian/Ubuntu: `sudo apt install git cmake build-essential`). On Windows the project supports only the MinGW-w64 GCC 15.2.0 (WinLibs, with Ninja) toolchain, and the GUI can install git, CMake and that toolchain for you with one click (the toolchain is about 270 MB, saved in `toolchain/` inside the app folder). Visual Studio cannot link this project.
-
-**Paths with spaces.** The repository's CMake passes the `-include` path of the libs build to the compiler without quotes. When the folder path contains a space (e.g. `AnyPS5 GUI`), the GUI quotes it for you in its cloned copy before configuring. If you still get path errors, use a short folder without spaces (e.g. `C:\AnyPS5`).
-
-### Quick checklist for a fork
-
-1. Fork [AnyPS5](https://github.com/boykopovar/AnyPS5) and push your changes; don't rename `tools/unwrap_self.py`, the `relinker` target or the top-level folders.
-2. **To test from source:** in the GUI choose *Build from GitHub source*, enter `your-name/AnyPS5` as the repository, optionally a branch in *Branch or tag*, then press **Build now**.
-3. **To distribute a version:** create a GitHub release and attach `relinker-<version>[.exe]` and `prx-<system>-<version>.zip` files named as in the tables above. Anyone can then choose *Release from GitHub repo*, enter your repository and get it.
-4. Switching back to the official repository is just a matter of clearing the field.
-
-> Only point the GUI at repositories you trust: both options download and then **run** code (the relinker, and `unwrap_self.py`) from that repository on your computer.
-
-## Build from source
-
-Requires Python 3.9+ (3.11 is what the CI uses).
-
-```
+```bash
 git clone https://github.com/Lenny4250gh/AnyPS5-GUI.git
 cd AnyPS5-GUI
 pip install -r requirements.txt
-python AnyPS5_GUI.py          # run directly
+python AnyPS5_GUI.py
 ```
 
-To build the executable you also need PyInstaller and Pillow:
+To build an executable:
 
-```
+```bash
 pip install pyinstaller pillow
-python build.py               # asks for the target OS
-python build.py 3             # no questions: 1 = Windows, 2 = macOS, 3 = Linux
+python build.py
 ```
 
-`build.py` embeds `index.html` into the executable and calls PyInstaller. PyInstaller cannot cross-compile: it always packages for the system it runs on, so build **on** the system you are targeting (or let GitHub Actions do it). The result is in `dist/`.
+Or choose a target without the prompt:
 
-When running from source on Linux, pywebview needs a WebKitGTK or Qt backend, see the [pywebview docs](https://pywebview.flowrl.com/guide/installation.html).
+```bash
+python build.py 1  # Windows
+python build.py 2  # macOS
+python build.py 3  # Linux
+```
+
+PyInstaller cannot cross-compile. Build on the operating system you want to target, or use [GitHub Actions](https://github.com/Lenny4250gh/AnyPS5-GUI/actions).
+
+</details>
+
+---
 
 ## Support
 
-- Problems with **this GUI** (it doesn't open, a button does nothing, a wrong option): use the **Report or suggest** button in the app, or open an [issue](https://github.com/Lenny4250gh/AnyPS5-GUI/issues). Please include your OS, the GUI version and any error shown, and paste **Copy for bug** or attach the file from **Export report…** / **Debug package…** if it is about a game.
-- Problems with **AnyPS5 itself** (a game doesn't start, crashes, missing library functions): this GUI cannot fix them. Attach the report from **Export report…** and ask in the official [AnyPS5 Discord](https://discord.gg/BHFztBPUe) or in the [Game bring-up discussions](https://github.com/boykopovar/AnyPS5/discussions/categories/game-bring-up), and read the [usage guide](https://github.com/boykopovar/AnyPS5/blob/main/docs/user/USAGE.md).
+- **AnyPS5 GUI issue:** [open an issue](https://github.com/Lenny4250gh/AnyPS5-GUI/issues).
+- **AnyPS5 game compatibility issue:** use the [AnyPS5 Discord](https://discord.gg/BHFztBPUe) or [game bring-up discussions](https://github.com/boykopovar/AnyPS5/discussions/categories/game-bring-up).
 
-## License
-
-GPL-2.0-only, see [LICENSE](LICENSE). The GUI loads the official `unwrap_self.py` from the AnyPS5 project (GPL v2 only) and does not contain a copy of it. If you redistribute it together with the GUI, include its license and sources.
+When reporting a problem, include your operating system, GUI version and diagnostic report if possible.
 
 ## Credits
 
-[AnyPS5](https://github.com/boykopovar/AnyPS5) by its authors, which does the real work (relinker, system libraries, `unwrap_self.py`). This GUI only makes it easier to use.
+[AnyPS5](https://github.com/boykopovar/AnyPS5) by its authors does the underlying work (relinker, system libraries and `unwrap_self.py`). AnyPS5 GUI provides the graphical interface.
 
-## Disclaimer
+## License and disclaimer
 
-For interoperability, research, preservation and compatibility purposes only. This project does not include, distribute or require copyrighted software, firmware, cryptographic keys or proprietary libraries. You are responsible for obtaining and using any binaries in accordance with applicable laws and license terms. Provided "as is", without warranty.
+This project is licensed under **GPL-2.0-only**; see [LICENSE](LICENSE).
+
+This project is for interoperability, research, preservation and compatibility purposes. It does not include games, firmware, cryptographic keys or proprietary libraries. You are responsible for obtaining and using software in accordance with applicable laws and license terms. The project is provided "as is", without warranty.
+
+AnyPS5 GUI is unofficial and is not affiliated with Sony or the AnyPS5 project.
