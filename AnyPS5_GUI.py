@@ -239,6 +239,7 @@ DEFAULTS = {
     "lazy_binding": "no", "skip_sce_module": "no", "exclude_sce_modules": "",
     "skip_syscall_check": "no", "patches_file": "", "no_patches": "no", "extra_args": "",
     "frame_red_zone": "no",
+    "function_symbol_roots": "no", "omit_unavailable_dependencies": "no",
   },
   "runtime": {
     "language": "", "gpu": "", "present_mode": "", "fonts_dir": "",
@@ -251,6 +252,8 @@ DEFAULTS = {
     "diagnostics": "no",
     "overlay": "no", "overlay_pos": "", "screenshots_dir": "", "shader_cache_dir": "", "no_shader_cache": "no",
     "fullscreen": "no", "display_index": "", "entitlements_file": "",
+    "upscale": "", "fsr_sharpness": "", "fps_limit": "",
+    "video_out_max_width": "", "video_out_max_height": "",
     "trace_bench": "no", "trace_calls_file": "", "trace_uds": "no", "videoout_telemetry_dir": "",
     "store_at_label": "no",
     "draw_pipeline": "no", "pipelined_draws": "", "pipeline_dispatch": "no", "verify_draw_pipeline": "no",
@@ -260,6 +263,12 @@ DEFAULTS = {
     "gpu_wait_timeout_ms": "", "stall_watchdog_secs": "", "hang_dump_secs": "", "crash_stack_bytes": "",
     "no_discord_rpc": "no", "env_catalog": "", "host_report": "yes", "rumble": "100", "game_mode": "off", "pad_speaker_db": "0", "log_file": "",
     "sound_fx": "yes", "sound_volume": "60",
+    "volume": "", "mute_on_focus_loss": "no",
+    "pad_identify": "", "pad_port0_state": "", "pad_status": "no",
+    "date_format": "", "time_format": "",
+    "free_space": "", "open_urls": "", "psn_dialogs": "",
+    "stall_prompt": "no", "autorun_no_pause": "no",
+    "aps5_report": "", "net_disconnected": "no",
     "playgo_unlisted_chunks": "installed",
   },
 }
@@ -3480,9 +3489,13 @@ def build_relink_command(relinker, intel, rl, input_file, out_exe):
   for key, flag in (("skip_syscall_check", "--skip-syscall-check"),
                     ("trap_syscall_stubs", "--trap-sdk-syscall-stubs"),
                     ("lazy_binding", "--lazy-binding"),
-                    ("autorun", "--autorun")):
+                    ("autorun", "--autorun"),
+                    ("function_symbol_roots", "--function-symbol-roots")):
     if yes(rl.get(key, "no")):
       cmd.append(flag)
+  # Linux only (USAGE.md): omit deps that no converted module provides and that are not on --rpath
+  if target == "linux" and yes(rl.get("omit_unavailable_dependencies", "no")):
+    cmd.append("--omit-unavailable-dependencies")
   if yes(rl.get("no_patches", "no")):
     cmd.append("--no-patches")
   elif rl.get("patches_file", "").strip():
@@ -3898,6 +3911,63 @@ def validate_runtime_options(rt, rl=None):
   disp = rt.get("display_index", "").strip()
   if disp and not _whole(disp):
     return "ANYPS5_DISPLAY_INDEX must be a whole number from 0 up (0 = first display)."
+  upscale = rt.get("upscale", "").strip().lower()
+  if upscale and upscale != "fsr":
+    return "ANYPS5_UPSCALE must be empty or fsr."
+  sharp = rt.get("fsr_sharpness", "").strip()
+  if sharp:
+    try:
+      sv = float(sharp)
+    except ValueError:
+      return "ANYPS5_FSR_SHARPNESS must be a number from 0.0 to 2.0."
+    if not (0.0 <= sv <= 2.0):
+      return "ANYPS5_FSR_SHARPNESS must be a number from 0.0 to 2.0."
+    if upscale != "fsr":
+      return "ANYPS5_FSR_SHARPNESS has no effect without ANYPS5_UPSCALE=fsr."
+  fps = rt.get("fps_limit", "").strip()
+  if fps:
+    try:
+      fv = float(fps)
+    except ValueError:
+      return "ANYPS5_FPS_LIMIT must be 0 (no limit) or a number from 0.5 to 1000000."
+    if fv != 0 and not (0.5 <= fv <= 1000000):
+      return "ANYPS5_FPS_LIMIT must be 0 (no limit) or a number from 0.5 to 1000000."
+  for key, label, hi in (("video_out_max_width", "ANYPS5_VIDEO_OUT_MAX_WIDTH", 3840),
+                         ("video_out_max_height", "ANYPS5_VIDEO_OUT_MAX_HEIGHT", 2160)):
+    v = rt.get(key, "").strip()
+    if not v:
+      continue
+    if not _whole(v) or int(v) < 1:
+      return f"{label} must be a positive whole number (below {hi} to hint the host resolution)."
+  vol = str(rt.get("volume", "")).strip()
+  if vol and not (_whole(vol) and 0 <= int(vol) <= 100):
+    return "ANYPS5_VOLUME must be a whole number from 0 to 100."
+  pad_id = str(rt.get("pad_identify", "")).strip().lower()
+  if pad_id and pad_id not in ("off", "connect", "always"):
+    return "ANYPS5_PAD_IDENTIFY must be off, connect or always."
+  port0 = str(rt.get("pad_port0_state", "")).strip().lower()
+  if port0 and port0 not in ("default", "controller"):
+    return "ANYPS5_PAD_PORT0_STATE must be default or controller."
+  date_fmt = str(rt.get("date_format", "")).strip().lower()
+  if date_fmt and date_fmt not in ("0", "1", "2", "auto"):
+    return "ANYPS5_DATE_FORMAT must be 0, 1, 2 or auto."
+  time_fmt = str(rt.get("time_format", "")).strip().lower()
+  if time_fmt and time_fmt not in ("0", "1", "auto"):
+    return "ANYPS5_TIME_FORMAT must be 0, 1 or auto."
+  free_sp = str(rt.get("free_space", "")).strip().lower()
+  if free_sp and free_sp not in ("fixed", "host"):
+    return "ANYPS5_FREE_SPACE must be fixed or host."
+  open_urls = str(rt.get("open_urls", "")).strip().lower()
+  if open_urls and open_urls not in ("never", "ask", "always"):
+    return "ANYPS5_OPEN_URLS must be never, ask or always."
+  psn = str(rt.get("psn_dialogs", "")).strip().lower()
+  if psn and psn not in ("silent", "show"):
+    return "ANYPS5_PSN_DIALOGS must be silent or show."
+  aps5_rep = str(rt.get("aps5_report", "")).strip()
+  if aps5_rep and aps5_rep not in ("0", "1"):
+    return "APS5_REPORT must be 0 or 1."
+  if yes(rt.get("stall_prompt", "no")) and not str(rt.get("stall_watchdog_secs", "")).strip():
+    return "ANYPS5_STALL_PROMPT=1 needs APS5_STALL_WATCHDOG_SECS (set a stall watchdog interval)."
   ent = rt.get("entitlements_file", "").strip()
   if ent and not os.path.isfile(ent):
     return f"ANYPS5_ENTITLEMENTS: '{ent}' is not an existing file."
@@ -4594,6 +4664,20 @@ def runtime_env(rt, target, pkg_dir):
     env["ANYPS5_FULLSCREEN"] = "1"  # any non-empty value other than 0; F11 still toggles in game
   if rt.get("display_index", "").strip():
     env["ANYPS5_DISPLAY_INDEX"] = str(int(rt["display_index"].strip()))
+  # Video / presentation (USAGE.md / ENVIRONMENT.md): only set when the user chose a value
+  upscale = rt.get("upscale", "").strip().lower()
+  if upscale == "fsr":
+    env["ANYPS5_UPSCALE"] = "fsr"
+  sharp = rt.get("fsr_sharpness", "").strip()
+  if sharp != "" and upscale == "fsr":
+    env["ANYPS5_FSR_SHARPNESS"] = sharp  # 0.0–2.0; ignored without UPSCALE=fsr
+  fps = rt.get("fps_limit", "").strip()
+  if fps != "":
+    env["ANYPS5_FPS_LIMIT"] = fps
+  for key, var in (("video_out_max_width", "ANYPS5_VIDEO_OUT_MAX_WIDTH"),
+                   ("video_out_max_height", "ANYPS5_VIDEO_OUT_MAX_HEIGHT")):
+    if rt.get(key, "").strip():
+      env[var] = rt[key].strip()
   if rt.get("entitlements_file", "").strip():
     env["ANYPS5_ENTITLEMENTS"] = os.path.abspath(rt["entitlements_file"].strip())
   if rt.get("shader_cache_dir", "").strip():
@@ -4622,6 +4706,46 @@ def runtime_env(rt, target, pkg_dir):
     env["APS5_PAD_SPEAKER_FALLBACK_DB"] = "mute"
   elif spk not in ("", "0", "-0", "0.0"):  # 0 dB = default, variable left unset
     env["APS5_PAD_SPEAKER_FALLBACK_DB"] = spk
+  # Host audio output (ANYPS5_VOLUME / MUTE): only set when the user chose a value
+  vol = str(rt.get("volume", "")).strip()
+  if vol != "":
+    env["ANYPS5_VOLUME"] = vol  # 0–100; validated before launch
+  if yes(rt.get("mute_on_focus_loss", "no")):
+    env["ANYPS5_MUTE_ON_FOCUS_LOSS"] = "1"
+  # Controller identify / port 0 presence / status panel
+  pad_id = str(rt.get("pad_identify", "")).strip().lower()
+  if pad_id in ("off", "connect", "always"):
+    env["ANYPS5_PAD_IDENTIFY"] = pad_id
+  port0 = str(rt.get("pad_port0_state", "")).strip().lower()
+  if port0 in ("default", "controller"):
+    env["ANYPS5_PAD_PORT0_STATE"] = port0
+  if yes(rt.get("pad_status", "no")):
+    env["ANYPS5_PAD_STATUS"] = "1"
+  # Locale / system service / saves / debug startup (only when the user set a value)
+  date_fmt = str(rt.get("date_format", "")).strip().lower()
+  if date_fmt in ("0", "1", "2", "auto"):
+    env["ANYPS5_DATE_FORMAT"] = date_fmt
+  time_fmt = str(rt.get("time_format", "")).strip().lower()
+  if time_fmt in ("0", "1", "auto"):
+    env["ANYPS5_TIME_FORMAT"] = time_fmt
+  free_sp = str(rt.get("free_space", "")).strip().lower()
+  if free_sp in ("fixed", "host"):
+    env["ANYPS5_FREE_SPACE"] = free_sp
+  open_urls = str(rt.get("open_urls", "")).strip().lower()
+  if open_urls in ("never", "ask", "always"):
+    env["ANYPS5_OPEN_URLS"] = open_urls
+  psn = str(rt.get("psn_dialogs", "")).strip().lower()
+  if psn in ("silent", "show"):
+    env["ANYPS5_PSN_DIALOGS"] = psn
+  if yes(rt.get("stall_prompt", "no")):
+    env["ANYPS5_STALL_PROMPT"] = "1"  # needs APS5_STALL_WATCHDOG_SECS (stall_watchdog_secs)
+  if yes(rt.get("autorun_no_pause", "no")):
+    env["ANYPS5_AUTORUN_NO_PAUSE"] = "1"
+  aps5_rep = str(rt.get("aps5_report", "")).strip()
+  if aps5_rep in ("0", "1"):
+    env["APS5_REPORT"] = aps5_rep
+  if yes(rt.get("net_disconnected", "no")):
+    env["APS5_NET_DISCONNECTED"] = "1"
   if rt.get("log_file", "").strip():
     env["ANYPS5_LOG_FILE"] = rt["log_file"].strip()
   if rt.get("game_mode", "off") in ("on", "auto"):
@@ -6480,10 +6604,11 @@ L = sys.modules[__name__]   # the logic lives in this same file
 HERE = SCRIPT_DIR
 
 # ---------- GUI update check ----------
-APP_VERSION = "1.1.4"
+APP_VERSION = "1.1.5"
 GUI_REPO_OWNER = "Lenny4250gh"
 GUI_REPO_NAME = "AnyPS5-GUI"
 GUI_RELEASES_URL = "https://github.com/%s/%s/releases/latest" % (GUI_REPO_OWNER, GUI_REPO_NAME)
+GUI_HOME_URL = "https://github.com/%s/%s#readme" % (GUI_REPO_OWNER, GUI_REPO_NAME)  # README, download section
 
 
 def _version_tuple(v):
@@ -7162,6 +7287,24 @@ SCHEMA = {'Conversion': [{'type': 'flag',
                          '--trace-imports.'},
                 {'type': 'flag',
                  'section': 'relinker',
+                 'key': 'function_symbol_roots',
+                 'label': '--function-symbol-roots',
+                 'plat': 'all',
+                 'hint': 'Treat defined function symbols as code entry points instead of trusting their '
+                         'st_size ranges during export validation and Windows/macOS code analysis. For '
+                         'modules whose symbol sizes describe different code (e.g. generated loader '
+                         'companions). Original symbol sizes are preserved.'},
+                {'type': 'flag',
+                 'section': 'relinker',
+                 'key': 'omit_unavailable_dependencies',
+                 'label': '--omit-unavailable-dependencies',
+                 'plat': 'linux',
+                 'hint': 'Linux only: leave out a bundled module dependency that no converted module '
+                         'provides, from which the module imports nothing, and that no --rpath directory '
+                         'holds. Use only when every system library is already on the run path: a library '
+                         'found later through LD_LIBRARY_PATH is no longer loaded.'},
+                {'type': 'flag',
+                 'section': 'relinker',
                  'key': 'skip_sce_module',
                  'label': '--skip-sce-module',
                  'plat': 'all',
@@ -7341,6 +7484,42 @@ SCHEMA = {'Conversion': [{'type': 'flag',
               'plat': 'all',
               'hint': 'Monitor where the game window opens (0 = first display). Empty = default. '
                       'A number that does not exist makes the window fail to open.'},
+             {'type': 'select',
+              'section': 'runtime',
+              'key': 'upscale',
+              'label': 'Upscale (ANYPS5_UPSCALE)',
+              'plat': 'all',
+              'values': ['', 'fsr'],
+              'hint': 'Empty = bilinear scaler. fsr = FSR 1 (EASU + RCAS) when the window is larger than '
+                      'the display buffer. Any other value is refused at startup.'},
+             {'type': 'text',
+              'section': 'runtime',
+              'key': 'fsr_sharpness',
+              'label': 'FSR sharpness (ANYPS5_FSR_SHARPNESS)',
+              'plat': 'all',
+              'hint': 'RCAS sharpness in stops when ANYPS5_UPSCALE=fsr: 0.0 (sharpest) to 2.0 (weakest). '
+                      'Empty = default 0.2. Has no effect without UPSCALE=fsr.'},
+             {'type': 'text',
+              'section': 'runtime',
+              'key': 'fps_limit',
+              'label': 'FPS limit (ANYPS5_FPS_LIMIT)',
+              'plat': 'all',
+              'hint': 'Max frames per second presented (0.5–1000000, up to three decimals). Empty or 0 = '
+                      'no limit. Other values are refused at startup.'},
+             {'type': 'text',
+              'section': 'runtime',
+              'key': 'video_out_max_width',
+              'label': 'Video-out max width (ANYPS5_VIDEO_OUT_MAX_WIDTH)',
+              'plat': 'all',
+              'hint': 'Host display width hint. When set to a positive integer below 3840, unknown output '
+                      'modes are reported as unsupported so the title can fall back to the host resolution.'},
+             {'type': 'text',
+              'section': 'runtime',
+              'key': 'video_out_max_height',
+              'label': 'Video-out max height (ANYPS5_VIDEO_OUT_MAX_HEIGHT)',
+              'plat': 'all',
+              'hint': 'Host display height hint. When set to a positive integer below 2160, unknown output '
+                      'modes are reported as unsupported so the title can fall back to the host resolution.'},
              {'type': 'text',
               'section': 'runtime',
               'key': 'entitlements_file',
@@ -7432,6 +7611,114 @@ SCHEMA = {'Conversion': [{'type': 'flag',
               'hint': 'Only for sound a title sends to the controller speaker when no controller speaker is '
                       'present (it is mixed into the main audio). 0 = unchanged (variable not set), '
                       'mute = silence that copy. Main audio is not affected.'},
+             {'type': 'text',
+              'section': 'runtime',
+              'key': 'volume',
+              'label': 'Host volume % (ANYPS5_VOLUME)',
+              'plat': 'all',
+              'hint': 'Initial host output volume, whole number 0–100. Empty = not set (title output left '
+                      'bit-identical). Changed afterwards by the volume keys. Invalid values stop the game.'},
+             {'type': 'flag',
+              'section': 'runtime',
+              'key': 'mute_on_focus_loss',
+              'label': 'Mute audio when the window loses focus (ANYPS5_MUTE_ON_FOCUS_LOSS=1)',
+              'plat': 'all',
+              'hint': 'Mutes host audio while the game window is not focused and restores it when focus '
+                      'returns. Off (default) leaves audio alone.'},
+             {'type': 'select',
+              'section': 'runtime',
+              'key': 'pad_identify',
+              'label': 'Controller identify pulse (ANYPS5_PAD_IDENTIFY)',
+              'plat': 'all',
+              'values': ['', 'off', 'connect', 'always'],
+              'hint': 'Empty = not set (same as off). off = none. connect = short pulse when a controller is '
+                      'bound (player N gets N pulses). always = also repeats every 30 s while not rumbling. '
+                      'Scaled by ANYPS5_RUMBLE; never overrides title rumble.'},
+             {'type': 'select',
+              'section': 'runtime',
+              'key': 'pad_port0_state',
+              'label': 'Port 0 presence (ANYPS5_PAD_PORT0_STATE)',
+              'plat': 'all',
+              'values': ['', 'default', 'controller'],
+              'hint': 'Empty = not set (same as default). default = port 0 stays connected and user 0 logged '
+                      'in even with no controller. controller = port 0 and user 0 follow the controller on '
+                      'slot 0 (500 ms debounce); keyboard/mouse do not count as a controller in this mode.'},
+             {'type': 'flag',
+              'section': 'runtime',
+              'key': 'pad_status',
+              'label': 'Show pad status on connect/battery change (ANYPS5_PAD_STATUS=1)',
+              'plat': 'all',
+              'hint': 'Shows the controller status panel for 4 seconds when a controller connects, disconnects '
+                      'or changes battery class. Off = panel only appears on the ShowPadStatus key (F9).'},
+             {'type': 'select',
+              'section': 'runtime',
+              'key': 'date_format',
+              'label': 'Date format (ANYPS5_DATE_FORMAT)',
+              'plat': 'all',
+              'values': ['', '0', '1', '2', 'auto'],
+              'hint': 'Empty = not set (console default 1 = day/month/year). 0 = year/month/day, 1 = day/month/year, '
+                      '2 = month/day/year, auto = host short date (fallback 1).'},
+             {'type': 'select',
+              'section': 'runtime',
+              'key': 'time_format',
+              'label': 'Time format (ANYPS5_TIME_FORMAT)',
+              'plat': 'all',
+              'values': ['', '0', '1', 'auto'],
+              'hint': 'Empty = not set (console default 1 = 24-hour). 0 = 12-hour, 1 = 24-hour, auto = host '
+                      'time pattern (fallback 1).'},
+             {'type': 'select',
+              'section': 'runtime',
+              'key': 'free_space',
+              'label': 'Save free space (ANYPS5_FREE_SPACE)',
+              'plat': 'all',
+              'values': ['', 'fixed', 'host'],
+              'hint': 'Empty = not set (same as fixed on most hosts). fixed = sizes the title already sees. '
+                      'host = refuse saves the volume cannot hold and bound free blocks by host room.'},
+             {'type': 'select',
+              'section': 'runtime',
+              'key': 'open_urls',
+              'label': 'Open URLs in host browser (ANYPS5_OPEN_URLS)',
+              'plat': 'all',
+              'values': ['', 'never', 'ask', 'always'],
+              'hint': 'Empty or never = sceSystemServiceLaunchWebBrowser keeps failing. ask = confirm the '
+                      'address first. always = open http/https without asking (use with care).'},
+             {'type': 'select',
+              'section': 'runtime',
+              'key': 'psn_dialogs',
+              'label': 'PSN-only dialogs (ANYPS5_PSN_DIALOGS)',
+              'plat': 'all',
+              'values': ['', 'silent', 'show'],
+              'hint': 'Empty or silent = profile/friends/store/etc. finish as cancel with no notice. show = '
+                      'on-screen notice that the feature is unavailable (same cancel result).'},
+             {'type': 'flag',
+              'section': 'runtime',
+              'key': 'stall_prompt',
+              'label': 'Stall prompt (ANYPS5_STALL_PROMPT=1)',
+              'plat': 'all',
+              'hint': 'With APS5_STALL_WATCHDOG_SECS set, ask Wait/Quit in a host message box when a watched '
+                      'wait expires (Quit = exit 124). Off = single dump only. Requires a stall watchdog interval.'},
+             {'type': 'flag',
+              'section': 'runtime',
+              'key': 'autorun_no_pause',
+              'label': 'Skip autorun exit prompt (ANYPS5_AUTORUN_NO_PAUSE=1)',
+              'plat': 'all',
+              'hint': 'With --autorun, skip the exit prompt and stdin wait after the game ends. Off = keep '
+                      'the prompt.'},
+             {'type': 'select',
+              'section': 'runtime',
+              'key': 'aps5_report',
+              'label': 'Run report JSON (APS5_REPORT)',
+              'plat': 'all',
+              'values': ['', '1', '0'],
+              'hint': 'Empty = not set (runtime default is on). 1 = write anyps5-report.json. 0 = turn the '
+                      'run report off. Separate from ANYPS5_HOST_REPORT (stderr host summary).'},
+             {'type': 'flag',
+              'section': 'runtime',
+              'key': 'net_disconnected',
+              'label': 'Report no network (APS5_NET_DISCONNECTED=1)',
+              'plat': 'all',
+              'hint': 'libSceNetCtl / route / DNS / interface queries report no connection; libSceHttp2 '
+                      'sends fail with a network error. Sockets are not affected.'},
              {'type': 'text',
               'section': 'runtime',
               'key': 'log_file',
@@ -7554,9 +7841,13 @@ SCHEMA = {'Conversion': [{'type': 'flag',
              {'type': 'text',
               'section': 'runtime',
               'key': 'extra_env',
-              'label': 'Extra variables (NAME=value;...)',
-              'plat': None,
-              'hint': "Added to the game shortcut and to the 'Launch game' button. Separate with ; ."}]}
+              'label': 'Free-form environment variables (NAME=value)',
+              'plat': 'all',
+              'advanced': True,
+              'hint': 'Debug and tuning variables with no dedicated control. One NAME=value per line, or '
+                      'separated by ;. Suggestions come from docs/dev/ENVIRONMENT.md. Invalid values can '
+                      'stop the game. Saved with the other Runtime settings and applied to Launch game '
+                      'and shortcuts.'}]}
 
 
 def hide_own_console():
@@ -7626,12 +7917,14 @@ class DiscordRPC:
     self.rpc = None
     self.start_ts = None
     self.lock = threading.Lock()  # updates come from several threads: one at a time
+    self._last = None  # (details, state, timer) last sent: identical updates are skipped
     self.enabled = lambda: True  # set by Api from the "no_discord_rpc" setting
 
   def _drop(self):
     """Remove the presence and close the connection (a fresh one is opened on the next update)."""
     r, self.rpc = self.rpc, None
     self.start_ts = None
+    self._last = None
     if r is not None:
       try:
         r.clear()
@@ -7660,6 +7953,9 @@ class DiscordRPC:
       if not self.enabled():
         self._drop()
         return
+      key = (details, state, bool(timer))
+      if key == self._last and self.rpc is not None:
+        return  # same status as before: nothing to send (Discord rate-limits updates)
       for _ in range(2):  # a second try reconnects from scratch if the old connection went stale
         try:
           if not self._connect():
@@ -7668,8 +7964,21 @@ class DiscordRPC:
             self.start_ts = int(time.time())
           elif not timer:
             self.start_ts = None
-          self.rpc.update(details=details, state=state, start=self.start_ts,
-                          large_image="logo", large_text="AnyPS5 GUI")
+          self.rpc.update(
+              details=details,
+              state=state,
+              start=self.start_ts,
+              large_image="logo",
+              large_text="AnyPS5 GUI",
+              large_url=GUI_HOME_URL,
+              buttons=[
+                  {
+                      "label": "Get AnyPS5 GUI",
+                      "url": GUI_HOME_URL
+                  }
+              ]
+          )
+          self._last = key
           return
         except Exception:
           self._drop()
@@ -8672,7 +8981,7 @@ class Api:
       if k == "step" and not self.cancel_ev.is_set() and action not in ("play", "download", "build", "restore"):
         sub = L.discord_substate(str(m))  # Discord: show which phase of the conversion is running
         if sub:
-          self._rpc_set("Unwrapping game" if mode == "unwrap" else "Converting game", sub)
+          self._rpc_set("Unwrapping game" if mode == "unwrap" else "Converting game", sub, timer=True)
     if action == "play":
       return self._play(cfg, log0)
     if action == "download":
@@ -8724,15 +9033,15 @@ class Api:
     self.holder = {}
     log0("step", title)
     if action == "download":
-      self._rpc_set("Downloading tools", "Preparing release")
+      self._rpc_set("Downloading tools", "Preparing release", timer=True)
     elif action == "build":
-      self._rpc_set("Building converter (relinker)", "Compiling from source")
+      self._rpc_set("Building converter (relinker)", "Compiling from source", timer=True)
     elif action == "restore":
       self._rpc_set("Restoring backup", "Restoring")
     elif mode == "unwrap":
-      self._rpc_set("Unwrapping game", "Preparing")
+      self._rpc_set("Unwrapping game", "Preparing", timer=True)
     else:
-      self._rpc_set("Converting game", "Preparing")
+      self._rpc_set("Converting game", "Preparing", timer=True)
 
     def work():
       t0, ok = time.time(), False
@@ -8835,6 +9144,7 @@ class Api:
       self.game_proc = L.launch_game(pkg, target, cfg, exe=exe, log=lambda k, m: self.q.put((k, m)))
       self.q.put(("ok", f"Game started (PID {self.game_proc.pid}) from {pkg}"))
       self.game_pkg, self.game_exit = pkg, None
+      self._rpc_set("Playing a converted game", "Running with AnyPS5", timer=True)
     except (OSError, ValueError) as e:
       self.q.put(("err", f"Unable to launch the game: {e}"))
       return False
@@ -8866,6 +9176,7 @@ class Api:
       self.game_proc = L.launch_game(pkg, target, cfg, log=log)
       log("ok", f"Game started (PID {self.game_proc.pid}) from {pkg}")
       self.game_pkg, self.game_exit = pkg, None
+      self._rpc_set("Playing a converted game", "Running with AnyPS5", timer=True)
     except FileNotFoundError:
       log("err", f"Run the Relink for this game first. Expected: {pkg}")
     except OSError as e:

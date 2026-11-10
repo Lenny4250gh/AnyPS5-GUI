@@ -150,9 +150,9 @@ What you get besides "a window instead of a command line":
 
 ### Control
 
-- **Every option, in one place.** All relinker options, runtime variables and input settings are exposed, each with a short explanation, and disabled automatically when they do not fit the selected target. Options newer than the GUI can be passed through *Extra arguments*.
+- **Every option, in one place.** All relinker options, runtime variables and input settings are exposed, each with a short explanation, and disabled automatically when they do not fit the selected target. Options newer than the GUI can be passed through *Extra arguments*; debug variables without a dedicated control are available from the environment catalog and a free-form editor.
 - **Interactive input editor.** Click a button on the controller, press a key, mouse button or wheel direction, done. Alternate inputs, stick deadzones, mouse-as-stick (sensitivity, curve, smoothing, decay), and the new Stick modifier/scale are all in the same screen. Prefer text? Edit `anyps5-input.ini` directly, with a validity check.
-- **Runtime settings and shortcuts.** GPU, language, present mode, fonts, tracing and more, passed to the game as environment variables, or saved in a shortcut.
+- **Runtime settings and shortcuts.** GPU, language, present mode, fonts, upscale/FSR, FPS limit, host volume, controller identify/port status, date/time format, save free-space policy, URL and PSN dialog policies, tracing and more — passed to the game as environment variables, or saved in a shortcut. A variable is only set when you change it from the default.
 - **Share your settings as a file.** Export any section (conversion, runtime, input) as a small file and import someone else's. Handy to help a friend, or to post a working setup for a game.
 
 ### Tools and repositories
@@ -208,7 +208,7 @@ Everything the app can do, organized by page.
 
 | Feature | Description |
 |:--|:--|
-| **Options** | All relinker options, each marked with the systems it applies to. Options that do not fit the selected target are disabled automatically. |
+| **Options** | All relinker options, each marked with the systems it applies to. Options that do not fit the selected target are disabled automatically. Includes **`--function-symbol-roots`** (export validation / Windows–macOS code analysis) and Linux **`--omit-unavailable-dependencies`** (omit unused deps not on `--rpath`; use only when every system library is already on the run path). |
 | **Extra arguments** | A free-text field to pass options of newer relinker versions that the GUI does not know yet (split like a shell command line). An option already set by the GUI is refused. |
 | **Relinker version** | The *Relinker version* button runs `relinker --version`. After each conversion the version used, the source (release tag or commit), the repository and the target are saved in `conversion_info.json` inside the package (useful for support). |
 | **Audit** | Runs `import_audit.py` (if present) after the relink and logs a one-line summary: how many imports are implemented, stubbed (load but throw when called) or absent (the game will not load), plus the first absent names. |
@@ -236,6 +236,8 @@ Shows what is missing before you start, and downloads the tools for you when nee
 - **Verify patches** checks the selected patch file against the selected unwrapped game executable without writing changes.
 - **`--no-patches`** explicitly disables patches and conflicts with `--patches`.
 - **`--linux-fixed-base`** and **`--macos-fixed-base`** are now exposed for their respective targets, alongside the existing Windows fixed-base option. Values are validated for address format, alignment and target compatibility; Linux fixed-base also conflicts with `--lazy-binding`.
+- **`--function-symbol-roots`** treats defined function symbols as code entry points instead of trusting `st_size` ranges (export validation and Windows/macOS analysis).
+- **`--omit-unavailable-dependencies`** (Linux only) omits bundled-module dependencies that no converted module provides and that are not on `--rpath`. Prefer this only when the run path already holds every needed system library.
 
 ### Play a game
 
@@ -259,9 +261,10 @@ Shows what is missing before you start, and downloads the tools for you when nee
 
 ### Settings
 
-- **Sections:** Game and modules, Conversion, Source build.
-- **Runtime settings:** Language, GPU, present mode, fonts, tracing and more, passed to the game as environment variables.
+- **Sections:** Game and modules, Conversion, Source build, Runtime, Input, Appearance, Storage.
+- **Runtime settings:** Language, GPU, present mode, fonts, video (upscale/FSR, FPS limit, video-out size hints), audio (host volume, mute on focus loss), controller (identify pulse, port 0 presence, status panel), locale (date/time format), system (save free space, open URLs, PSN dialogs), startup/debug (stall prompt, autorun no-pause, run report, net disconnected), tracing and more — all passed to the game as environment variables.
 - **`ANYPS5_GPU`** suggests the GPUs detected on your computer.
+- **Advanced environment variables:** a collapsible catalog of documented `ANYPS5_*` / `APS5_*` names (searchable) plus a free-form `NAME=value` editor for debug switches that have no dedicated control. These can make titles unstable or slower; leave them empty unless you need them.
 - **Storage:** see where the app keeps its tools, builds, backups and `config.ini`, and move everything to another folder with one click.
 - **Export:** any section of the settings can be exported as a shareable file.
 
@@ -272,10 +275,27 @@ Shows what is missing before you start, and downloads the tools for you when nee
 ### Runtime diagnostics and overlay
 
 - **Performance overlay:** can be enabled from the first frame and positioned in any corner. In-game **F10** toggles its visibility.
-- **New runtime settings** (a variable is set only when you change it from the default):
+- **Runtime settings** (a variable is set only when you change it from the default):
 
   | Setting | Variable | Notes |
   |:--|:--|:--|
+  | Upscale | `ANYPS5_UPSCALE` | empty = bilinear; `fsr` = FSR 1 when the window is larger than the buffer |
+  | FSR sharpness | `ANYPS5_FSR_SHARPNESS` | 0.0–2.0; only applied with `UPSCALE=fsr` |
+  | FPS limit | `ANYPS5_FPS_LIMIT` | 0 = no limit, or 0.5–1000000 |
+  | Video-out max size | `ANYPS5_VIDEO_OUT_MAX_WIDTH` / `_HEIGHT` | Host display hints for unknown output modes |
+  | Host volume | `ANYPS5_VOLUME` | 0–100; empty = not set |
+  | Mute on focus loss | `ANYPS5_MUTE_ON_FOCUS_LOSS=1` | Mute host audio while the window is unfocused |
+  | Pad identify | `ANYPS5_PAD_IDENTIFY` | `off` / `connect` / `always` |
+  | Port 0 presence | `ANYPS5_PAD_PORT0_STATE` | `default` / `controller` |
+  | Pad status panel | `ANYPS5_PAD_STATUS=1` | Show panel on connect / battery class change (F9 still works) |
+  | Date / time format | `ANYPS5_DATE_FORMAT` / `ANYPS5_TIME_FORMAT` | `0` / `1` / `2` / `auto` (time: `0` / `1` / `auto`) |
+  | Save free space | `ANYPS5_FREE_SPACE` | `fixed` / `host` |
+  | Open URLs | `ANYPS5_OPEN_URLS` | `never` / `ask` / `always` |
+  | PSN-only dialogs | `ANYPS5_PSN_DIALOGS` | `silent` / `show` |
+  | Stall prompt | `ANYPS5_STALL_PROMPT=1` | Needs `APS5_STALL_WATCHDOG_SECS`; Wait/Quit on stall |
+  | Autorun no pause | `ANYPS5_AUTORUN_NO_PAUSE=1` | Skip post-autorun exit prompt |
+  | Run report JSON | `APS5_REPORT` | `0` / `1` for `anyps5-report.json` (separate from host report) |
+  | Report no network | `APS5_NET_DISCONNECTED=1` | NetCtl / related queries report offline; sockets unchanged |
   | Controller vibration | `ANYPS5_RUMBLE` | 0–100 % |
   | Controller speaker gain | `APS5_PAD_SPEAKER_FALLBACK_DB` | 0 to −60 dB or mute |
   | Log file | `ANYPS5_LOG_FILE` | Absolute path |
@@ -324,18 +344,19 @@ Shows what is missing before you start, and downloads the tools for you when nee
 
 ### Discord Rich Presence
 
-While the app is open and Discord is running on the same computer, your profile shows *In the launcher* with the status *Idle*. During an operation it shows the current phase:
+While the app is open and Discord is running on the same computer, your profile shows *In the launcher* with the status *Idle*. During an operation it shows the current phase, with an elapsed-time counter:
 
 | Operation | Shown on Discord |
 |:--|:--|
 | Conversion / unwrap | *Converting game* or *Unwrapping game*, with the current step (Copying game files, Unwrapping game files, Copying libs, Relinking, Checking imports, Finishing…) |
 | Tools download | *Downloading tools* |
 | Source build | *Building converter (relinker)* |
-| Backup restore | *Restoring backup* |
+| Backup restore | *Restoring backup* (no timer) |
+| Game running | *Playing a converted game* |
 
-When the operation ends or is cancelled, the status goes back to *In the launcher*. The presence has no timer and no buttons, and it does not change while a converted game is running. It never shows which game you play.
+When the operation ends or is cancelled, the status goes back to *In the launcher*. It never shows which game you play. If Discord is not running, the presence is silently skipped.
 
-If Discord is not running, the presence is silently skipped.
+The presence includes a *Get AnyPS5 GUI* button (also on the logo) that opens the [Download](#download) section of this README. Discord does not display this button on your own profile, only to other users.
 
 Turn it off with *Disable Discord Rich Presence* in the Appearance settings: it takes effect immediately, no restart needed.
 
