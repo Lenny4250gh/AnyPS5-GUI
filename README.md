@@ -5,7 +5,7 @@
 <h1 align="center">AnyPS5 GUI</h1>
 
 <p align="center">
-  <strong>Dump → Unwrap → Relink → Play.</strong><br>
+  <strong>Dump → Convert → Play on PC</strong><br>
   <br>
   Every <a href="https://github.com/boykopovar/AnyPS5">AnyPS5</a> option, one window away.<br>
   Unwrap, convert (relink) and launch your own PS5 game dumps on PC:<br>
@@ -25,7 +25,10 @@
   <a href="#what-is-this-for">About</a> ·
   <a href="#who-is-it-for">Who is it for</a> ·
   <a href="#highlights">Highlights</a> ·
-  <a href="#feature-guide">Feature guide</a> ·
+</p>
+
+<p align="center">
+  <a href="#feature-guide">· Feature guide</a> ·
   <a href="#installation--requirements">Installation</a> ·
   <a href="#advanced-forks-and-custom-builds">Advanced</a> ·
   <a href="#build-from-source">Build</a> ·
