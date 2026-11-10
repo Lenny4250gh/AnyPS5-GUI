@@ -28,7 +28,7 @@
 </p>
 
 <p align="center">
-  <a href="#feature-guide">· Feature guide</a> ·
+  <a href="#feature-guide">Feature guide</a> ·
   <a href="#installation--requirements">Installation</a> ·
   <a href="#advanced-forks-and-custom-builds">Advanced</a> ·
   <a href="#build-from-source">Build</a> ·
