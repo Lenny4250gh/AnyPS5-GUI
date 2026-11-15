@@ -54,7 +54,7 @@
 
 <p align="center">
   <strong>Choose your operating system on the latest release page.</strong><br>
-  Ready-to-run builds are provided for Windows, Linux and macOS. You do not need to install Python or compile the app.
+  Ready-to-run builds are provided for Windows, Linux and macOS. You don't need to install Python or compile the app.
 </p>
 
 | Operating system | What to download | After downloading |
@@ -269,6 +269,10 @@ Shows what is missing before you start, and downloads the tools for you when nee
 - **Delete:** **More…** has **Delete PS5 dump…** and **Delete converted game…**, each with an "Are you sure?" window; the folder is deleted for good, not sent to the recycle bin. The Library folders themselves and a running game are protected.
 - **Duplicates:** a warning appears when the same Title ID is found twice (two dumps, or two packages for the same system).
 
+<p align="center">
+  <img src="docs/screenshots/libraryscreenshot.png" alt="Library (grid view)">
+</p>
+
 ### Converted game data and screenshots
 
 - **Converted package path.** The **Play** view has a separate path for the converted PC game package, independent from the PS5 source path used for conversion. Launch and shortcut creation use the selected converted package; when no path is selected, the app attempts the configured output folder (`Converted games` by default).
@@ -276,6 +280,10 @@ Shows what is missing before you start, and downloads the tools for you when nee
 - **Trophies:** after a run, the app counts the unlocked trophies in `_trophy` (PS5 and PS4 formats) and warns about damaged files, because the game stops when it reads one.
 - **Screenshots:** the runtime `ANYPS5_SCREENSHOTS` setting accepts an absolute folder. When empty, screenshots go to `anyps5-screenshots/` next to the game executable. The **Screenshot gallery** in the Play view shows the latest ones (click to open) and has a button for the folder; the folder may not exist until the first F12 screenshot.
 - **Shader cache:** Runtime settings show the effective AnyPS5 shader-cache path and current size, allow a custom absolute path through `ANYPS5_SHADER_CACHE_DIR`, and provide a clear-cache action. Clearing removes the AnyPS5 cache at that configured path, not the graphics driver's cache. `ANYPS5_NO_SHADER_CACHE` disables the on-disk cache; shaders may need to be rebuilt on later runs.
+
+<p align="center">
+  <img src="docs/screenshots/queue-screenshot.png" alt="Library (grid view)">
+</p>
 
 ### Settings
 
