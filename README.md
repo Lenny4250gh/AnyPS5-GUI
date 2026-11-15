@@ -104,6 +104,8 @@ Need checksums, folders or portable mode? See [Installation & requirements](#ins
 
 Settings (runtime, input, appearance) can be changed at any time from their tabs.
 
+Want to use a fork, or a different branch or tag? See [Advanced: forks and custom builds](https://github.com/Lenny4250gh/AnyPS5-GUI#advanced-forks-and-custom-builds).
+
 ---
 
 ## What is this for?
@@ -186,7 +188,7 @@ Everything the app can do, organized by page.
 | Page | Jump to |
 |:--|:--|
 | Convert a game | [Convert](#convert-a-game) · [Patches & fixed-base](#conversion-patches-and-fixed-base-options) |
-| Play a game | [Play](#play-a-game) · [Game data & screenshots](#converted-game-data-and-screenshots) |
+| Play a game | [Play](#play-a-game) · [Library](#library) · [Game data & screenshots](#converted-game-data-and-screenshots) |
 | Settings | [Settings](#settings) · [Runtime diagnostics & overlay](#runtime-diagnostics-and-overlay) |
 | Input | [Input](#input) |
 | Reports | [Test report](#test-report) |
@@ -202,16 +204,18 @@ Everything the app can do, organized by page.
 | **Unwrap** | Already-decrypted SELF/fSELF → ELF, using the official `unwrap_self.py` (the original files are backed up, with a *Restore backup* button). |
 | **Relink** | Builds the `<GAME>-<system>` package (app0 + libs + executable) for Windows, Linux or macOS. |
 | **Output folder** | Converted games go to the output folder you choose in the settings. When it is empty, the default is a `Converted games` folder next to the program, created automatically. |
+| **Conversion queue** | Add several games (the selected one, a folder with many games, or archives) and convert or unwrap them one after the other with the current settings. One confirmation at the start; a failed game does not stop the queue, and *Stop queue* cancels it. |
 | **Game archives** | The game can be a folder or a `.zip` / `.rar` (`.rar` needs 7-Zip installed). |
 | **First-run defaults** | Without a config file, the system is set to your own, `--to-intel` is on for Intel CPUs and `--to-rosetta` is on for Apple silicon. |
 | **Rosetta** | The *Apple silicon via Rosetta (--to-rosetta)* option sits under the system choice and is hidden when the Windows system is selected. |
+| **Intel Mac without AVX2** | The *Intel Mac with AVX but no AVX2 (--to-avx)* option sits right below it. It only works with the macOS system and cannot be combined with Rosetta. The CPU line of the requirements check tells you when your Mac needs it. |
 | **Tools source** | Choose where the relinker, libs and `unwrap_self.py` come from (see [Where the tools come from](#where-the-tools-come-from)). |
 
 #### Options and arguments
 
 | Feature | Description |
 |:--|:--|
-| **Options** | All relinker options, each marked with the systems it applies to. Options that do not fit the selected target are disabled automatically. Includes **`--function-symbol-roots`** (export validation / Windows–macOS code analysis) and Linux **`--omit-unavailable-dependencies`** (omit unused deps not on `--rpath`; use only when every system library is already on the run path). |
+| **Options** | All relinker options, each marked with the systems it applies to. Options that do not fit the selected target are disabled automatically, and so are the ones the relinker you use does not list in `relinker --help` (a fork or an older build), marked *Not in this relinker*. Includes **`--function-symbol-roots`** (export validation / Windows–macOS code analysis) and Linux **`--omit-unavailable-dependencies`** (omit unused deps not on `--rpath`; use only when every system library is already on the run path). |
 | **Extra arguments** | A free-text field to pass options of newer relinker versions that the GUI does not know yet (split like a shell command line). An option already set by the GUI is refused. |
 | **Relinker version** | The *Relinker version* button runs `relinker --version`. After each conversion the version used, the source (release tag or commit), the repository and the target are saved in `conversion_info.json` inside the package (useful for support). |
 | **Audit** | Runs `import_audit.py` (if present) after the relink and logs a one-line summary: how many imports are implemented, stubbed (load but throw when called) or absent (the game will not load), plus the first absent names. |
@@ -244,15 +248,26 @@ Shows what is missing before you start, and downloads the tools for you when nee
 
 ### Play a game
 
+- **Compatibility** opens the AnyPS5 [Game bring-up](https://github.com/boykopovar/AnyPS5/discussions/categories/game-bring-up) discussions in your browser, searching the Title ID of the selected converted game.
 - **Launch** a converted game with your current settings, or **create a shortcut** that starts it with the right variables. The shortcut is named after the real game title read from the game's `param.json` (e.g. *Dreaming Sarah* instead of `PPSA02929`); if the title can't be read, the folder name is used.
 - **Browse PC game…** opens the folder picker directly in your output folder, where your converted games are.
 - **Exit code explained:** when the game ends, the log shows its exit code in plain words (missing library, segmentation fault, access violation, timeout…).
-- **Check before start:** before launching, the app checks the package (executable, `app0`, `sce_sys/param.json`, original `.prx` files in `libs/` on Windows) and shows a plain message instead of a cryptic start-up error. On Linux/macOS it restores the execute permission lost after a zip or a download.
+- **Check before start:** before launching, the app checks the package (executable, `app0`, `sce_sys/param.json`, `.prx` files in `libs/` that are not Windows libraries on Windows (original PS5 modules, or the libs of another system; the AnyPS5 Windows libs are DLLs named `.prx` and are accepted)) and shows a plain message instead of a cryptic start-up error. On Linux/macOS it restores the execute permission lost after a zip or a download.
 - **Launch protection (Windows):** if the MinGW runtime DLLs are missing from `libs/`, the game is not started and you get a clear message instead of error 126 on every library.
 
 <p align="center">
   <img src="docs/screenshots/3.png" alt="Play Page">
 </p>
+
+### Library
+
+- **Dumps and converted games in one table.** The **Library** tab lists your PS5 dumps and your converted games together, one line per game: a dump and its converted package are matched by Title ID (without one, by folder name). Add the folder with your dumps and the folder with your converted games from **Folders…**; the output folder is always included. Only those folders and their direct sub-folders are read: the whole disk is never scanned.
+- **Columns:** icon (`icon0.png`, or a default icon), name, serial (Title ID), game version, size (calculated in the background and cached; **Refresh** recalculates it), state (dump only / needs unwrap / converted), path, *Converted with* (from `conversion_info.json`), status (from the last `anyps5-report.json`) and your own comment. Click a column to sort; filter All / Converted / Not converted; search by name or serial; switch between grid view (the default) and table view. Drag the edge of a column header to resize it (double-click a handle to reset all columns); the widths are remembered, and so is the choice between table and grid view. Changing the filter, the view or the sorting animates the rows.
+- **Converted games:** **Launch**, **Shortcut**, **Folders…** (package, `_sd`, `_sd_mem`, `_trophy`, screenshots, save backups, trophy reset) and **Settings…** (language, present mode, fullscreen, overlay, GPU, upscale, FPS limit, extra variables for that game only; the shortcut uses them too). If a game has packages for more than one system, a button switches between them.
+- **Live states:** while the app works on a game, its Status shows what is happening right now instead of the last run: *In conversion queue* / *In unwrap queue*, *Converting…*, *Unwrapping…*, *Previewing conversion…*, *Restoring backup…*, *Launching…*, *Deleting PS5 dump…* and *Deleting converted game…*. A busy game cannot be launched, converted, queued or deleted until it finishes, and the Library is read again by itself when a conversion ends.
+- **Dumps not converted yet:** **Convert** opens the Convert page with the dump selected, adds it to the [conversion queue](#convert-a-game) and starts the queue (you confirm once; games already waiting in the queue are converted too), **Add to queue** adds it to the [conversion queue](#convert-a-game), and **Convert all not converted** queues every such dump.
+- **Delete:** **More…** has **Delete PS5 dump…** and **Delete converted game…**, each with an "Are you sure?" window; the folder is deleted for good, not sent to the recycle bin. The Library folders themselves and a running game are protected.
+- **Duplicates:** a warning appears when the same Title ID is found twice (two dumps, or two packages for the same system).
 
 ### Converted game data and screenshots
 
@@ -312,6 +327,7 @@ Shows what is missing before you start, and downloads the tools for you when nee
 ### Input
 
 - **Visual controller editor:** click a button, then press a key, mouse button or wheel direction. Alternate inputs supported.
+- **Controller button remapping:** on a second controller diagram, click a button and choose which PlayStation button it presses (for example swap Cross and Circle), or turn a button off with `None`. It is saved as `SDLButton:button = Button` lines and checked when you save or import.
 
   <img src="docs/screenshots/4.png" alt="Input mapping">
 
@@ -327,7 +343,7 @@ Shows what is missing before you start, and downloads the tools for you when nee
 
 - **Export report…** (below the log) saves a text file with the points of `GAME_TESTING.md`: GUI build, title ID and content version, CPU, OS, GPU, power source, system, runtime variables, `--to-intel`, how far the game got, exit code and presents per 10 s. It also contains the full log (the title's own `anyps5.log` / `run.log` when present) and an automatic reading of it (software renderer, stalled title, device lost, GPU out of memory, missing permissions). Measured data and the automatic reading are kept apart. Fields the GUI cannot know are left as *(fill in)*. Known errors (NVIDIA driver crash, `/dev/udmabuf`, out of memory, error 126/193, lost execute permission, duplicate output names) are explained with what to do.
 - **Copy for bug** copies a short report (versions, host report, last 60 log lines) to paste in a GitHub issue.
-- **Debug package…** saves a zip with the bug report, the full report, your settings and the `.registry.json` files.
+- **Debug package…** saves a zip with the bug report, the full report, your settings, the `.registry.json` files and, if there are any, the errors the app handled without showing them (also kept in `hidden-errors.log` in the data folder).
 - In both, user name, computer name and home folder are hidden: **check the content before you share it.**
 - **Report or suggest** (top bar) opens the GitHub issues of this project: report a bug (a form with your app version and system filled in), suggest something, or see the open issues. You need a GitHub account to post, and nothing else is sent.
 
@@ -396,7 +412,7 @@ The relinker, libs and `unwrap_self.py` are chosen in **Advanced: where the tool
    - Windows (PowerShell): `Get-FileHash .\AnyPS5_GUI-windows.exe -Algorithm SHA256`
    - Linux: `sha256sum AnyPS5_GUI-linux`
    - macOS: `shasum -a 256 AnyPS5_GUI-macos.zip`
-4. **Run it.** The first time it creates an `AnyPS5_GUI` folder in your user data folder (so it survives updates), where it keeps the downloaded tools (relinker, libs, `unwrap_self.py`), `config.ini`, backups and so on. You can move it from **Settings → Storage**. To keep everything next to the program instead, put an empty file named `portable` next to it (in that mode the folder is called `Utilities/`).
+4. **Run it.** The first time it creates an `AnyPS5_GUI` folder in your user data folder (so it survives updates), where it keeps the downloaded tools (relinker, libs, `unwrap_self.py`), `config.ini`, backups and so on. You can move it from **Settings → Storage**. To keep everything next to the program instead, put an empty file named `portable` next to it.
 
    | System | Default app folder |
    |:--|:--|
@@ -413,7 +429,7 @@ The relinker, libs and `unwrap_self.py` are chosen in **Advanced: where the tool
 |:--|:--|
 | **Windows** | Needs the Microsoft Edge WebView2 runtime (already present on up-to-date Windows 10/11). SmartScreen or your antivirus may warn about the file: it is not code-signed, and PyInstaller one-file programs are often flagged as false positives. If you don't trust the binary, read the source and [build it yourself](#build-from-source) (it takes a minute). |
 | **macOS** | The app is not signed. Right-click the app → **Open** the first time (or run `xattr -cr AnyPS5_GUI.app`). |
-| **Linux** | The binary bundles Qt, but it still needs a few system libraries. On Debian/Ubuntu: `sudo apt install libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libdbus-1-3`. |
+| **Linux** | The window uses GTK 3 and WebKitGTK, which come from your distribution. On Debian/Ubuntu: `sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.1` (on older releases the package is `gir1.2-webkit2-4.0`). |
 
 ### Release notes and version history
 
@@ -545,6 +561,8 @@ pip install -r requirements.txt
 python AnyPS5_GUI.py          # run directly
 ```
 
+`AnyPS5_GUI.py` only starts the app: the code is in the `anyps5_gui/` folder next to it, so keep the two together when you run it from source. `git clone` already gives you both.
+
 To build the executable you also need PyInstaller and Pillow:
 
 ```bash
@@ -555,7 +573,7 @@ python build.py 3             # no questions: 1 = Windows, 2 = macOS, 3 = Linux
 
 `build.py` embeds `index.html` into the executable and calls PyInstaller. PyInstaller cannot cross-compile: it always packages for the system it runs on, so build **on** the system you are targeting (or let GitHub Actions do it). The result is in `dist/`.
 
-When running from source on Linux, pywebview needs a WebKitGTK or Qt backend, see the [pywebview docs](https://pywebview.flowrl.com/guide/installation.html).
+When running from source on Linux, pywebview needs the GTK and WebKitGTK backend, see the [pywebview docs](https://pywebview.flowrl.com/guide/installation.html).
 
 ---
 

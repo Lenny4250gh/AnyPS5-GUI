@@ -36,7 +36,7 @@ body[data-bg=none] #bg{display:none}
 *::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.34);background-clip:padding-box}
 *::-webkit-scrollbar-thumb:active{background:rgba(255,255,255,.5);background-clip:padding-box}
 @supports not selector(::-webkit-scrollbar){*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}}
-#in{max-width:66em;margin:0 auto}
+#in{max-width:none;margin:0 auto}
 h1{font-weight:300;font-size:2.3em;margin:0;letter-spacing:-.01em}
 #in{position:relative}
 .ver{font-size:.8em;font-weight:400;letter-spacing:.04em;color:var(--dim);opacity:.8}
@@ -68,9 +68,24 @@ h1 .gui{font-size:.45em;font-weight:500;letter-spacing:.12em;opacity:.65;vertica
 
 .ind{margin:.5em 0 0 1.6em}
 .muted{color:var(--dim);font-size:.78em;margin:.35em 0 0}
+.tlink{all:unset;cursor:pointer;color:var(--ring);text-decoration:underline;text-underline-offset:.18em}.tlink:hover{text-decoration-thickness:2px}.tlink:focus-visible{outline:2px solid var(--ring);outline-offset:2px;border-radius:.2em}
 .stat{display:grid;grid-template-columns:15em 1fr;gap:.15em 1em;font-size:.85em}
 .stat span:nth-child(odd){color:var(--dim)}.stat span:nth-child(even){font-weight:400}
-.ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}.muted-c{color:var(--dim)}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}.muted-c{color:var(--dim)}.busy{color:var(--blue)}.busy::first-letter{animation:lpulse 1.1s ease-in-out infinite}@keyframes lpulse{50%{opacity:.25}}
+
+.lbar{display:flex;flex-wrap:wrap;gap:.5em;align-items:center;margin:.4em 0}.lbar .sp{flex:1}.lbar input{min-width:14em}
+.lwarn{color:var(--warn);font-size:.85em;margin:.4em 0}.lwrap{overflow-x:auto;margin-top:.5em}
+.ltab{width:100%;border-collapse:collapse;font-size:.85em}.ltab th{position:sticky;top:0;text-align:left;font-weight:600;color:var(--dim);padding:.5em .7em;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+@keyframes lrow{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}.ltab th{position:sticky}.lrs{position:absolute;top:0;right:0;bottom:0;width:10px;cursor:col-resize}.lrs::after{content:"";position:absolute;top:22%;bottom:22%;right:4px;width:2px;border-radius:1px;background:var(--line);transition:background .15s}.lrs:hover::after,.lrsing .lrs::after{background:var(--dim)}body.lrsing{cursor:col-resize;user-select:none}
+.ltab.fx{table-layout:fixed;min-width:100%}.ltab.fx th,.ltab.fx td{overflow:hidden;text-overflow:ellipsis}.ltab.fx .lp{max-width:none}.ltab.fx .lg{min-width:0}.ltab.fx .lg span{overflow:hidden;text-overflow:ellipsis}
+.ltab td{white-space:nowrap;padding:.45em .7em;border-bottom:1px solid var(--line);vertical-align:middle}.ltab tr:hover td{background:var(--glass)}
+.ltab .lg{display:flex;align-items:center;gap:.7em;min-width:12em}.ltab img,.lgc img{width:3em;height:3em;border-radius:.4em;object-fit:cover;background:var(--glass);flex:none}
+.ltab .la .b,.ltab td .b{flex:none}.ltab .lp{max-width:14em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)}.ltab input{width:100%;min-width:8em}.ltab .la{display:flex;gap:.35em;align-items:center}.ltab .b{padding:.3em .8em;min-width:0;font-size:.95em}.ltab .la .b{flex:none}
+.lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(11em,1fr));gap:.8em;margin-top:.6em}.lgc{border:1px solid var(--line);border-radius:.8em;padding:.8em;display:grid;gap:.4em;justify-items:center;text-align:center;font-size:.85em}
+.lgc img{width:100%;height:auto;aspect-ratio:1;border-radius:.6em}.lgc .nm{font-weight:600}.lgc small{color:var(--dim)}.lgc .la{display:flex;gap:.35em;flex-wrap:wrap;justify-content:center}
+.fld{display:grid;gap:.2em;margin:.5em 0;font-size:.88em}.fld label{color:var(--dim)}
+.ldet{display:grid;grid-template-columns:9em 1fr;gap:.2em 1em;font-size:.88em;margin:.6em 0}.ldet span:nth-child(odd){color:var(--dim)}
+.qlist{display:grid;gap:.3em;margin:.5em 0}.qrow{display:flex;align-items:center;gap:.7em;padding:.35em .6em;border:1px solid var(--line);border-radius:.6em;font-size:.88em}.qrow .qn{flex:1;min-width:0}.qrow .qn small{display:block;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.qrow .qi{width:1.2em;text-align:center}.qrow.run{background:var(--glass)}
 input[type=text],input:not([type]),textarea{background:rgba(0,0,0,.35);color:var(--text);border:1px solid var(--line);border-radius:.6em;padding:.4em .7em;font:400 .85em Consolas,"Cascadia Mono","DejaVu Sans Mono",monospace;outline:none}
 input:focus,textarea:focus{border-color:var(--ring);box-shadow:0 0 0 .1em var(--ring)}
 input:disabled{opacity:.4}
@@ -130,7 +145,7 @@ input:disabled{opacity:.4}
 .dlg,.cfm{background:rgba(30,32,35,.62);border:1px solid var(--line);border-radius:1.2em;padding:1.2em 1.4em;display:flex;flex-direction:column;
  -webkit-backdrop-filter:blur(28px) saturate(150%);backdrop-filter:blur(28px) saturate(150%);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 2em 5em #000a}
 .cfm{width:min(32em,88vw)}.cfm h2{font-weight:300;margin:0 0 .4em}.cfm p{color:var(--dim);margin:0 0 .8em;white-space:pre-line}
-.dlg{width:min(60em,94vw);height:min(82vh,46em)}.dlg h2{font-weight:300;margin:0 0 .6em}
+.dlg{width:min(60em,94vw);height:min(82vh,46em)}.dlg.fit{width:fit-content;min-width:min(30em,94vw);max-width:min(60em,94vw);height:auto;max-height:90vh;overflow-y:auto}.dlg h2{font-weight:300;margin:0 0 .6em}.dlg.fit h2{font-weight:600;font-size:1.35em;letter-spacing:0;margin:0 0 .5em}.dlg.fit h3{font-weight:600;font-size:1.05em;margin:0 0 .6em}.dlg.fit>p,.dlg.fit>.note{margin-bottom:1em}.lfl{margin-top:1.4em}.lfl .qrow{margin:0 0 .6em}.lfl .qrow+.hrow{margin-top:.9em}
 .dlg .tabs{flex-wrap:nowrap;gap:.4em;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;padding:.35em .45em;margin:.8em -.45em 0}
 .dlg .tabs::-webkit-scrollbar{display:none}
 .dlg .tabs .b{flex:1 0 auto;justify-content:center;text-align:center;padding:.4em .75em;font-size:.95em;white-space:nowrap;gap:.45em}.dlg .tabs .bi svg{width:1.15em;height:1.15em}
@@ -156,7 +171,7 @@ textarea{width:100%;height:34vh;resize:none}
 .legal{color:var(--dim);font-size:.65em;margin:3em auto 0;max-width:88em;text-align:center;text-wrap:balance}
 .legal a{color:inherit;text-decoration:underline;cursor:pointer}.legal a:hover{color:var(--text)}
 .legal+.legal{margin-top:.4em}
-#toast{position:fixed;left:50%;bottom:5vh;transform:translateX(-50%);background:rgba(44,46,50,.72);border:1px solid var(--line);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);padding:.6em 1.5em;border-radius:2em;opacity:0;pointer-events:none;transition:opacity .2s;max-width:70vw;text-align:center;box-shadow:0 .5em 2em #000a;z-index:30}
+#toast{position:fixed;left:50%;bottom:5vh;transform:translateX(-50%);background:rgba(44,46,50,.72);border:1px solid var(--line);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);padding:.6em 1.5em;border-radius:2em;opacity:0;pointer-events:none;transition:opacity .2s;width:max-content;max-width:min(92vw,70em);text-wrap:balance;text-align:center;box-shadow:0 .5em 2em #000a;z-index:30}
 #toast.on{opacity:1}
 #toast,#toast.err,#toast.warn,#toast.ok{display:flex;align-items:center;justify-content:center;gap:.6em;color:var(--ring)}
 #toast .ti{width:1.25em;height:1.25em;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -279,6 +294,7 @@ input[type=text]:focus,input:not([type]):focus,textarea:focus,.prow input[type=n
 @media(max-width:760px){.pextra-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.pextra-grid{grid-template-columns:1fr}}
 .pcross{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"up up" "left right" "down down";gap:.35em}.pcross .pc{margin-top:0}
+.pc.off{opacity:.45}.pc.off .pm{padding-right:.6em}.sdlsel{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1;font:inherit}.pc:focus-within{border-color:var(--ring)}.pc .pi.sdlx{position:absolute;right:.4em;top:50%;transform:translateY(-50%);z-index:2}.sdlgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.1em .9em}@media(max-width:560px){.sdlgrid{grid-template-columns:1fr}}
 .padset{margin-top:.8em}.padset .pdt{color:var(--dim);font-size:.85em}
 .pdzrow{display:flex;gap:2.5em;justify-content:center;flex-wrap:wrap;margin:.7em 0 .3em}.pdzrow[hidden],.pdz p[hidden]{display:none}
 .pds{display:flex;flex-direction:column;align-items:center;gap:.3em;width:13em}.pdm{min-height:2.8em}.pdl{font-size:.85em}
@@ -417,6 +433,7 @@ const clamp01=x=>Math.max(0,Math.min(1,x)),
 function applyUI(u){const c=HEX.test(u.accent)?u.accent.toLowerCase():UIDEF.accent,[r,g,b]=[1,3,5].map(i=>parseInt(c.substr(i,2),16)/255),st=document.documentElement.style;
  st.setProperty("--ring",c);st.setProperty("--blue",c);st.setProperty("--mag",c);st.setProperty("--on",(.299*r+.587*g+.114*b)>.55?"#0b0c0e":"#ffffff");
  document.body.dataset.bg=BGS.some(x=>x[0]==u.bg)?u.bg:UIDEF.bg;document.body.dataset.bubble=(u.bubble===false||u.bubble==="false")?"off":"on"}
+let queue=[],qBusy=false,qStop=false,qWait=null;
 let S,cfg,status=[],space=null,running=false,log=[],pct="idle",folder="",playFolder="",poller=null,view="convert",vAnim="",advOpen={};
 const TI={err:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/>',warn:'<path d="M12 3.8 21.5 20h-19z"/><path d="M12 10v4.5M12 17.5h.01"/>',ok:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.5"/>'};
 // ---------- sound effects (generated with Web Audio: no files) ----------
@@ -447,16 +464,18 @@ function toast(t,l,s){
  const content=el("div","toast-content");
  if(TI[l]){const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 24 24");s.setAttribute("class","ti "+l);s.innerHTML=TI[l];content.append(s)}
  content.append(el("span","",t));
- e.replaceChildren(content);e.className="on "+(l||"");
+ e.replaceChildren(content);e.className="on "+(l||"");e.style.overflow="";
  if(active&&before&&!reduce){
   const after=e.getBoundingClientRect();
   e.style.width=before.width+"px";e.style.height=before.height+"px";
   // Measure the new content at its natural size, then smoothly interpolate the toast's dimensions.
   e.style.width="";e.style.height="";const natural=e.getBoundingClientRect();
+  // Freeze the text at its final width and clip the overflow while the box resizes, so the text does not re-wrap on two lines mid-animation.
+  const cw=content.getBoundingClientRect().width;content.style.width=cw+"px";content.style.flex="none";e.style.overflow="hidden";
   e.style.width=before.width+"px";e.style.height=before.height+"px";
-  e.animate([{width:before.width+"px",height:before.height+"px"},{width:natural.width+"px",height:natural.height+"px"}],{duration:260,easing:"cubic-bezier(.2,.8,.2,1)"}).onfinish=()=>{e.style.width="";e.style.height=""};
+  e.animate([{width:before.width+"px",height:before.height+"px"},{width:natural.width+"px",height:natural.height+"px"}],{duration:260,easing:"cubic-bezier(.2,.8,.2,1)"}).onfinish=()=>{e.style.width="";e.style.height="";e.style.overflow="";content.style.width="";content.style.flex=""};
  }
- clearTimeout(toast.t);toast.t=setTimeout(()=>{e.className="";e.style.width="";e.style.height=""},l=="err"?6000:3000)
+ clearTimeout(toast.t);toast.t=setTimeout(()=>{e.className="";e.style.width="";e.style.height="";e.style.overflow=""},l=="err"?6000:3000)
 }
 // ---------- widgets ----------
 const disMem={};
@@ -487,6 +506,10 @@ function radio(label,on,fn,k,sub){const b=el("button","opt");b.dataset.k=k;b.set
  if(on&&rflip===k){b.setAttribute("aria-checked",false);requestAnimationFrame(()=>requestAnimationFrame(()=>{if(b.isConnected)b.setAttribute("aria-checked",true)}))}
  b.onclick=()=>{if(b.getAttribute("aria-disabled")!="true"){rflip=k;try{fn()}finally{rflip=null}}};return dis(b,0)}
 let flip=null;
+/* Options the relinker in use lists in "relinker --help" (null = unknown: nothing is disabled) */
+let CAPS=null;const NOFLAG="Not in this relinker",noFlag=f=>!!(CAPS&&f&&!CAPS.has(f)),flagOf=l=>{const m=/^(--[a-z][\w-]*)/i.exec(l||"");return m?m[1]:""};
+async function loadCaps(){let n=null;try{const r=await api("relinker_flags");if(r&&r.known)n=new Set(r.flags)}catch(e){}
+ const a=CAPS?[...CAPS].sort().join(" "):"",b=n?[...n].sort().join(" "):"";CAPS=n;if(a!==b&&typeof renderCards==="function"&&$("#cards")){const go=()=>{if($("#cards"))renderCards()};if(document.body.classList.contains("intro"))setTimeout(go,1500);else go()}}
 function check(label,hint,get,set,k,o={}){const b=el("button","chk");b.dataset.k=k;b.setAttribute("role","checkbox");b.setAttribute("aria-checked",!!get());
  const t=el("span","",""),x=el("span","",label);t.append(x);if(o.tag)t.append(el("span","tag",o.tag));if(hint)t.append(el("small","",hint));
  b.append(el("span","box"),t);b.onclick=()=>{if(b.getAttribute("aria-disabled")!="true"){const nv=!get();flip=[k,nv];try{set(nv)}finally{flip=null}}};
@@ -513,6 +536,7 @@ function combo(label,opts,get,set,k,o={}){const n=opts.length,i0=Math.max(0,opts
  b.cyc=d=>set(opts[(i0+d+n)%n][0]);
  w.append(lb,b,pop);if(o.hint)w.append(el("p","muted",o.hint));dis(b,o.off);return w}
 const hrow=(...k)=>{const d=el("div","hrow");d.append(...k.filter(Boolean));return d};
+const repoOfficial=u=>{u=(u||"").trim().replace(/^"|"$/g,"");if(!u)return true;if(/^[\w.-]+\/[\w.-]+$/.test(u))u="https://github.com/"+u;else if(/^github\.com\//i.test(u))u="https://"+u;return /^(?:https?:\/\/(?:www\.)?github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/|git:\/\/github\.com\/)boykopovar\/AnyPS5(?:\.git)?\/?$/i.test(u)}; // same rule as is_official_repo in AnyPS5_GUI.py
 const note=t=>el("p","muted",t);
 function ask(title,text,yesL="Continue",noL="Cancel"){return new Promise(res=>{const m=el("div","modal"),b=el("div","cfm");b.setAttribute("role","dialog");b.append(el("h2","",title),el("p","",text));
  m.done=v=>{closeM(m);res(v)};const y=btn(yesL,()=>m.done(true),{pri:1,k:"y"}),n=btn(noL,()=>m.done(false),{k:"n"});
@@ -567,7 +591,7 @@ let prevSrc=null,prevRel=null,prevWin=null;
 function saveAdv(){const v=Object.keys(advOpen).filter(k=>advOpen[k]).join(",")||"none";cfg.settings.open_sections=v;api("set_cfg",{settings:{open_sections:v}})}
 const M=/module|executable|sce-module/i,plat=(p,T)=>!p||p=="all"||(p=="win"&&T=="windows")||(p=="nowin"&&T!="windows")||(p=="linux"&&T=="linux")||(p=="macos"&&T=="macos")||(p=="host"&&T==S.host),
  FRIEND=[["--to-rosetta","Run on Apple silicon (Rosetta)"],["--windows-gui","Hide the console window"],["--autorun","Start the game when the conversion ends"],["--lazy-binding","Faster start (lazy binding)"],["--registry","Write registry files"],["--rpath","Extra library search path"]],
- CUSTOM=[["Language","Runtime","language ANYPS5_LANGUAGE"],["Present mode","Runtime","present vsync fifo wayland"],["Overlay position","Runtime","overlay corner position ANYPS5_OVERLAY_POS top left right bottom"],["Keys and mouse","Input","keys mouse controller keyboard deadzone ini"],["Main color","Appearance","accent theme color custom picker wheel"],["Background","Appearance","animated bubble hover"],["Storage folder","Storage","config data move"],["Target system","Conversion","windows linux macos"],["Sound effects","Appearance","sound audio volume click chime mute"]];
+ CUSTOM=[["Language","Runtime","language ANYPS5_LANGUAGE"],["Present mode","Runtime","present vsync fifo wayland"],["Overlay position","Runtime","overlay corner position ANYPS5_OVERLAY_POS top left right bottom"],["Keys and mouse","Input","keys mouse controller keyboard deadzone ini"],["Controller buttons","Input","remap swap cross circle sdl button paddle none disable"],["Main color","Appearance","accent theme color custom picker wheel"],["Background","Appearance","animated bubble hover"],["Storage folder","Storage","config data move"],["Target system","Conversion","windows linux macos"],["Sound effects","Appearance","sound audio volume click chime mute"]];
 function cfgSet(sec,k,x){cfg[sec][k]=x;api("set_cfg",{[sec]:{[k]:x}});renderCards();refresh()}
 function feedback(){const m=el("div","modal"),b=el("div","cfm fbd");b.setAttribute("role","dialog");b.setAttribute("aria-modal","true");b.setAttribute("aria-label","Report a bug or suggest something");
  const esc=e=>{if(e.key=="Escape"){e.stopPropagation();m.done()}};
@@ -584,18 +608,21 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
  const s=cfg.settings,r=cfg.relinker,rel=s.mode=="relink",gh=r.relinker_source=="github",rls=r.relinker_source=="release";
  const card=(t,...k)=>{const c=el("section","card");c.append(el("h3","",t),...k);root.append(c);return c};
  const fold=(key,t,...k)=>{const c=el("section","card"),d=document.createElement("details"),sm=document.createElement("summary");d.className="adv";d.open=!!advOpen[key];d.classList.toggle("op",d.open);d.ontoggle=()=>{advOpen[key]=d.open?1:0};sm.textContent=t;const wb=el("div","advb"),wi=el("div","advi");wi.append(...k);wb.append(wi);d.append(sm,wb);foldAnim(d,sm,wb,key);c.append(d);root.append(c);return c};
- const tabs=hrow(btn("Convert",()=>{if(view!="convert"){view="convert";vAnim="L"}renderCards()},{k:"vc",icon:"tcv"}),btn("Play",()=>{if(view!="play"){view="play";vAnim="R"}renderCards()},{k:"vp",icon:"play"}));tabs.classList.add("mode-tabs");tabs.children[view=="play"?1:0].classList.add("sel");root.append(tabs);
+ const tabs=hrow(btn("Convert",()=>{if(view!="convert"){view="convert";vAnim="L"}renderCards()},{k:"vc",icon:"tcv"}),btn("Play",()=>{if(view!="play"){view="play";vAnim="R"}renderCards()},{k:"vp",icon:"play"}),btn("Library",()=>{if(view!="library"){view="library";vAnim="R";lib.loaded=false}renderCards()},{k:"vl",icon:"folder"}));tabs.classList.add("mode-tabs");tabs.children[view=="play"?1:view=="library"?2:0].classList.add("sel");root.append(tabs);
+ const logb=()=>[el("span","sp"),btn("Export report…",makeReport,{k:"rep",tip:"Saves a report file with the test info of GAME_TESTING.md (host, GPU, variables, exit code), the automatic reading and the FULL log. Ready to attach on Discord or GitHub."}),btn("Debug package…",debugPack,{k:"dbgpk",tip:"Saves a zip with the bug report, the full report, your settings and the .registry.json files. User name, computer name and home folder are hidden; check it before you share it."}),btn("Copy for bug",copyBug,{k:"cpb",tip:"Copies a short report (versions, host report, last 60 log lines, personal names hidden) to paste in a GitHub issue."}),btn("Clear log",()=>{log=[];$("#log").textContent=""},{k:"clr"})];
+ if(view=="library"){libraryView(root);{const res=el("section","card step"),rh=el("div","rh");rh.append(el("h3","","Log"),hrow(...logb().slice(1)));res.append(rh);lbar.append(res)}if(vAnim){vAnim="";[...root.children].slice(1).forEach(c=>{c.style.animation="vinR .38s var(--ease) both"})}return}
  if(view=="convert") {
   card("PS5 game path",note("Original PS5 game source. Used by Convert only."),hrow(field("folder",()=>folder,async v=>{folder=await api("set_folder",v);refresh()} ,"Path to PS5 game folder or .zip / .rar",{label:"PS5 source path",live:v=>api("set_folder",v)}),btn("Browse folder…",async()=>{const p=await api("pick_folder");if(p){folder=p;renderCards();refresh()}},{k:"browse"}),btn("Choose archive…",async()=>{const p=await api("pick_archive");if(p){folder=p;renderCards();refresh()}},{k:"browsezip",tip:"Select a .zip or .rar archive; .rar requires 7-Zip."})),note(folder?"Selected: "+folder:"No PS5 source selected."));
+  root.append(queueCard());
  } else {
   card("Converted PC game path",note("Converted PC game output folder. Used by Play, Launch game and Create shortcut."),hrow(field("playfolder",()=>playFolder,async v=>{playFolder=await api("set_play_folder",v);refresh()} ,"Path to converted PC game folder",{label:"PC game path",live:v=>api("set_play_folder",v)}),btn("Browse PC game…",async()=>{const p=await api("pick_play_folder");if(p){playFolder=p;renderCards();refresh()}},{k:"browseplay"})),note(playFolder?"Selected: "+playFolder:"No PC game selected; automatic output-folder lookup will be attempted."));
  }
- const logb=()=>[el("span","sp"),btn("Export report…",makeReport,{k:"rep",tip:"Saves a report file with the test info of GAME_TESTING.md (host, GPU, variables, exit code), the automatic reading and the FULL log. Ready to attach on Discord or GitHub."}),btn("Debug package…",debugPack,{k:"dbgpk",tip:"Saves a zip with the bug report, the full report, your settings and the .registry.json files. User name, computer name and home folder are hidden; check it before you share it."}),btn("Copy for bug",copyBug,{k:"cpb",tip:"Copies a short report (versions, host report, last 60 log lines, personal names hidden) to paste in a GitHub issue."}),btn("Clear log",()=>{log=[];$("#log").textContent=""},{k:"clr"})];
   const mkopts=()=>btn("AnyPS5 settings…",()=>openSettings(),{k:"opts",icon:"tune",tip:"Conversion, Source build, Runtime, Input and Appearance settings."});
  if(view=="play") {
   card("Play a converted game",note("Launch and shortcut use the converted PC game path above. If it is empty, the app tries the configured output folder using the PS5 source game's name."),
    hrow(btn("Launch game",playExe,{k:"play",icon:"pad",sub:"With your current settings",tip:"Automatically finds the converted executable using the Converted PC game path and target settings. Starts with current runtime settings."}),
-    btn("Create shortcut…",shortcutExe,{k:"mkshort",icon:"link",sub:"With your current settings",tip:"Automatically finds the converted executable using the Converted PC game path and creates a shortcut with the current runtime settings."})),
+    btn("Create shortcut…",shortcutExe,{k:"mkshort",icon:"link",sub:"With your current settings",tip:"Automatically finds the converted executable using the Converted PC game path and creates a shortcut with the current runtime settings."}),
+    btn("Compatibility",async()=>{const r=await api("open_compatibility");if(r&&r.ok)toast("Opened the Game bring-up discussions for "+r.title_id,"ok");else toast(r&&r.error||"Unable to open the page","err")},{k:"compat",icon:"ext",sub:"Search this game on GitHub",tip:"Opens the Game bring-up discussions of AnyPS5 in your browser, searching the title ID of the selected converted game."})),
    note("A shortcut keeps the settings it was created with: after changing them, create it again."));
   card("Game settings",combo("Language (ANYPS5_LANGUAGE)",[["","(default: English US)"],...S.languages.map(([n,x])=>[String(n),natv(x),String(n)])],()=>String(cfg.runtime.language).trim(),x=>cfgSet("runtime","language",x),"lang"),
    combo("Present mode",S.present_modes.map(x=>[x,x||"(default)"]),()=>cfg.runtime.present_mode,x=>cfgSet("runtime","present_mode",x),"present",{hint:"Empty = fifo (vsync). If the window is off-screen (Wayland, Linux) try fifo_latest_ready."}),hrow(btn("Open runtime settings (GPU, fonts…)",()=>openSettings("Runtime"),{k:"rt",icon:"tune"}),btn("Open input settings (keys and mouse)",()=>openSettings("Input"),{k:"keys",icon:"kbd"}),btn("Screenshot gallery",openGallery,{k:"gal",icon:"ext",tip:"Shows the latest screenshots of the game."})));
@@ -621,15 +648,15 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
   .forEach(([k,t])=>{const v=el("span","","—");v.id="st-"+k;st.append(el("span","",t),v)});{const rw=el("div","readyrow"),rd=el("span","ready");rd.id="ready";rd.textContent="Checking…";rw.append(rd,btn("Open game and module settings",()=>openSettings("Game and modules"),{k:"os1",icon:"tune",tip:"Game and modules tab: --module-dir, --executable, --sce-module-path, unwrap of modules…"}));fold("st","Requirements check (details)",st).prepend(rw)}
  const m=card("2. Choose what to do",radio("Convert to PC  —  builds the package with the executable for your system",rel,()=>setMain("settings","mode","relink"),"m2"),
   radio("Unwrap only  —  eboot.bin and modules (SELF → ELF, with backup)",!rel,()=>setMain("settings","mode","unwrap"),"m1"));
- {const ind=el("div","ind"),tg=(k,sec,key,l,h)=>check(l,h,()=>yes(cfg[sec][key]),v=>setMain(sec,key,v?"yes":"no"),k);
+ {const ind=el("div","ind"),tg=(k,sec,key,l,h,fl)=>check(l,h,()=>yes(cfg[sec][key]),v=>setMain(sec,key,v?"yes":"no"),k,fl&&noFlag(fl)?{off:1,tag:NOFLAG}:{});
   const hideR=r.target=="windows",fromHide=prevWin===null?hideR:prevWin;prevWin=hideR;
   const rosEl=el("div","vzr"),rosIn=el("div","vzin");
-  rosIn.append(tg("rosetta","relinker","rosetta","Apple silicon via Rosetta (--to-rosetta) · Linux / macOS","Implies --to-intel. Not available with the Windows system."));rosEl.append(rosIn);
+  rosIn.append(tg("rosetta","relinker","rosetta","Apple silicon via Rosetta (--to-rosetta) · Linux / macOS","Implies --to-intel. Not available with the Windows system.","--to-rosetta"));rosEl.append(rosIn);
   const setRos=(h,anim)=>{rosEl.classList.toggle("gone",h);rosEl.inert=h;if(anim){rosEl.classList.add("mov");clearTimeout(rosEl._t);rosEl._t=setTimeout(()=>rosEl.classList.remove("mov"),450)}};
   setRos(fromHide);if(fromHide!==hideR)requestAnimationFrame(()=>requestAnimationFrame(()=>setRos(hideR,1)));
   ind.append(hrow(el("span","lbl","System:"),...Object.entries(S.targets).map(([k,v])=>radio(v.split(" (")[0],r.target==k,()=>setMain("relinker","target",k),"t"+k))),
    tg("auto","settings","auto_unwrap","Automatic unwrap before the conversion","Works on the copy: the original is not touched."),
-   tg("intel","settings","intel","Intel processor (--to-intel) · all targets"),
+   tg("intel","settings","intel","Intel processor (--to-intel) · all targets",undefined,"--to-intel"),
    rosEl,
    tg("keep","settings","keep_game","Keep the original PS5 game (copy instead of move)","ON = copy · OFF = safe move: each file is deleted from the source once copied."),
    hrow(el("span","lbl","Output folder:"),field("out",()=>s.output_dir,v=>setMain("settings","output_dir",v),"Empty = \"Converted games\" folder",{label:"Output folder"}),
@@ -641,7 +668,7 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
   m.append(wr)}
  m.append(check("Notify when an operation finishes or fails","Shows an in-app message and a system notification (Windows / macOS / Linux).",()=>yes(s.notify),v=>setMain("settings","notify",v?"yes":"no"),"notify"));m.append(check("Open the trash folder automatically","When a failed or cancelled operation moves an incomplete folder to the trash, open the trash so you can see or restore it.",()=>yes(s.open_trash),v=>setMain("settings","open_trash",v?"yes":"no"),"open_trash"));m.append(hrow(btn("Open conversion settings",()=>openSettings("Conversion"),{k:"os2",icon:"tune",tip:"Conversion tab: all relinker flags (--to-rosetta, --rpath, --lazy-binding…)"})));
  const src=gh?"github":rls?"release":"prebuilt",from=prevSrc||src;prevSrc=src;
- const SHOW={prebuilt:{repo:0,dl:0,build:0,imp:1},release:{repo:1,dl:1,build:0,imp:0},github:{repo:1,dl:0,build:1,imp:0}},vzs=[];
+ const SHOW={prebuilt:{repo:0,unoff:0,tag:0,ref:0,guide:0,dl:0,build:0,imp:1},release:{repo:1,unoff:1,tag:1,ref:0,guide:1,dl:1,build:0,imp:0},github:{repo:1,unoff:1,tag:0,ref:1,guide:1,dl:0,build:1,imp:0}},vzs=[];
  const vz=(key,node,row)=>{const w=el("div",row?"vzr":"vz");if(row){const i=el("div","vzin");i.append(node);w.append(i)}else w.append(node);
   const set=(s,anim)=>{const g=!SHOW[s][key],was=w.classList.contains("gone");w.inert=g;
    if(!row){clearTimeout(w._t);
@@ -655,12 +682,16 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
  const ut=fold("ut","Tools and updates: where they come from",hrow(el("span","lbl","Source:"),radio("Local files (manual)",!gh&&!rls,()=>setMain("relinker","relinker_source","prebuilt"),"s1"),radio("Release from GitHub repo (auto-update)",rls,()=>setMain("relinker","relinker_source","release"),"s3"),radio("Build from GitHub source (auto-update)",gh,()=>setMain("relinker","relinker_source","github"),"s2")),
   vz("repo",hrow(el("span","lbl","Repository:"),field("repo",()=>r.repo_url,v=>setMain("relinker","repo_url",v||S.default_repo),"",{label:"Repository"}),
    btn("Default",()=>setMain("relinker","repo_url",S.default_repo),{k:"repodef"}),vz("dl",btn("Download now",()=>act("download"),{k:"dl",off:running})),vz("build",btn("Build now",()=>act("build"),{k:"build",off:running})),btn("Stop",()=>api("cancel"),{k:"stopdl",off:!running,tip:"Stops the download or build in progress."}),btn("Relinker version",async()=>{const r=await api("relinker_version");if(r)toast(r.text,r.level==="ok"?"ok":r.level)},{k:"relver",tip:"Runs relinker --version. The version used is also saved in conversion_info.json inside each converted package."})),1),
+  ...(repoOfficial(r.repo_url)?[]:[vz("unoff",el("p","muted warn","Unofficial repository: run only code you trust."),1)]),
+  vz("tag",hrow(el("span","lbl","Release tag:"),field("reltag",()=>r.release_tag||"",v=>setMain("relinker","release_tag",v),"empty = latest release",{label:"Release tag"}),el("span","muted","Same value as Settings → Source build")),1),
+  vz("ref",hrow(el("span","lbl","Branch or tag:"),field("repref",()=>r.repo_ref||"",v=>setMain("relinker","repo_ref",v),"empty = default branch",{label:"Branch or tag"}),el("span","muted","Same value as Settings → Source build")),1),
+  vz("guide",(()=>{const p=el("p","muted","You can also use a fork, or a different branch or tag from the official repository. "),a=el("button","tlink","Guide ↗");a.type="button";a.title="Opens the \"Advanced: forks and custom builds\" section of the README in your browser.";a.onclick=()=>api("open_fork_guide");p.append(a);return p})(),1),
   vz("imp",hrow(el("span","lbl","Local files:"),btn("Import files…",importTools,{k:"imptools",tip:"Copy the files the app uses into the app data folder: unwrap_self.py, relinker-*, prx-*.zip, nid_patcher, anyps5-input.ini (input map), fonts (.ttf/.otf/.ttc) and import_audit.py / pad_input.py."}),el("span","muted","unwrap_self.py · relinker-* · prx-*.zip · nid_patcher · anyps5-input.ini · fonts")),1),
-  note("Used by unwrap, libs and relink. Local files: the files you import (or put) in the app data folder. Release: latest GitHub release. Build: compiles the repository with CMake. Branch/tag and CMake target: AnyPS5 settings → Source build."));
+  note("Used by unwrap, libs and relink. Local files: the files you import (or put) in the app data folder. Release: latest GitHub release. Build: compiles the repository with CMake. CMake target and the other build options: AnyPS5 settings → Source build."));
   if(from!==src)requestAnimationFrame(()=>requestAnimationFrame(()=>vzs.forEach(f=>f())));
   const sc=S.schema.Conversion.find(it=>/autorun/.test(it.label||"")),ar=sc&&yes(cfg[sc.section][sc.key]),
   sumT="Will do: "+(rel?"convert for "+String(S.targets[r.target]||r.target).split(" (")[0]+" · "+(yes(s.keep_game)?"copy the game (original kept)":"move the game (original deleted)")+(ar?" · start the game afterwards":""):"unwrap only · files are unwrapped in place in the game folder (backup kept, restorable)"),
-  act1=el("div","step");act1.append(el("h3","","3. Start"),hrow(btn(rel?"▶  Convert game":"▶  Unwrap files",()=>act("start"),{pri:1,k:"start"}),btn("■  Stop",()=>api("cancel"),{k:"stop",off:1}),btn("↺  Restore backup",()=>act("restore"),{k:"restore"})),el("p","sum",sumT));ut.prepend(act1);ut.querySelector(".advi").append(hrow(btn("Open tools and updates settings",()=>openSettings("Source build"),{k:"os3",icon:"tune",tip:"Source build tab: release tag, branch, CMake, update checks"}),btn("Open storage settings",()=>openSettings("Storage"),{k:"os4",icon:"folder",tip:"Storage tab: where tools, builds, backups and settings are kept"})));root.append(ut);
+  act1=el("div","step");act1.append(el("h3","","3. Start"),hrow(btn(rel?"▶  Convert game":"▶  Unwrap files",()=>act("start"),{pri:1,k:"start"}),btn("■  Stop",()=>{qStop=true;api("cancel")},{k:"stop",off:1}),...(rel?[btn("Preview files…",()=>act("dry_run"),{k:"dryrun",off:noFlag("--dry-run"),tip:noFlag("--dry-run")?"This relinker does not have --dry-run.":"Runs the relinker with --dry-run: it converts in memory and lists the files it would create, without writing anything. The game must already be unwrapped (eboot.bin is an ELF)."})]:[]),btn("↺  Restore backup",()=>act("restore"),{k:"restore"})),el("p","sum",sumT));ut.prepend(act1);ut.querySelector(".advi").append(hrow(btn("Open tools and updates settings",()=>openSettings("Source build"),{k:"os3",icon:"tune",tip:"Source build tab: release tag, branch, CMake, update checks"}),btn("Open storage settings",()=>openSettings("Storage"),{k:"os4",icon:"folder",tip:"Storage tab: where tools, builds, backups and settings are kept"})));root.append(ut);
   const res=el("section","card step");{const rh=el("div","rh");rh.append(el("h3","","Log"),hrow(...logb().slice(1)));res.append(rh)}lbar.append(res)}
 
  if(view=="play"){const res=el("section","card step"),rh=el("div","rh");rh.append(el("h3","","Log"),hrow(...logb().slice(1)));res.append(rh);lbar.append(res)}
@@ -684,7 +715,7 @@ function applyStatus(){const rd=$("#ready");if(rd){
 
 status.forEach(([k,,v,lv])=>{const e=$("#st-"+k);if(e){e.textContent=v;e.className=lv=="muted"?"muted-c":lv}});
  const e=$("#st-space");if(e){e.textContent=space?space.text:"—";e.className=space?space.level:"muted-c"}}
-function setRunning(b){running=b;document.querySelectorAll('[data-k="stop"],[data-k="stopdl"]').forEach(t=>dis(t,!b));document.querySelectorAll('[data-k="dl"],[data-k="build"]').forEach(t=>dis(t,b));["start","restore","play"].forEach(k=>{const e=$(`#cards [data-k="${k}"]`);e&&dis(e,b&&k!="play")})}
+function setRunning(b){running=b;document.querySelectorAll('[data-k="stop"],[data-k="stopdl"]').forEach(t=>dis(t,!b));document.querySelectorAll('[data-k="dl"],[data-k="build"]').forEach(t=>dis(t,b));["start","dryrun","restore","play"].forEach(k=>{const e=$(`#cards [data-k="${k}"]`);e&&dis(e,b&&k!="play")})}
 // ---------- settings dialog (tabs like the Tk version) ----------
 // ---------- visual input mapping (controller diagram) ----------
 const PAD_NAMES=["Cross","Circle","Triangle","Square","L1","R1","L2","R2","L3","R3","Options","Up","Right","Down","Left","LeftStickLeft","LeftStickRight","LeftStickUp","LeftStickDown","RightStickLeft","RightStickRight","RightStickUp","RightStickDown","TouchLeft","TouchRight","StickModifier","Shake","ToggleMouse","ToggleFullscreen","TogglePerformanceOverlay","Screenshot"];
@@ -697,6 +728,14 @@ const PAD_CANON={},PAD_LABEL={L2:"L2",L1:"L1",R2:"R2",R1:"R1",Up:"D-pad ↑",Lef
  LeftStickUp:"Left stick ↑",LeftStickLeft:"Left stick ←",LeftStickRight:"Left stick →",LeftStickDown:"Left stick ↓",
  RightStickUp:"Right stick ↑",RightStickLeft:"Right stick ←",RightStickRight:"Right stick →",RightStickDown:"Right stick ↓"};
 PAD_NAMES.forEach(n=>PAD_CANON[n.toLowerCase()]=n);PAD_SETS.forEach(s=>PAD_CANON[s[0].toLowerCase()]=s[0]);
+// controller button remapping: SDLButton:button = Button (INPUT_MAPPING.md). [SDL name, label, default PlayStation button ("" = none)]
+const SDL_BTNS=[["a","Bottom face button (A)","Cross"],["b","Right face button (B)","Circle"],["x","Left face button (X)","Square"],["y","Top face button (Y)","Triangle"],
+ ["leftshoulder","Left bumper","L1"],["rightshoulder","Right bumper","R1"],["leftstick","Left stick click","L3"],["rightstick","Right stick click","R3"],
+ ["dpup","D-pad ↑","Up"],["dpdown","D-pad ↓","Down"],["dpleft","D-pad ←","Left"],["dpright","D-pad →","Right"],
+ ["back","Back / View","TouchPad"],["start","Start / Menu","Options"],["touchpad","Touchpad click","TouchPad"],["guide","Guide (logo button)",""],
+ ["misc1","Extra button (Share / mic)",""],["paddle1","Paddle 1",""],["paddle2","Paddle 2",""],["paddle3","Paddle 3",""],["paddle4","Paddle 4",""]];
+const PS_BTNS=["Cross","Circle","Triangle","Square","L1","R1","L2","R2","L3","R3","Options","Up","Right","Down","Left","TouchPad"];
+SDL_BTNS.forEach(b=>PAD_CANON["sdlbutton:"+b[0]]="SDLButton:"+b[0]);
 const PAD_SETKEYS=new Set(PAD_SETS.map(s=>s[0].toLowerCase()));
 // [action, label, chip y (0-560), anchor on the controller]
 const PAD_L=[["L2","L2",60,[385,120]],["L1","L1",125,[385,147]],["Up","D-pad ↑",190,[340,236]],["Left","D-pad ←",255,[322,255]],["Down","D-pad ↓",320,[340,274]],["Right","D-pad →",385,[358,255]],["L3","L3 · stick click",450,[400,350]]];
@@ -706,10 +745,10 @@ const PAD_DEF={Cross:["KEY:Return","KEY:Space"],Options:["KEY:Escape"],Triangle:
  L3:["KEY:Left Shift","KEY:Right Shift"],R3:["KEY:Left Ctrl","KEY:Right Ctrl"],Up:["KEY:Up","WHEEL:Up"],Right:["KEY:Right"],Down:["KEY:Down","WHEEL:Down"],Left:["KEY:Left"],
  LeftStickLeft:["KEY:A"],LeftStickRight:["KEY:D"],LeftStickUp:["KEY:W"],LeftStickDown:["KEY:S"],RightStickLeft:["KEY:F"],RightStickRight:["KEY:H"],RightStickUp:["KEY:T"],RightStickDown:["KEY:G"],
  TouchLeft:["KEY:Backspace"],TouchRight:["KEY:Tab"],ToggleMouse:["MOUSE:Middle","KEY:F7"],ToggleFullscreen:["KEY:F11"],TogglePerformanceOverlay:["KEY:F10"],Screenshot:["KEY:F12"],Shake:["KEY:X"]};
-function iniParse(t){const acts={},sets={};String(t).replace(/^\ufeff/,"").split(/\r?\n/).forEach(r=>{const l=r.split(/[#;]/)[0],i=l.indexOf("=");if(i<1)return;const k=l.slice(0,i).trim().toLowerCase(),v=l.slice(i+1).trim();if(!k||!v)return;
+function iniParse(t){const acts={},sets={};String(t).replace(/^\ufeff/,"").split(/\r?\n/).forEach(r=>{const l=r.split(/[#;]/)[0],i=l.indexOf("=");if(i<1)return;const k=l.slice(0,i).trim().toLowerCase().replace(/\s*:\s*/,":"),v=l.slice(i+1).trim();if(!k||!v)return;
   if(PAD_SETKEYS.has(k)){if(!(k in sets))sets[k]=v}else{const a=acts[k]||(acts[k]=[]);if(!a.some(x=>x.toLowerCase()==v.toLowerCase()))a.push(v)}});return{acts,sets}}
 function iniSet(t,key,vals){const lk=key.toLowerCase(),out=[];let ins=-1;
- for(const r of String(t).replace(/^\ufeff/,"").split(/\r?\n/)){const l=r.split(/[#;]/)[0],i=l.indexOf("=");if(i>0&&l.slice(0,i).trim().toLowerCase()==lk){if(ins<0)ins=out.length;continue}out.push(r)}
+ for(const r of String(t).replace(/^\ufeff/,"").split(/\r?\n/)){const l=r.split(/[#;]/)[0],i=l.indexOf("=");if(i>0&&l.slice(0,i).trim().toLowerCase().replace(/\s*:\s*/,":")==lk){if(ins<0)ins=out.length;continue}out.push(r)}
  if(ins<0){ins=out.length;while(ins>0&&out[ins-1].trim()==="")ins--}
  out.splice(ins,0,...vals.map(v=>PAD_CANON[lk]+" = "+v));let s=out.join("\n");if(s&&!s.endsWith("\n"))s+="\n";return s}
 const padShow=v=>{const i=v.indexOf(":"),k=v.slice(0,i).toUpperCase(),x=v.slice(i+1);return k=="MOUSE"?"Mouse "+x:k=="WHEEL"?"Wheel "+(x.toLowerCase()=="up"?"↑":"↓"):x};
@@ -766,6 +805,41 @@ function padStickPrev(ctl){const box=el("div","pdz"),hint=el("p","muted pdm","No
  let has=null;const pad=()=>{const l=navigator.getGamepads?navigator.getGamepads():[];for(const g of l)if(g&&g.connected&&g.axes&&g.axes.length>=4)return g;return null};
  const tick=()=>{if(!box.isConnected)return;const g=pad();if(!!g!==has){has=!!g;hint.textContent=g?MSG1:MSG0}sticks.forEach(f=>f(g));requestAnimationFrame(tick)};
  box.append(row,hint);requestAnimationFrame(tick);return box}
+// Controller remap drawn on the same controller picture: click a button, pick the PlayStation button it presses.
+const SDL_L=[["L2",null,"L2",60,[385,120]],["L1","leftshoulder","L1",125,[385,147]],["D-pad ↑","dpup","Up",190,[340,236]],["D-pad ←","dpleft","Left",255,[322,255]],["D-pad ↓","dpdown","Down",320,[340,274]],["D-pad →","dpright","Right",385,[358,255]],["L3 · stick click","leftstick","L3",450,[400,350]]];
+const SDL_R=[["R2",null,"R2",60,[615,120]],["R1","rightshoulder","R1",125,[615,147]],["Options","start","Options",190,[588,222]],["Triangle","y","Triangle",255,[660,233]],["Circle","b","Circle",320,[682,255]],["Cross","a","Cross",385,[660,277]],["Square","x","Square",450,[638,255]],["R3 · stick click","rightstick","R3",515,[600,350]]];
+const SDL_T=[["Touchpad click","touchpad","TouchPad",30,[470,222],395],["Back / View","back","TouchPad",51,[530,222],605]];
+function sdlChip(c,lab,n,def,cls,css){const{get,set,redraw}=c,ch=el("div","pc "+cls);Object.assign(ch.style,css||{});
+ if(!n){ch.classList.add("off");const m=el("div","pm");m.append(el("div","pt",lab),el("div","pv dflt","analog: not remapped"));ch.append(m);return ch}
+ const k="sdlbutton:"+n,raw=(iniParse(get()).acts[k]||[])[0],cur=raw?PS_BTNS.find(x=>x.toLowerCase()==raw.toLowerCase())||(raw.toLowerCase()=="none"?"None":null):"";
+ if(cur!=="")ch.classList.add("set");
+ const m=el("div","pm"),sel=document.createElement("select");
+ m.append(el("div","pt",lab),el("div","pv"+(cur===""?" dflt":""),cur===""?(def?"default: "+def:"default: none"):cur==null?"? "+raw:"→ "+cur));
+ sel.className="sdlsel";sel.dataset.k="sdl_"+n;sel.dataset.nav=1;sel.setAttribute("aria-label",lab+": which PlayStation button it presses");
+ [["",def?"Default ("+def+")":"Default (none)"],...PS_BTNS.map(x=>[x,x]),["None","None (disabled)"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;sel.append(o)});
+ sel.value=cur==null?"":cur;sel.onchange=()=>{set(iniSet(get(),k,sel.value===""?[]:[sel.value]));redraw()};
+ ch.append(m,sel);
+ if(cur!==""){const x=el("button","pi sdlx","×");x.dataset.k="sdlx_"+n;x.title="Back to the default";x.setAttribute("aria-label","Restore default for "+lab);x.onclick=e=>{e.stopPropagation();set(iniSet(get(),k,[]));redraw()};ch.append(x)}
+ return ch}
+function sdlButtons(c){const{get,set,redraw}=c,d=el("div","padset sdlset"),acts=iniParse(get()).acts,eff={};
+ d.append(el("div","pdt","Controller buttons (remap)"),note("Click a button on the controller and choose which PlayStation button it presses in the game. Example: click Cross and choose Circle, and the game receives Circle when you press that button. None turns the button off. Sticks and analog triggers are not changed, and the setting applies to every controller."));
+ SDL_BTNS.forEach(([n,lab,def])=>{const raw=(acts["sdlbutton:"+n]||[])[0],cur=raw?PS_BTNS.find(x=>x.toLowerCase()==raw.toLowerCase())||(raw.toLowerCase()=="none"?"None":null):"";eff[n]=cur===""?def:cur==="None"?"":cur});
+ let svg=PAD_SVG_HEAD;const dots=[];
+ SDL_L.forEach(([l,n,df,y,p])=>{svg+='<path d="M190 '+y+'H250L'+p[0]+' '+p[1]+'"/>';dots.push(p)});
+ SDL_R.forEach(([l,n,df,y,p])=>{svg+='<path d="M810 '+y+'H750L'+p[0]+' '+p[1]+'"/>';dots.push(p)});
+ SDL_T.forEach(([l,n,df,x,p,cx])=>{svg+='<path d="M'+cx+' 46L'+p[0]+' '+p[1]+'"/>';dots.push(p)});
+ svg+='</g><g fill="rgba(255,255,255,.7)">'+dots.map(p=>'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3"/>').join("")+'</g></svg>';
+ const wrap=el("div","padwrap"),pad=el("div","pad"),top=y=>((y-23)/5.6)+"%";pad.innerHTML=svg;
+ SDL_L.forEach(([l,n,df,y])=>pad.append(sdlChip(c,l,n,df,"ab",{left:"0",top:top(y)})));
+ SDL_R.forEach(([l,n,df,y])=>pad.append(sdlChip(c,l,n,df,"ab",{right:"0",top:top(y)})));
+ SDL_T.forEach(([l,n,df,x])=>pad.append(sdlChip(c,l,n,df,"ab",{left:x+"%",top:"0"})));
+ wrap.append(pad);d.append(wrap);
+ const ex=el("div","pgrp pextra");ex.append(el("span","sl","Only on some controllers"));const eg=el("div","pextra-grid");
+ [["guide","Guide (logo button)",""],["misc1","Extra button (Share / mic)",""],["paddle1","Paddle 1",""],["paddle2","Paddle 2",""],["paddle3","Paddle 3",""],["paddle4","Paddle 4",""]].forEach(([n,l,df])=>eg.append(sdlChip(c,l,n,df,"st")));
+ ex.append(eg);d.append(ex);
+ const used=new Set(Object.values(eff)),lost=["Cross","Circle","Triangle","Square","L1","R1","L3","R3","Options","Up","Right","Down","Left"].filter(x=>!used.has(x));
+ if(SDL_BTNS.some(([n])=>(acts["sdlbutton:"+n]||[]).length)&&lost.length)d.append(el("p","muted","No controller button presses: "+lost.join(", ")+". The keyboard and mouse still do."));
+ return d}
 function padSettings(c){const{get,set,redraw}=c,d=el("div","padset"),ctl={},slot=el("div","");
  d.append(el("div","pdt","Stick deadzones and mouse-as-stick settings"),slot);const sets=iniParse(get()).sets;
  PAD_SETS.forEach(([n,lab,lo,hi,step,def,int,ex])=>{const r=el("div","prow"),cv=sets[n.toLowerCase()],dn=Number(def),sl=document.createElement("input"),i=document.createElement("input"),rd=x=>Number(Number(x).toFixed(4));
@@ -780,8 +854,7 @@ function padSettings(c){const{get,set,redraw}=c,d=el("div","padset"),ctl={},slot
   if(cv!=null){const z=el("button","rst","\u21ba");z.dataset.k="psr_"+n;z.title="Back to default";z.setAttribute("aria-label","Restore default for "+lab);z.onclick=()=>{set(iniSet(get(),n,[]));redraw()};r.append(z)}else r.append(el("span","rstsp"));
   d.append(r)});
  d.append(el("p","muted","Empty field = default. The mouse values apply when the mouse drives the right stick (Mouse as right stick). Stick modifier scale applies to keyboard stick keys while the Stick modifier input is held; it has no default key."));slot.append(padStickPrev(ctl));return d}
-function padEditor(get,set,redraw,root){const c={get,set,redraw,root},top=(y)=>((y-23)/5.6)+"%",wrap=el("div","padwrap"),pad=el("div","pad");
- let svg='<svg viewBox="0 0 1000 560" aria-hidden="true"><g fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.6" stroke-linejoin="round">'+
+const PAD_SVG_HEAD='<svg viewBox="0 0 1000 560" aria-hidden="true"><g fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.6" stroke-linejoin="round">'+
  '<path d="M360 160Q500 138 640 160Q700 170 720 232Q745 330 730 420Q715 485 665 470Q620 455 600 422L400 422Q380 455 335 470Q285 485 270 420Q255 330 280 232Q300 170 360 160Z" fill="rgba(255,255,255,.05)"/>'+
  '<rect x="345" y="141" width="80" height="14" rx="7"/><rect x="575" y="141" width="80" height="14" rx="7"/>'+
  '<path d="M352 138Q385 100 428 128L428 138Z"/><path d="M572 128Q615 100 648 138L572 138Z"/>'+
@@ -791,6 +864,8 @@ function padEditor(get,set,redraw,root){const c={get,set,redraw,root},top=(y)=>(
  '<rect x="584" y="213" width="8" height="20" rx="4"/>'+
  '<circle cx="400" cy="350" r="30"/><circle cx="400" cy="350" r="17"/><circle cx="600" cy="350" r="30"/><circle cx="600" cy="350" r="17"/></g>'+
  '<g stroke="rgba(255,255,255,.3)" stroke-width="1.1" fill="none">';
+function padEditor(get,set,redraw,root){const c={get,set,redraw,root},top=(y)=>((y-23)/5.6)+"%",wrap=el("div","padwrap"),pad=el("div","pad");
+ let svg=PAD_SVG_HEAD;
  const tops=[["TouchLeft","Touchpad left",30,[470,222],395],["TouchRight","Touchpad right",51,[530,222],605]],dots=[];
  PAD_L.forEach(([a,l,y,p])=>{svg+='<path d="M190 '+y+'H250L'+p[0]+' '+p[1]+'"/>';dots.push(p)});
  PAD_R.forEach(([a,l,y,p])=>{svg+='<path d="M810 '+y+'H750L'+p[0]+' '+p[1]+'"/>';dots.push(p)});
@@ -805,7 +880,7 @@ function padEditor(get,set,redraw,root){const c={get,set,redraw,root},top=(y)=>(
   ["Up","Left","Right","Down"].forEach(d=>{const a=names+d,ch=padChip(c,a,PAD_LABEL[a],"st",null);ch.style.gridArea=d.toLowerCase();gr.append(ch)});g.append(gr);return g};
  const ex=el("div","pgrp pextra");ex.append(el("span","sl","Extras"));const eg=el("div","pextra-grid");["StickModifier","Shake","ToggleMouse","ToggleFullscreen","TogglePerformanceOverlay","Screenshot"].forEach(a=>eg.append(padChip(c,a,PAD_LABEL[a],"st",null)));ex.append(eg);
  const row=el("div","padrow");row.append(grp("Left stick","LeftStick"),grp("Right stick","RightStick"),ex);
- const box=el("div","");box.append(note("Click a button, then press the key, mouse button or wheel direction to use. + adds an alternate input, × goes back to the default (shown dimmed on each button). Keys are saved by physical position on the keyboard, so a key keeps working whatever the layout. Controllers you plug in always work and are not affected."),wrap,row,padSettings(c));return box}
+ const box=el("div","");box.append(note("Click a button, then press the key, mouse button or wheel direction to use. + adds an alternate input, × goes back to the default (shown dimmed on each button). Keys are saved by physical position on the keyboard, so a key keeps working whatever the layout. Controller buttons are remapped in the section below."),wrap,row,sdlButtons(c),padSettings(c));return box}
 const tabItems=t=>t=="Game and modules"?S.schema.Conversion.filter(it=>M.test(it.label||"")):t=="Conversion"?S.schema.Conversion.filter(it=>!M.test(it.label||"")):(S.schema[t]||[]);
 const RESETX={"Game and modules":[],"Conversion":[["relinker","target"],["relinker","rosetta"]],"Source build":[["relinker","relinker_source"],["relinker","repo_url"]],"Runtime":[["runtime","language"],["runtime","present_mode"],["runtime","overlay_pos"],["runtime","env_catalog"]]};
 function storageDone(path){const m=el("div","modal updm"),b=el("div","cfm");b.setAttribute("role","alertdialog");b.setAttribute("aria-modal","true");m.done=()=>{};
@@ -841,7 +916,7 @@ function envCatalogCard(D,advOpen,draw){const c=el("section","card"),d=document.
  wb.append(wi);d.append(sm,wb);foldAnim(d,sm,wb,"rtenv");c.append(d);
  if(!ENVCAT)Promise.resolve(api("env_catalog")).then(r=>{ENVCAT=r||[];sm.textContent="All environment variables ("+ENVCAT.length+" documented"+(cnt()?", "+cnt()+" set":"")+")";render()}).catch(()=>{info.textContent="Unable to load the variable list."});else render();
  return c}
-function openGallery(){const m=el("div","modal"),d=el("div","dlg"),grid=el("div","");grid.style.cssText="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;max-height:60vh;overflow:auto";d.setAttribute("role","dialog");m.done=()=>closeM(m);d.append(el("h2","","Screenshots"),grid);m.append(d);document.body.append(m);
+function openGallery(){const m=el("div","modal"),d=el("div","dlg fit"),grid=el("div","");grid.style.cssText="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;max-height:60vh;overflow:auto";d.setAttribute("role","dialog");m.done=()=>closeM(m);d.append(el("h2","","Screenshots"),grid);m.append(d);document.body.append(m);
  const info=note("Loading…");grid.before(info);
  Promise.resolve(api("list_screenshots",12)).then(r=>{if(!r||!r.ok){info.textContent=(r&&r.error)||"Unable to read the screenshots.";return}
   if(!r.items.length){info.textContent="No screenshots yet: press F12 in the game.";return}
@@ -852,7 +927,7 @@ function openGallery(){const m=el("div","modal"),d=el("div","dlg"),grid=el("div"
 function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.runtime}};let sq="",srchEl=null,tab=t0||"Conversion",inText=S.input,inMsg="",mapRun=false,mapMsg="",patMsg=null,catMsg=null,inMode="visual",A={...ui},stPath=S.storage.path,stMsg="",stBusy=0;
  const m=el("div","modal"),d=el("div","dlg"),body=el("div","dbody"),tabs=el("div","hrow tabs");d.setAttribute("role","dialog");m.append(d);m.done=()=>{applyUI(ui);sndSync(cfg.runtime);closeM(m)};
  const plat=(p,T)=>!p||p=="all"||(p=="win"&&T=="windows")||(p=="nowin"&&T!="windows")||(p=="linux"&&T=="linux")||(p=="macos"&&T=="macos")||(p=="host"&&T==S.host);
- const item=it=>{const T=D.relinker.target,off=!plat(it.plat,T),tag=it.plat&&it.plat!="all"?TAG[it.plat]:null,lab=LABEL[it.key]||it.label,v=()=>D[it.section][it.key],set=x=>{D[it.section][it.key]=x;draw()},w=el("div","si");
+ const item=it=>{const T=D.relinker.target,nof=it.section==="relinker"&&noFlag(flagOf(it.label)),off=!plat(it.plat,T)||nof,tag=nof?NOFLAG:it.plat&&it.plat!="all"?TAG[it.plat]:null,lab=LABEL[it.key]||it.label,v=()=>D[it.section][it.key],set=x=>{D[it.section][it.key]=x;draw()},w=el("div","si");
   if(it.type=="flag"){w.append(check(lab,it.hint,()=>yes(v()),x=>set(x?"yes":"no"),it.key,{off,tag}));
    if(it.key==="overlay")w.append(combo("Overlay position (ANYPS5_OVERLAY_POS)",S.overlay_positions.map(x=>[x,x?OVPOS[x]:"(default: top left)"]),()=>D.runtime.overlay_pos,x=>{D.runtime.overlay_pos=x;draw()},"overlaypos",{hint:"Corner of the window where the overlay is drawn."}))}
   else if(it.type=="text"){const l=el("span","sl",lab);if(tag)l.append(el("span","tag",tag));
@@ -861,7 +936,7 @@ function openSettings(t0){const D={relinker:{...cfg.relinker},runtime:{...cfg.ru
     Promise.resolve(api("env_catalog")).then(rows=>{if(!w.isConnected||!rows||!rows.length)return;const dl=el("datalist");dl.id="extraEnvNames";const seen=new Set();rows.forEach(r=>{if(r&&r.name&&!seen.has(r.name)){seen.add(r.name);const o=el("option");o.value=r.name+"=";dl.append(o)}});w.append(dl);ta.setAttribute("list","extraEnvNames")}).catch(()=>{})}
    else w.append(l,field(it.key,v,x=>{D[it.section][it.key]=x},"",{off,label:lab}));
    if(it.key==="patches_file"){const bw=btn("Browse…",async()=>{const f=await api("pick_patch_file");if(f){D.relinker.patches_file=f;patMsg=null;draw()}},{k:"patb",off}),
-    bv=btn("Verify patches",async()=>{patMsg={level:"muted",text:"Checking…"};draw();let r;try{r=await api("verify_patches",D.relinker)}catch(e){r={level:"err",text:String(e&&e.message||e)}}patMsg=r||{level:"err",text:"No answer"};draw()},{k:"patv",off});
+    bv=btn("Verify patches",async()=>{patMsg={level:"muted",text:"Checking…"};draw();let r;try{r=await api("verify_patches",D.relinker)}catch(e){r={level:"err",text:String(e&&e.message||e)}}patMsg=r||{level:"err",text:"No answer"};draw()},{k:"patv",off:off||noFlag("--verify-patches"),tip:noFlag("--verify-patches")?"This relinker does not have --verify-patches.":undefined});
     const bo=btn("Verify converted output",async()=>{patMsg={level:"muted",text:"Checking…"};draw();let r;try{r=await api("verify_output",D.relinker)}catch(e){r={level:"err",text:String(e&&e.message||e)}}patMsg=r||{level:"err",text:"No answer"};draw()},{k:"patvo",off,tip:"Linux only: checks a converted executable against the .patches.toml written beside it (--verify-output)."});w.append(hrow(...(D.relinker.target==="linux"?[bw,bv,bo]:[bw,bv])));if(patMsg){const pm=note(patMsg.text);pm.style.whiteSpace="pre-wrap";pm.classList.add(["ok","warn","err"].includes(patMsg.level)?patMsg.level:"muted-c");w.append(pm)}}if(it.key==="patch_catalog"){const run=async all=>{catMsg={level:"muted",text:"Checking the catalog…"};draw();let r;try{r=await api("suggest_patches",D.relinker,all)}catch(e){r={level:"err",text:String(e&&e.message||e)}}catMsg=r||{level:"err",text:"No answer"};if(r&&r.patch){D.relinker.patches_file=r.patch;catMsg.text="Recommended patch put in the --patches field:\n"+r.patch+"\n\n"+r.text}draw()};
  w.append(hrow(btn("Browse…",async()=>{const f=await api("pick_any_folder");if(f){D.relinker.patch_catalog=f;draw()}},{k:"patcatb",off}),btn("Find patch for this game",()=>run(false),{k:"patfind",off,tip:"Runs tools/suggest_patches.py on the selected unwrapped game. Nothing is applied."}),btn("List all verified",()=>run(true),{k:"patlist",off,tip:"--list-verified: every catalog entry that passes the checks."})));if(catMsg){const pm=note(catMsg.text);pm.style.whiteSpace="pre-wrap";pm.classList.add(["ok","warn","err"].includes(catMsg.level)?catMsg.level:"muted-c");w.append(pm)}}
 if(it.key==="nid_patcher_path"){const pm=el("p","muted");pm.style.whiteSpace="pre-wrap";w.append(hrow(btn("Patch imports of files…",async()=>{if(!await ask("Patch imports in place","nid_patcher edits the files you choose directly. Make a copy first. Continue?","Choose files","Cancel"))return;pm.textContent="Working…";let r;try{r=await api("run_nid_patcher",D.relinker)}catch(e){r={level:"err",text:String(e&&e.message||e)}}pm.textContent=(r&&r.text)||"No answer"},{k:"nidrun",off,tip:"Runs nid_patcher --exec on the files you pick (PE, ELF64 or Mach-O64)."})),pm)}
@@ -943,9 +1018,10 @@ if(it.key==="trace_dir"||it.key==="videoout_telemetry_dir")w.append(hrow(btn("Op
     btn(mapRun?"Stop input mapper":"Open web input mapper",async()=>{let r;if(!mapRun){mapMsg="Starting the input mapper (the first time it may be downloaded)…";draw()}try{r=await api(mapRun?"stop_input_mapper":"start_input_mapper")}catch(e){r={ok:false,running:mapRun,text:String(e&&e.message||e)}}if(r){mapRun=!!r.running;mapMsg=r.text||""}draw()},{k:"mapper",icon:"ext",tip:"Starts the browser-based key mapper (needs Node.js 22 or newer) and opens it at http://127.0.0.1:4173. Export the .ini there, then press Import settings here. The server is stopped with the button or when this app closes."}));
    Promise.resolve(api("input_mapper_status")).then(r=>{if(r&&!!r.running!==mapRun&&d.isConnected){mapRun=!!r.running;draw()}}).catch(()=>{});
    const mapNote=mapMsg?note(mapMsg):null;if(mapNote){mapNote.style.whiteSpace="pre-wrap"}
+   const inW=el("div","");(S.schema.Input||[]).forEach(it=>inW.append(item(it)));
    const vis=inMode=="visual",sw=hrow(el("span","lbl","View"),radio("Controller",vis,()=>{inMode="visual";draw()},"vwv"),radio("Text file",!vis,()=>{inMode="text";PADL=null;draw()},"vwt"));
-   if(vis)body.append(sw,padEditor(()=>inText,v=>{inText=v},draw,body),tools,...(mapNote?[mapNote]:[]),mg,gameKeys(inText));
-   else{const t=el("textarea");t.value=inText;t.dataset.nav=1;t.dataset.k="ta";t.spellcheck=false;t.oninput=()=>inText=t.value;body.append(sw,note("Edit "+S.input_name+" (keyboard and mouse)."),t,tools,...(mapNote?[mapNote]:[]),mg,gameKeys(inText))}}
+   if(vis)body.append(sw,padEditor(()=>inText,v=>{inText=v},draw,body),inW,tools,...(mapNote?[mapNote]:[]),mg,gameKeys(inText));
+   else{const t=el("textarea");t.value=inText;t.dataset.nav=1;t.dataset.k="ta";t.spellcheck=false;t.oninput=()=>inText=t.value;body.append(sw,note("Edit "+S.input_name+" (keyboard, mouse and controller buttons)."),t,inW,tools,...(mapNote?[mapNote]:[]),mg,gameKeys(inText))}}
   else if(tab!="Appearance"){const its=tabItems(tab),adv=its.filter(x=>x.advanced);its.filter(x=>!x.advanced).forEach(it=>body.append(item(it)));
    if(adv.length){const c=el("section","card"),d=document.createElement("details"),sm=document.createElement("summary"),wb=el("div","advb"),wi=el("div","advi");d.className="adv";d.open=!!advOpen.rtadv;d.classList.toggle("op",d.open);d.ontoggle=()=>{advOpen.rtadv=d.open?1:0};sm.textContent="Advanced options (debugging and tuning)";
     wi.append(note("These are debugging and tuning options: they can make games unstable or slower. Leave them empty or off unless you know why you need them. Use the free-form environment editor below for APS5_* variables that have no dedicated control; the catalog under “All environment variables” lists the documented names."),...adv.map(x=>item(x)));wb.append(wi);d.append(sm,wb);foldAnim(d,sm,wb,"rtadv");c.append(d);body.append(c)};if(tab==="Runtime")body.append(envCatalogCard(D,advOpen,draw))}
@@ -971,6 +1047,184 @@ if(it.key==="trace_dir"||it.key==="videoout_telemetry_dir")w.append(hrow(btn("Op
   try{for(const s in vals)Object.assign(cfg[s]||(cfg[s]={}),vals[s]);if(w)S.input=inText;ui={...A};sndSync(cfg.runtime);try{await api("set_ui",ui)}catch(e){}renderCards();refresh();toast("Settings saved","ok")}catch(e){toast("Settings saved","ok")}}
  srchEl=field("search",()=>sq,v=>{sq=v;draw()},"Search settings… e.g. language, rpath, deadzone",{label:"Search settings",live:v=>{sq=v;draw()}});d.append(el("h2","","AnyPS5 Settings"),srchEl,tabs,body,(()=>{const f=hrow(el("span","sp"),btn("Cancel",()=>{applyUI(ui);sndSync(cfg.runtime);closeM(m)},{k:"cancel"}),btn("Save and close",save,{pri:1,k:"save"}));f.style.justifyContent="flex-end";return f})());
  document.body.append(m);draw();srchEl.focus()}
+// ---------- conversion queue ----------
+const QI={wait:"○",run:"▶",ok:"✔",err:"✖",skip:"–"};
+function qAdd(list){let n=0;for(const p of list||[])if(!queue.some(x=>x.path==p)){const it={path:p,name:"",st:"wait",msg:""};queue.push(it);n++;Promise.resolve(api("queue_name",p)).then(t=>{it.name=t;if(view=="convert"&&!qBusy)renderCards()}).catch(()=>{})}return n}
+function qLog(k,t){const x=[k,t];log.push(x);addLine(x)}
+async function runQueue(){
+ if(running||qBusy)return toast("An operation is already running.","warn");
+ const todo=queue.filter(x=>x.st!="ok");if(!todo.length)return toast("The queue has nothing to do.","warn");
+ const keep=folder,unw=cfg.settings.mode!="relink",seen=new Set(),confirms=[];let tools=[];
+ for(const it of todo){it.st="wait";it.msg="";if(!it.name)it.name=await api("queue_name",it.path);
+  await api("set_folder",it.path);const p=await api("prepare","start");
+  if(p.error){it.st="skip";it.msg=p.error;continue}
+  const key=it.name.toLowerCase();if(seen.has(key)){it.st="skip";it.msg="Same game name as an earlier item: it would overwrite its package.";continue}seen.add(key);
+  for(const [t,x] of p.confirms){if(t=="Install missing tools"){if(!tools.length){confirms.push(x);tools=p.tools}}else confirms.push(it.name+": "+x)}}
+ await api("set_folder",keep);
+ const run=todo.filter(x=>x.st!="skip"),skipped=todo.filter(x=>x.st=="skip");
+ if(!run.length){renderCards();return toast(skipped.length?skipped[0].name+": "+skipped[0].msg:"Nothing to run.","err")}
+ let txt=(unw?"Unwrap ":"Convert ")+run.length+" game"+(run.length>1?"s":"")+", one after the other.";
+ if(skipped.length)txt+="\n\nSkipped:\n"+skipped.map(x=>"• "+x.name+": "+x.msg).join("\n");
+ if(confirms.length)txt+="\n\nYou confirm all of this:\n"+confirms.map(x=>"• "+x).join("\n");
+ if(!await ask("Start the queue",txt,"Start","Cancel")){renderCards();return}
+ qBusy=true;qStop=false;log=[];$("#log").textContent="";renderCards();
+ let ok=0,bad=0,first=true;
+ for(const [i,it] of run.entries()){
+  if(qStop)break;
+  it.st="run";renderCards();qLog("step","Queue "+(i+1)+"/"+run.length+": "+it.name);
+  await api("set_folder",it.path);pct=null;setRunning(true);setPct(null);
+  const started=await api("run","start",first?tools:[]);first=false;
+  if(!started){it.st="err";it.msg="Could not start.";bad++;setRunning(false);continue}
+  const r=await new Promise(res=>{qWait=res;poller=setInterval(tick,200)});
+  if(r.cancelled||qStop){it.st="skip";it.msg="Stopped."}else if(r.ok){it.st="ok";ok++}else{it.st="err";it.msg="Finished with errors (see the log).";bad++}
+  if(lib.loaded)libLoad();
+  if(qStop)break}
+ for(const it of run)if(it.st=="wait"||it.st=="run"){it.st="skip";it.msg="Stopped."}
+ await api("set_folder",keep);qBusy=false;qWait=null;
+ const msg="Queue finished: "+ok+" done"+(bad?", "+bad+" with errors":"")+(qStop?" (stopped)":"");qLog(bad||qStop?"warn":"ok",msg);
+ toast(msg,bad||qStop?"warn":"ok",bad||qStop?"warn":"done");renderCards()}
+function queueCard(){const rel=cfg.settings.mode=="relink",off=running||qBusy,c=el("section","card");
+ c.append(el("h3","","Conversion queue"),note((rel?"Convert":"Unwrap")+" several games one after the other with the current settings. A game that fails does not stop the queue."));
+ const l=el("div","qlist");
+ if(!queue.length)l.append(note("The queue is empty."));
+ queue.forEach((it,i)=>{const r=el("div","qrow"+(it.st=="run"?" run":"")),ic=el("span","qi "+(it.st=="ok"?"ok":it.st=="err"?"err":it.st=="skip"?"warn":""),QI[it.st]),n=el("span","qn"),sm=el("small","",it.msg?it.msg:it.path);
+  n.append(el("span","",it.name||it.path),sm);r.append(ic,n,btn("Remove",()=>{queue.splice(i,1);renderCards()},{k:"qrm"+i,off:off}));l.append(r)});
+ c.append(l,hrow(
+  btn("Add current game",()=>{if(!folder)return toast("Select a game first.","warn");if(!qAdd([folder]))toast("Already in the queue.","warn");renderCards()},{k:"qcur",off:off}),
+  btn("Add games from a folder…",async()=>{const r=await api("pick_queue_games");if(!r)return;if(!r.games.length)return toast("No PS5 game found in that folder.","warn");const n=qAdd(r.games);toast(n?"Added "+n+" game"+(n>1?"s":""):"Already in the queue.",n?"ok":"warn");renderCards()},{k:"qdir",off:off,tip:"Pick a game folder, or a folder that contains several game folders: each one that looks like a PS5 game is added."}),
+  btn("Add archives…",async()=>{const l2=await api("pick_queue_archives");if(!l2||!l2.length)return;const n=qAdd(l2);toast(n?"Added "+n+" archive"+(n>1?"s":""):"Already in the queue.",n?"ok":"warn");renderCards()},{k:"qarc",off:off}),
+  btn("Clear",()=>{queue=[];renderCards()},{k:"qclr",off:off||!queue.length})),
+  hrow(btn(rel?"▶  Convert queue":"▶  Unwrap queue",runQueue,{pri:1,k:"qgo",off:off||!queue.length}),btn("■  Stop queue",()=>{qStop=true;api("cancel")},{k:"qstop",off:!qBusy})));
+ return c}
+// ---------- Library ----------
+let lib={games:[],roots:[],extra:[],dump_dirs:[],sizing:false,running:false,loaded:false,loading:false},libQ="",libF="all",libPick={},libGrid=true,libAct={},opItem=null,libSort=["name",1],libW={},libUi=false,libTimer=null,libIcons={};
+const DEF_ICON="data:image/svg+xml;utf8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="8" fill="#2a2d31"/><path d="M13 19h22a5 5 0 0 1 5 5v4a4 4 0 0 1-7 2.6L30 28H18l-3 2.6A4 4 0 0 1 8 28v-4a5 5 0 0 1 5-5z" fill="none" stroke="#8a9096" stroke-width="2"/></svg>');
+const fmtSize=n=>n==null?"…":n>=1073741824?(n/1073741824).toFixed(2)+" GB":(n/1048576).toFixed(n<10485760?1:0)+" MB";
+async function libLoad(force){if(lib.loading)return;lib.loading=true;let r;try{r=await api("library_list",!!force)}catch(e){lib.loading=false;toast("Unable to read the Library: "+(e&&e.message||e),"err");return}
+ lib={...r,loaded:true,loading:false};let uiChanged=false;if(!libUi){libUi=true;const u=r.ui||{};const gv=u.grid===undefined?true:!!u.grid;if(gv!=libGrid){libGrid=gv;uiChanged=true}libW=u.widths&&typeof u.widths=="object"?u.widths:{}}
+ clearTimeout(libTimer);if(view=="library"){if(uiChanged)renderCards();else libDraw()}if(r.sizing)libTimer=setTimeout(()=>libLoad(),1500)}
+function libIcon(r,img){img.dataset.lp=r.path;img.alt="";img.src=DEF_ICON;if(!r.icon)return;
+ if(r.path in libIcons){if(libIcons[r.path])img.src=libIcons[r.path];return}
+ libIcons[r.path]="";Promise.resolve(api("library_icon",r.path)).then(u=>{libIcons[r.path]=u||"";if(u)document.querySelectorAll("img[data-lp]").forEach(i=>{if(i.dataset.lp==r.path)i.src=u})}).catch(()=>{})}
+async function libLaunch(r){if(r.busy)return toast("This game is busy: "+r.status.text,"warn");libAct[r.key]="Launching…";libDraw();let x;try{x=await api("library_launch",r.path)}finally{delete libAct[r.key]}if(x&&x.ok){toast("Started "+r.name,"ok");$("#log").scrollIntoView({block:"nearest"});if(!poller)await tick();libLoad();if(r.status.text!="In game")setTimeout(()=>{if(view=="library")libLoad()},2000)}else{toast(x&&x.error||"Unable to start the game","err");libDraw()}}
+async function libShortcut(r){const x=await api("library_shortcut",r.path);if(x&&x.ok)toast("Shortcut created for "+r.name,"ok");else toast(x&&x.error||"Unable to create the shortcut","err");if(!poller)await tick()}
+function libModal(title,...kids){const m=el("div","modal"),d=el("div","dlg fit");d.setAttribute("role","dialog");m.done=()=>closeM(m);d.append(el("h2","",title),...kids);m.append(d);document.body.append(m);m.addEventListener("click",e=>{if(e.target===m)m.done()});return [m,d]}
+function libFolders(r){const info=note("");const [m,d]=libModal(r.name+" · folders");d.append(info);
+ Promise.resolve(api("library_trophies",r.path)).then(t=>{info.textContent=t?"Trophies unlocked: "+t.unlocked+(t.damaged&&t.damaged.length?" · WARNING: damaged file "+t.damaged.join(", "):""):"No _trophy folder yet."}).catch(()=>{});
+ const op=(l,n)=>btn(l,async()=>{const x=await api("library_open",r.path,n);if(!x||!x.ok)toast(x&&x.error||"Unable to open the folder","err")},{k:"lo"+n});
+ const bk=n=>btn("Backup "+n,async()=>{const x=await api("library_backup",r.path,n);if(!x||!x.ok){if(!(x&&x.cancelled))toast(x&&x.error||"Backup failed","err");return}toast("Backup saved: "+x.path,"ok")},{k:"lb"+n});
+ d.append(hrow(op("Open package folder","package"),op("Open _sd","_sd"),bk("_sd"),op("Open _sd_mem","_sd_mem"),bk("_sd_mem")),
+  hrow(op("Open _trophy","_trophy"),btn("Reset _trophy",async()=>{if(!await ask("Reset trophy data","Delete all trophy data of "+r.name+"? This resets saved unlocks and statistics.","Reset trophies","Cancel"))return;const x=await api("library_reset_trophies",r.path);if(x&&x.ok){toast("Trophy data reset.","ok")}else toast(x&&x.error||"Unable to reset trophies","err")},{k:"lrt"}),op("Screenshots folder","screenshots")),
+  hrow(el("span","sp"),btn("Close",()=>m.done(),{pri:1,k:"lfc"})))}
+async function libSettings(r){const cur=await api("library_get_rt",r.path)||{},v={...cur},[m,d]=libModal(r.name+" · runtime settings");
+ d.append(note("These settings apply only to this game when you start it from the Library (and to its shortcut). Empty = the global setting."));
+ const tri=[["","(global setting)"],["yes","On"],["no","Off"]];
+ d.append(combo("Language (ANYPS5_LANGUAGE)",[["","(global setting)"],...S.languages.map(([n,x])=>[String(n),natv(x),String(n)])],()=>String(v.language||""),x=>{v.language=x},"glang"),
+  combo("Present mode",S.present_modes.map(x=>[x,x||"(global setting)"]),()=>v.present_mode||"",x=>{v.present_mode=x},"gpres"),
+  combo("Fullscreen",tri,()=>v.fullscreen||"",x=>{v.fullscreen=x},"gfs"),combo("Performance overlay",tri,()=>v.overlay||"",x=>{v.overlay=x},"gov"));
+ const f=(l,k,ph)=>{const w=el("div","fld");w.append(el("label","",l),field("g"+k,()=>v[k]||"",x=>{v[k]=x},ph,{label:l,live:x=>{v[k]=x}}));return w};
+ d.append(f("GPU (ANYPS5_GPU)","gpu","empty = global"),f("Upscale (ANYPS5_UPSCALE)","upscale","empty = global; fsr = FSR 1"),f("FPS limit (ANYPS5_FPS_LIMIT)","fps_limit","empty = global"),f("Extra environment variables","extra_env","NAME=value; NAME2=value"));
+ d.append(hrow(btn("Reset to global",async()=>{await api("library_set_rt",r.path,{});r.custom=false;m.done();libDraw()},{k:"lgr"}),el("span","sp"),btn("Cancel",()=>m.done(),{k:"lgc"}),
+  btn("Save",async()=>{await api("library_set_rt",r.path,v);r.custom=Object.values(v).some(x=>String(x).trim());m.done();libDraw();toast("Saved for "+r.name,"ok")},{pri:1,k:"lgs"})))}
+const cap=t=>t?t[0].toUpperCase()+t.slice(1):"";
+const libNrm=x=>String(x||"").replace(/\\/g,"/").replace(/\/+$/,"").toLowerCase();
+// Live state of a game: what the app is doing with it right now (queue, convert, unwrap, delete...), or null.
+function libBusy(g){
+ if(libAct[g.key])return libAct[g.key];
+ const paths=new Set(g.dumps.map(d=>libNrm(d.path))),base=x=>String(x).replace(/[\\/]+$/,"").split(/[\\/]/).pop().toLowerCase(),
+  names=new Set([g.name.toLowerCase(),...g.dumps.map(d=>base(d.path)),...g.pkgs.map(p=>base(p.path).replace(/-(windows|linux|macos)$/,""))]),
+  mine=(path,name)=>paths.has(libNrm(path))||(!!name&&names.has(String(name).toLowerCase())),
+  unw=!!(cfg&&cfg.settings&&cfg.settings.mode!="relink");
+ if(opItem&&running&&mine(opItem.path,opItem.name))return opItem.label;
+ let w=false;
+ for(const it of queue){if(!mine(it.path,it.name))continue;
+  if(it.st=="run"&&qBusy)return unw?"Unwrapping…":"Converting…";
+  if(it.st=="wait")w=true}
+ return w?(unw?"In unwrap queue":"In conversion queue"):null}
+function libView(g){const bz=libBusy(g),p=g.pkgs.find(x=>x.path==libPick[g.key])||g.pkgs[0]||null,d=g.dumps[0]||null,src=p||d;
+ return {g,key:g.key,name:g.name,serial:g.serial,version:g.version,comment:g.comment,dup:g.dup,pkg:p,dump:d,path:src.path,size:src.size,icon:src.icon,
+  with:p?p.with:"",custom:p?p.custom:false,busy:!!bz,status:bz?{text:bz,level:"busy"}:p?p.status:{text:"Not converted",level:"muted"},
+  state:p?"Converted · "+cap(p.target)+(d?" · dump kept":""):"Dump only"+(d.eboot=="self"?" · needs unwrap":d.eboot=="elf"?" · unwrapped":"")}}
+async function libConvert(r){if(running||qBusy)return toast("An operation is already running.","warn");
+ folder=await api("set_folder",r.dump.path);const old=queue.find(x=>x.path==r.dump.path);if(old){old.st="wait";old.msg=""}else qAdd([r.dump.path]);
+ view="convert";vAnim="L";renderCards();refresh();await runQueue()}
+function libQueue(r){const n=qAdd([r.dump.path]);toast(n?"Added to the queue (Convert page).":"Already in the queue.",n?"ok":"warn");libDraw()}
+function libConvertAll(){const l=lib.games.filter(g=>!g.pkgs.length&&g.dumps.length).map(g=>g.dumps[0].path);
+ if(!l.length)return toast("Every dump already has a converted package.","ok");const n=qAdd(l);toast(n+" game"+(n==1?"":"s")+" added to the queue: press Convert queue.","ok");view="convert";vAnim="L";renderCards()}
+const libCm=(r,i)=>field("lc"+i,()=>r.comment,async x=>{r.comment=x;r.g.comment=x;await api("library_set_comment",r.key,x)},"Add a comment",{label:"Comment for "+r.name});
+function libDetails(r){const [m,d]=libModal(r.name),g=el("div","ldet");
+ const rows=[["Serial",r.serial||"unknown"],["Game version",r.version||"unknown"],["Size",fmtSize(r.size)],["State",r.state]];
+ r.g.dumps.forEach(x=>rows.push(["Dump",x.path+(x.eboot=="self"?" (SELF: needs unwrap)":x.eboot=="elf"?" (unwrapped)":"")]));
+ r.g.pkgs.forEach(x=>rows.push(["Package ("+cap(x.target)+")",x.path]));
+ if(r.pkg)rows.push(["Converted with",r.with||"unknown"],["Status",r.status.text]);
+ rows.forEach(([a,b])=>g.append(el("span","",a),el("span","",b)));
+ const acts=[];
+ if(r.pkg)acts.push(btn("Launch",()=>{m.done();libLaunch(r)},{pri:1,k:"ldl",off:r.busy}),btn("Create shortcut",()=>libShortcut(r),{k:"lds"}),btn("Folders…",()=>libFolders(r),{k:"ldf"}),btn("Runtime settings…",()=>libSettings(r),{k:"ldr"}));
+ if(r.dump)acts.push(btn(r.pkg?"Convert again":"Convert",()=>{m.done();libConvert(r)},{pri:!r.pkg,k:"ldv",off:r.busy}),btn("Add to queue",()=>libQueue(r),{k:"ldq",off:r.busy}));
+ const dels=[];r.g.dumps.forEach((x,i)=>dels.push(btn(r.g.dumps.length>1?"Delete dump "+(i+1)+"…":"Delete PS5 dump…",()=>{m.done();libDelete(r,"dump",x.path)},{k:"ldd"+i,off:r.busy,tip:"Deletes the original PS5 game folder from your disk."})));
+ r.g.pkgs.forEach((x,i)=>dels.push(btn(r.g.pkgs.length>1?"Delete "+cap(x.target)+" package…":"Delete converted game…",()=>{m.done();libDelete(r,"pkg",x.path)},{k:"ldp"+i,off:r.busy,tip:"Deletes the converted PC package (its saves and trophies are inside it)."})));
+ d.append(g,hrow(libCm(r,"d")),hrow(...acts),...(dels.length?[hrow(...dels)]:[]),hrow(el("span","sp"),btn("Close",()=>m.done(),{k:"ldc"})))}
+async function libDelete(r,kind,path){const dump=kind=="dump";if(r.busy)return toast("This game is busy: "+r.status.text,"warn");
+ if(!await ask(dump?"Delete the PS5 dump?":"Delete the converted game?",
+  (dump?"This deletes the original PS5 game folder from your disk:\n":"This deletes the converted PC package from your disk, with its saves, trophies and screenshots:\n")+path+"\n\n"+r.name+(r.serial?" ("+r.serial+")":"")+"\n\nIt does not go to the recycle bin and cannot be undone. Are you sure?","Delete","Cancel"))return;
+ libAct[r.key]=dump?"Deleting PS5 dump…":"Deleting converted game…";libDraw();let x;try{x=await api("library_delete",kind,path)}catch(e){delete libAct[r.key];libDraw();toast("Delete failed: "+(e&&e.message||e),"err");return}delete libAct[r.key];
+ if(x&&x.ok){toast("Deleted "+(dump?"the PS5 dump":"the converted game")+" of "+r.name,"ok");delete libPick[r.key]}else toast((x&&x.error)||"Could not delete.","err");
+ if(!poller)await tick();libLoad()}
+function libFoldersList(){const [m,d]=libModal("Library folders");
+ const draw=()=>{[...d.querySelectorAll(".lfl")].forEach(x=>x.remove());
+  const sec=(title,list,kind,fixed)=>{const box=el("div","lfl");box.append(el("h3","",title));
+   if(!list.length)box.append(note("None yet."));
+   list.forEach((p,i)=>{const row=el("div","qrow"),n=el("span","qn");n.append(el("span","",p),el("small","",fixed&&i==0?"Output folder (Settings → Conversion)":""));row.append(n);
+    if(!(fixed&&i==0))row.append(btn("Remove",async()=>{await api("library_remove_dir",p);await libLoad();draw()},{k:"lfr"+kind+i}));box.append(row)});
+   box.append(hrow(btn("Add folder…",async()=>{const x=await api("library_add_dir",kind);if(x&&x.ok){toast("Added "+x.path+" ("+x.found+" game"+(x.found==1?"":"s")+")","ok");await libLoad();draw()}else if(x&&!x.cancelled)toast(x.error||"Unable to add the folder","err")},{k:"lfa"+kind})));
+   d.insertBefore(box,d.querySelector(".lfb"))};
+  sec("PS5 dumps",lib.dump_dirs,"dump",false);sec("Converted games",lib.roots,"conv",true)};
+ const bar=hrow(el("span","sp"),btn("Close",()=>m.done(),{pri:1,k:"lfx"}));bar.classList.add("lfb");
+ d.append(note("Only the folder itself and its direct sub-folders are looked at: the whole disk is never scanned. A dump and a converted game with the same Title ID are shown as one game."),bar);draw()}
+let libAnim=0;
+function libDraw(){libDraw0();if(!libAnim)return;libAnim=0;const box=$("#libc");if(!box||matchMedia("(prefers-reduced-motion:reduce)").matches)return;
+ [...box.querySelectorAll(".lbar+*, .ltab tr:not(:first-child), .lgc")].forEach((e,i)=>{e.style.animation="lrow .34s var(--ease) both";e.style.animationDelay=Math.min(i,14)*28+"ms"})}
+function libDraw0(){const box=$("#libc");if(!box)return;box.textContent="";
+ const q=libQ.trim().toLowerCase();let all=lib.games.map(libView);
+ const nConv=all.filter(r=>r.pkg).length,nTodo=all.filter(r=>!r.pkg).length;
+ let rows=all.filter(r=>(libF=="all"||(libF=="conv")==!!r.pkg)&&(!q||r.name.toLowerCase().includes(q)||r.serial.toLowerCase().includes(q)));
+ const [sk,sd]=libSort,val={name:r=>r.name.toLowerCase(),serial:r=>r.serial,version:r=>r.version,size:r=>r.size==null?-1:r.size,state:r=>r.state,path:r=>r.path.toLowerCase(),with:r=>r.with,status:r=>r.status.text,comment:r=>r.comment.toLowerCase()}[sk];
+ rows=[...rows].sort((a,b)=>{const x=val(a),y=val(b);return (x<y?-1:x>y?1:0)*sd});
+ const f=el("div","lbar");[["all","All ("+all.length+")"],["conv","Converted ("+nConv+")"],["todo","Not converted ("+nTodo+")"]].forEach(([k,l])=>f.append(btn(l,()=>{libF=k;libAnim=1;libDraw()},{k:"lf_"+k,pri:libF==k})));
+ f.append(el("span","sp"),btn("Convert all not converted",libConvertAll,{k:"lca",off:!nTodo||!lib.games.some(g=>!g.pkgs.length&&g.dumps.length),tip:"Adds every dump that has no converted package to the conversion queue (Convert page)."}));box.append(f);
+ const dups=all.filter(r=>r.dup);
+ if(dups.length)box.append(el("p","lwarn","⚠ Same Title ID twice (two dumps, or two packages for the same system): "+dups.map(r=>(r.serial||r.name)+" → "+[...r.g.dumps.map(x=>x.path),...r.g.pkgs.map(x=>x.path)].map(x=>x.split(/[\\/]/).pop()).join(", ")).join(" · ")));
+ if(!all.length){box.append(note("No games found. Add the folder with your PS5 dumps and the folder with your converted games from \"Folders…\" (the output folder is always included: "+lib.roots[0]+")."));return}
+ if(!rows.length){box.append(note("No game matches."));return}
+ const st=r=>el("span",r.status.level=="muted"?"muted-c":r.status.level,"● "+r.status.text);
+ const cyc=r=>r.g.pkgs.length>1?btn(cap(r.pkg.target)+" ⇄",()=>{const l=r.g.pkgs,i=l.indexOf(r.pkg);libPick[r.key]=l[(i+1)%l.length].path;libDraw()},{k:"lcy"+r.key,tip:"This game has more than one converted package: click to switch."}):null;
+ if(libGrid){const g=el("div","lgrid");rows.forEach((r,i)=>{const c=el("div","lgc"),im=el("img");libIcon(r,im);
+   c.append(im,el("div","nm",r.name),el("small","",(r.serial||"unknown")+(r.dup?" ⚠":"")+" · "+fmtSize(r.size)),el("small","",r.state),st(r),
+    hrow(r.pkg?btn("Launch",()=>libLaunch(r),{k:"gl"+i,pri:1,off:r.busy}):btn("Convert",()=>libConvert(r),{k:"gc"+i,pri:1,off:r.busy}),btn("More…",()=>libDetails(r),{k:"gm"+i})));g.append(c)});box.append(g);return}
+ const cols=[["name","Game"],["serial","Serial"],["version","Game Version"],["size","Size"],["state","State"],["path","Path"],["with","Converted with"],["status","Status"],["comment","Comments"]];
+ const t=el("table","ltab"),h=el("tr");cols.forEach(([k,l])=>{const th=el("th","",l+(sk==k?(sd>0?" ▲":" ▼"):""));th.onclick=()=>{libSort=[k,sk==k?-sd:1];libAnim=1;libDraw()};h.append(th)});h.append(el("th","","Actions"));t.append(h);
+ rows.forEach((r,i)=>{const tr=el("tr"),td=(...k)=>{const c=el("td");c.append(...k);tr.append(c);return c},im=el("img"),nm=el("div","lg");libIcon(r,im);nm.append(im,el("span","",r.name));
+  td(nm);const sc=td(r.serial||"unknown");if(r.dup){sc.classList.add("warn");sc.title="Same Title ID found more than once";sc.textContent+=" ⚠"}
+  td(r.version||"unknown");td(fmtSize(r.size));td(r.state,...(cyc(r)?[" ",cyc(r)]:[]));const pc=td(r.path);pc.className="lp";pc.title=[...r.g.dumps.map(x=>"Dump: "+x.path),...r.g.pkgs.map(x=>"Package: "+x.path)].join("\n");td(r.with||"—");td(st(r));td(libCm(r,i));
+  const a=el("div","la");td(a);
+  if(r.pkg)a.append(btn("Launch",()=>libLaunch(r),{k:"ll"+i,pri:1,off:r.busy}),btn("Shortcut",()=>libShortcut(r),{k:"ls"+i}),btn("Folders…",()=>libFolders(r),{k:"lf"+i}),btn(r.custom?"Settings ●":"Settings…",()=>libSettings(r),{k:"lr"+i,tip:r.custom?"This game has its own runtime settings.":"Runtime settings for this game only."}));
+  else a.append(btn("Convert",()=>libConvert(r),{k:"lv"+i,pri:1,off:r.busy}),btn("Add to queue",()=>libQueue(r),{k:"lq"+i,off:r.busy}));
+  a.append(btn("More…",()=>libDetails(r),{k:"lm"+i}));t.append(tr)});
+ const ks=[...cols.map(c=>c[0]),"act"],saveW=()=>{Promise.resolve(api("library_set_ui",{widths:libW})).catch(()=>{})},
+  applyW=ws=>{const o=t.querySelector("colgroup");if(o)o.remove();const cg=el("colgroup");ws.forEach(x=>{const c=el("col");c.style.width=x+"px";cg.append(c)});t.prepend(cg);t.classList.add("fx");t.style.width=ws.reduce((a,b)=>a+b,0)+"px"};
+ if(ks.every(k=>libW[k]>=40))applyW(ks.map(k=>libW[k]));
+ [...h.children].forEach((th,i)=>{const hd=el("span","lrs");hd.title="Drag to resize · double-click to reset all columns";hd.onclick=e=>e.stopPropagation();
+  hd.ondblclick=e=>{e.stopPropagation();libW={};saveW();libDraw()};
+  hd.onmousedown=e=>{e.preventDefault();e.stopPropagation();const ws=[...h.children].map(x=>x.offsetWidth),x0=e.clientX,w0=ws[i];applyW(ws);document.body.classList.add("lrsing");
+   const mv=ev=>{ws[i]=Math.max(50,w0+ev.clientX-x0);applyW(ws)},up=()=>{document.removeEventListener("mousemove",mv);document.removeEventListener("mouseup",up);document.body.classList.remove("lrsing");ks.forEach((k,j)=>libW[k]=ws[j]);saveW()};
+   document.addEventListener("mousemove",mv);document.addEventListener("mouseup",up)};th.append(hd)});
+ const w=el("div","lwrap");w.append(t);box.append(w)}
+function libraryView(root){const c=el("section","card");c.append(el("h3","","Library"),note("Your PS5 dumps and converted games, one line per game (matched by Title ID). Only the folders you add are read, never the whole disk."));
+ const sf=field("libq",()=>libQ,x=>{libQ=x;libDraw()},"Search name or serial",{label:"Search name or serial",live:x=>{libQ=x;libDraw()}});
+ c.append(hrow(btn("Refresh",()=>libLoad(true),{k:"lrf",icon:"reset",tip:"Reads the folders again and recalculates the sizes."}),btn("Folders…",libFoldersList,{k:"lfs",icon:"folder",tip:"Folders with PS5 dumps and with converted games."}),
+  btn(libGrid?"Table view":"Grid view",()=>{libGrid=!libGrid;libAnim=1;Promise.resolve(api("library_set_ui",{grid:libGrid})).catch(()=>{});renderCards()},{k:"lgv"}),el("span","sp"),sf));
+ const box=el("div","");box.id="libc";c.append(box);root.append(c);
+ if(lib.loaded)libDraw();else{box.append(note("Reading the folders…"));libLoad()}}
 // ---------- log / run ----------
 function addLine([k,t]){const l=$("#log"),I={ok:"✔ ",warn:"⚠ ",err:"✖ ",info:"ℹ ",detail:"    ",step:"▸ ",progress:"… "};
  if(k=="progress"&&l.lastChild&&l.lastChild.dataset.pr)l.lastChild.remove();const d=el("div",k,(I[k]||"")+t);if(k=="progress")d.dataset.pr=1;l.append(d);l.scrollTop=l.scrollHeight}
@@ -978,14 +1232,14 @@ function setPct(p){const b=$("#pb");b.className=running&&(p==null||p=="idle")?"i
 async function tick(){const r=await api("poll");
  r.lines.forEach(x=>{if(x[0]=="progress"&&log.length&&log[log.length-1][0]=="progress")log.pop();log.push(x);addLine(x)});
  if(r.pct!="keep")pct=r.pct;const was=running;running=r.running;setRunning(running);setPct(pct);
- if(was&&!running){clearInterval(poller);poller=null;pct="idle";setPct(pct);refresh();{const lv=r.cancelled?"warn":r.ok?"ok":"err",sn=r.ok&&!r.cancelled?"done":lv,msg=r.cancelled?"Operation cancelled":r.ok?"Operation completed successfully":"Operation finished with errors";if(yes(cfg.settings.notify))toast(msg,lv,sn);else SND.play(sn)}}}
+ if(was&&!running){clearInterval(poller);poller=null;pct="idle";setPct(pct);refresh();if(!qWait){opItem=null;if(lib.loaded)libLoad(); }if(qWait){const w=qWait;qWait=null;w(r)}else{const lv=r.cancelled?"warn":r.ok?"ok":"err",sn=r.ok&&!r.cancelled?"done":lv,msg=r.cancelled?"Operation cancelled":r.ok?"Operation completed successfully":"Operation finished with errors";if(yes(cfg.settings.notify))toast(msg,lv,sn);else SND.play(sn)}}}
 async function playExe(){if(running)return toast("An operation is already running.","warn");await api("play_exe");$("#log").scrollIntoView({block:"nearest"});await tick()}
 async function shortcutExe(){if(running)return toast("An operation is already running.","warn");await api("shortcut_exe");$("#log").scrollIntoView({block:"nearest"});await tick()}
-async function act(a){if(running)return toast("An operation is already running.","warn");
+async function act(a){if(running||qBusy)return toast("An operation is already running.","warn");
  const p=await api("prepare",a);if(p.error)return toast(p.error,"err");
  for(const [t,x] of p.confirms)if(!await ask(t,x))return;
- if(a!="play"){log=[];$("#log").textContent="";pct=null;setRunning(true);setPct(null)}
- if(!await api("run",a,p.tools)){setRunning(false);return}
+ if(a!="play"){log=[];$("#log").textContent="";pct=null;setRunning(true);setPct(null);const unw=cfg.settings.mode!="relink";opItem={path:folder,name:String(folder).split(/[\\/]/).pop(),label:a=="restore"?"Restoring backup…":a=="dryrun"?"Previewing conversion…":unw?"Unwrapping…":"Converting…"}}
+ if(!await api("run",a,p.tools)){setRunning(false);opItem=null;return}
  $("#log").scrollIntoView({block:"nearest"});if(a=="play"){await tick();return}poller=setInterval(tick,200)}
 async function importTools(){let plan;try{plan=await api("pick_tool_files")}catch(e){toast("Import failed: "+(e&&e.message||e)+" (is AnyPS5_GUI.py the updated version?)","err");return}if(!plan||!plan.length)return;
  const ok=plan.filter(x=>!x.skip),sk=plan.filter(x=>x.skip);
@@ -995,7 +1249,7 @@ async function importTools(){let plan;try{plan=await api("pick_tool_files")}catc
  let r;try{r=await api("import_tool_files",ok,rep)}catch(e){toast("Import failed: "+(e&&e.message||e),"err");return}
  if(r.errors.length)toast(r.errors[0],"err");else if(r.done.length)toast("Imported: "+r.done.join(", ")+(sk.length?" · skipped "+sk.length:""),"ok");else toast("Nothing imported (existing files kept).","warn");
  refresh()}
-async function refresh(){status=await api("status");space=null;applyStatus();clearTimeout(refresh.t);refresh.t=setTimeout(async()=>{space=await api("space");applyStatus()},350)}
+async function refresh(){status=await api("status");space=null;applyStatus();loadCaps();clearTimeout(refresh.t);refresh.t=setTimeout(async()=>{space=await api("space");applyStatus()},350)}
 // ---------- keyboard ----------
 const topModal=()=>[...document.querySelectorAll(".modal:not(.out)")].pop(),scope=()=>topModal()||$("#page");
 const grp=e=>e.closest(".hrow")||e,list=()=>[...scope().querySelectorAll("[data-nav]")];
