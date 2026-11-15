@@ -40,7 +40,8 @@
 > **Unofficial.** Not affiliated with Sony or with the AnyPS5 project. This tool contains **no games, no firmware, no keys and no decryption**. Use it only on software you legitimately own (your own dumps or homebrew).
 
 > [!NOTE]
-> **Built with AI assistance ("vibe coding").** Most of this app was written with the help of AI tools. I test it as much as I can, but there may be bugs or unexpected behavior. If you find one, please report it with the **Report or suggest** button in the app or open an [issue](https://github.com/Lenny4250gh/AnyPS5-GUI/issues).
+> **Built with AI assistance.**  
+> Most of the code was written with the help of AI tools ("vibe coding"). I test everything as thoroughly as I can (on Windows), but bugs are still possible. Please report them with the **Report or suggest** button or open an [issue](https://github.com/Lenny4250gh/AnyPS5-GUI/issues).
 
 ---
 
