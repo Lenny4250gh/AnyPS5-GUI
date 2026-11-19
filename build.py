@@ -114,6 +114,19 @@ def ensure_pyinstaller():
     subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
 
 
+def ensure_linux_gui_backend():
+  """Linux: pywebview needs Qt or GTK. Qt can be bundled by PyInstaller, so make sure it is installed
+  in the build environment (otherwise the executable crashes at startup with 'You must have either QT or GTK')."""
+  try:
+    import qtpy  # noqa: F401
+    from qtpy import QtWebEngineWidgets  # noqa: F401
+    return
+  except Exception:
+    pass
+  print("Qt backend for pywebview not found: installing PyQt6 + PyQt6-WebEngine + qtpy...")
+  subprocess.check_call([sys.executable, "-m", "pip", "install", "pyqt6", "pyqt6-webengine", "qtpy"])
+
+
 def main():
   name, plat, ext = ask_target()
 
@@ -139,6 +152,8 @@ def main():
     debug = input("\nDEBUG build with a visible console (shows errors)? [y/N]: ").strip().lower() in ("y", "yes")
 
   ensure_pyinstaller()
+  if plat == "linux" and not cross:
+    ensure_linux_gui_backend()
 
   cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean",
          "--name", APP_NAME]
@@ -149,6 +164,9 @@ def main():
   if icon:
     cmd += ["--icon", icon]
   cmd += ["--hidden-import", "_ui_data", "--collect-all", "webview"]
+  if plat == "linux":  # bundle the Qt backend so the executable does not need GTK/Qt on the user's system
+    cmd += ["--hidden-import", "qtpy", "--hidden-import", "PyQt6.QtWebEngineWidgets",
+            "--hidden-import", "PyQt6.QtWebChannel", "--collect-all", "qtpy"]
   # window icon at runtime: .ico on Windows, .png elsewhere (macOS ignores it)
   rt_src = icon if (plat == "win32" and not cross) else png
   tmp_icon = None
