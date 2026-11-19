@@ -438,7 +438,7 @@ The relinker, libs and `unwrap_self.py` are chosen in **Advanced: where the tool
 |:--|:--|
 | **Windows** | Needs the Microsoft Edge WebView2 runtime (already present on up-to-date Windows 10/11). SmartScreen or your antivirus may warn about the file: it is not code-signed, and PyInstaller one-file programs are often flagged as false positives. If you don't trust the binary, read the source and [build it yourself](#build-from-source) (it takes a minute). |
 | **macOS** | The app is not signed. Right-click the app → **Open** the first time (or run `xattr -cr AnyPS5_GUI.app`). |
-| **Linux** | The window uses GTK 3 and WebKitGTK, which come from your distribution. On Debian/Ubuntu: `sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.1` (on older releases the package is `gir1.2-webkit2-4.0`). |
+| **Linux** | The downloadable binary bundles its own Qt window backend: nothing to install. It is built on Ubuntu 22.04, so it runs on distributions with glibc 2.35 or newer (Ubuntu 22.04+, Linux Mint 21+, Debian 12+, Fedora 36+...). If you run the app **from source** instead, install the Qt backend with `pip install -r requirements.txt`, or use GTK from your distribution: `sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.1` (on older releases the package is `gir1.2-webkit2-4.0`). |
 
 ### Release notes and version history
 
@@ -582,7 +582,7 @@ python build.py 3             # no questions: 1 = Windows, 2 = macOS, 3 = Linux
 
 `build.py` embeds `index.html` into the executable and calls PyInstaller. PyInstaller cannot cross-compile: it always packages for the system it runs on, so build **on** the system you are targeting (or let GitHub Actions do it). The result is in `dist/`.
 
-When running from source on Linux, pywebview needs the GTK and WebKitGTK backend, see the [pywebview docs](https://pywebview.flowrl.com/guide/installation.html).
+When running from source on Linux, pywebview needs a GUI backend: Qt (installed by `pip install -r requirements.txt`) or GTK and WebKitGTK from your distribution, see the [pywebview docs](https://pywebview.flowrl.com/guide/installation.html). If none is found, the app shows a message explaining what to install.
 
 ---
 
