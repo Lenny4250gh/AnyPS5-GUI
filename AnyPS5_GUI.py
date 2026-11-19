@@ -181,6 +181,38 @@ def report_crash():
       pass
 
 
+LINUX_GUI_HELP = (
+  "AnyPS5 GUI cannot open its window: no GUI backend for pywebview was found (Qt or GTK).\n\n"
+  "If you run the packaged app, this build is missing its GUI libraries: please report it.\n"
+  "If you run from source, install ONE of these:\n"
+  "  Qt  : pip install pywebview[qt]   (or: pip install pyqt6 pyqt6-webengine qtpy)\n"
+  "  GTK : sudo apt install python3-gi gir1.2-webkit2-4.1   (Debian/Ubuntu/Mint)\n"
+  "        sudo dnf install python3-gobject webkit2gtk4.1   (Fedora)\n"
+)
+
+
+def report_missing_gui(exc):
+  """pywebview found no GUI toolkit: explain what to install instead of a bare traceback."""
+  text = LINUX_GUI_HELP + "\nDetails: " + str(exc) + "\n"
+  try:
+    with open(os.path.join(SCRIPT_DIR, "crash.log"), "w", encoding="utf-8") as fh:
+      fh.write(text)
+  except OSError:
+    pass
+  try:
+    print(text, file=sys.stderr)
+  except Exception:
+    pass
+  if sys.platform.startswith("linux"):
+    for cmd in (["zenity", "--error", "--no-markup", "--title=AnyPS5 GUI", "--text=" + text],
+                ["kdialog", "--error", text]):
+      try:
+        subprocess.Popen(cmd)
+        break
+      except OSError:
+        continue
+
+
 def main():
   hide_own_console()
   if DATA_DIR != LEGACY_DATA_DIR:  # before Api(): it reads config.ini
@@ -204,9 +236,13 @@ def main():
   # Windows (WinForms) needs a real .ico here: a PNG raises "picture must be an image usable as Icon"
   _icon = resource_path("icon.ico" if os.name == "nt" else "icon.png")
   try:
-    webview.start(icon=_icon if os.path.isfile(_icon) else None)
-  except TypeError:  # old pywebview without the "icon" parameter
-    webview.start()
+    try:
+      webview.start(icon=_icon if os.path.isfile(_icon) else None)
+    except TypeError:  # old pywebview without the "icon" parameter
+      webview.start()
+  except webview.errors.WebViewException as exc:
+    report_missing_gui(exc)
+    sys.exit(1)
 
 
 if __name__ == "__main__":
