@@ -158,6 +158,35 @@ def _log_tail(holder, log, count=20):
     log("err" if re.search(r"error|fatal|fail|cannot|unable|missing|undefined", line, re.I) else "info", line)
 
 
+def _space_free_path(path):
+  """windres runs its preprocessor (gcc) through cmd.exe WITHOUT quoting the path, so a toolchain in a
+  folder with spaces (e.g. "AnyPS5 GUI") fails with '"...\\AnyPS5" is not recognized'. Returns an
+  equivalent path without spaces: the 8.3 short path, or else a junction in the temp folder."""
+  if os.name != "nt" or " " not in path:
+    return path
+  try:
+    import ctypes
+    buf = ctypes.create_unicode_buffer(1024)
+    if ctypes.windll.kernel32.GetShortPathNameW(path, buf, 1024) and " " not in buf.value:
+      return buf.value
+  except Exception as _exc:
+    hidden_error("_space_free_path", _exc)
+  try:
+    import hashlib
+    import tempfile
+    base = os.path.dirname(os.path.dirname(path))  # <...>/winlibs-xxx/mingw64/bin -> <...>/winlibs-xxx
+    link = os.path.join(tempfile.gettempdir(), "aps5_tc_" + hashlib.md5(base.lower().encode()).hexdigest()[:8])
+    if " " not in link:
+      if not os.path.isdir(link):
+        subprocess.run(["cmd", "/c", "mklink", "/J", link, base], capture_output=True,
+                       creationflags=subprocess.CREATE_NO_WINDOW, timeout=30)
+      if os.path.isdir(link):
+        return os.path.join(link, os.path.relpath(path, base))
+  except Exception as _exc:
+    hidden_error("_space_free_path junction", _exc)
+  return path
+
+
 def _detect_mingw(env):
   """Windows only. The project supports ONLY WinLibs GCC 15.2.0 (see docs/dev/BUILD.md): the GUI
   uses the copy it installed in <data>/toolchain. Returns (cmake arguments, note); arguments are []
@@ -165,6 +194,7 @@ def _detect_mingw(env):
   d = winlibs_bin()
   if not d:
     return [], "MinGW-w64 GCC 15.2.0 (WinLibs) not installed"
+  d = _space_free_path(d)  # windres starts gcc without quoting its path: spaces break the .rc step
   env["PATH"] = d + os.pathsep + env.get("PATH", "")
   cert = _ca_bundle()
   if cert and not env.get("SSL_CERT_FILE"):
