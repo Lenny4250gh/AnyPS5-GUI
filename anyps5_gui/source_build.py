@@ -235,10 +235,16 @@ def install_winlibs(log, cancel):
           break
         out.write(chunk)
         done += len(chunk)
-        if time.time() - last > 3:
+        if time.time() - last > 0.25 or (total and done >= total):
           last = time.time()
-          log("info", "Download: %d / %d MiB" % (done >> 20, total >> 20) if total else "Download: %d MiB" % (done >> 20))
+          if total:
+            log("percent", done * 100.0 / total)
+          log("progress", "Download: %d / %d MiB" % (done >> 20, total >> 20) if total else "Download: %d MiB" % (done >> 20))
+    log("percent", None)
+    log("progress", "")
+    log("ok", "Download complete (%d MiB)" % (done >> 20))
   except (OSError, ValueError) as e:  # URLError/HTTPError/timeouts are OSError
+    log("percent", None)
     log("err", "Download failed: %s. Check your connection, or download %s by hand from "
                "github.com/brechtsanders/winlibs_mingw (release %s) and unzip it so that "
                "'mingw64' ends up in %s" % (e, WINLIBS_ZIP, WINLIBS_TAG, WINLIBS_DIR))
@@ -252,7 +258,11 @@ def install_winlibs(log, cancel):
       for i, name in enumerate(members):
         if i % 500 == 0:
           check_cancel(cancel)
+          log("percent", i * 100.0 / max(1, len(members)))
+          log("progress", "Unpacking: %d / %d files" % (i, len(members)))
         zf.extract(name, tmp)
+    log("percent", None)
+    log("progress", "")
     if os.path.isdir(WINLIBS_DIR):
       _rmtree_force(WINLIBS_DIR)
     os.replace(tmp, WINLIBS_DIR)
@@ -452,12 +462,20 @@ def predownload_ffmpeg(repo, build, env, log, cancel):
     try:
       req = urllib.request.Request(url, headers={"User-Agent": "AnyPS5-GUI"})
       with urllib.request.urlopen(req, timeout=60) as r, open(tmp, "wb") as f:
+        total = int(r.headers.get("Content-Length") or 0)
+        done = 0
         while True:
           check_cancel(cancel)
           chunk = r.read(1 << 20)
           if not chunk:
             break
           f.write(chunk)
+          done += len(chunk)
+          if total:
+            log("percent", done * 100.0 / total)
+            log("progress", "Download: %d / %d MiB" % (done >> 20, total >> 20))
+      log("percent", None)
+      log("progress", "")
       os.replace(tmp, dest)
       log("ok", "FFmpeg downloaded (%.1f MiB)" % (os.path.getsize(dest) / 1048576.0))
       return
@@ -604,9 +622,13 @@ def ensure_source_libs(rl, log, cancel, holder, target=None):
                "--parallel", str(build_parallel_jobs(rl))]
   for attempt in range(1, 4):
     del errors[:]
-    code = stream_process(build_cmd, log, cancel, holder, "cmake --build", env=env, errors=errors,
-                          logfile=logfile, idle_timeout=1200)
+    log("percent", None)
+    # the [N/TOTAL] lines of ninja drive the progress bar (and the elapsed/remaining time line)
+    code = stream_process(build_cmd, make_build_log(log), cancel, holder, "cmake --build", env=env,
+                          errors=errors, logfile=logfile, idle_timeout=1200)
+    log("percent", None)
     if code == 0:
+      log("progress", "")
       break
     text = "\n".join(errors) + "\n" + "\n".join(holder.get("tail", []))
     if attempt < 3 and re.search(r"failed recompaction", text, re.I):
