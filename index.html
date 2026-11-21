@@ -48,9 +48,17 @@ h1 .gui{font-size:.45em;font-weight:500;letter-spacing:.12em;opacity:.65;vertica
 .hrow{display:flex;align-items:center;gap:.6em;flex-wrap:wrap;margin-top:.45em}
 .hrow:first-child{margin-top:0}
 /* Main Convert/Play navigation: clear separation from the Game path panel */
-.mode-tabs{margin:1.35em 0 1.1em;gap:.75em}
+.mode-tabs{margin:1.35em 0 .45em;gap:.75em}
 .mode-tabs .b{min-width:7.5em;justify-content:center;padding:.55em 1.15em}
 @media(max-width:600px){.mode-tabs .b{flex:1}}
+.mode-hint{color:var(--dim);font-size:.8em;margin:0 0 1.15em;line-height:1.4;max-width:48em}
+.lempty{display:grid;gap:.85em;justify-items:start;padding:.6em .15em 1em;max-width:36em}
+.lempty h4{margin:0;font-weight:500;font-size:1.05em}
+.lempty p{margin:0;color:var(--dim);font-size:.88em;line-height:1.45}
+.lempty .hrow{margin:0}
+.flow{display:flex;flex-wrap:wrap;gap:.35em .55em;align-items:center;margin:0 0 1em;font-size:.78em;color:var(--dim)}
+.flow b{font-weight:500;color:var(--text);background:var(--glass2);border:1px solid var(--line);border-radius:2em;padding:.2em .7em}
+.flow span.sep{opacity:.45}
 .hrow .lbl{color:var(--dim);min-width:6.5em}
 .hrow input{flex:1;min-width:10em}
 .sp{flex:1}
@@ -73,19 +81,91 @@ h1 .gui{font-size:.45em;font-weight:500;letter-spacing:.12em;opacity:.65;vertica
 .stat span:nth-child(odd){color:var(--dim)}.stat span:nth-child(even){font-weight:400}
 .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}.muted-c{color:var(--dim)}.busy{color:var(--blue)}.busy::first-letter{animation:lpulse 1.1s ease-in-out infinite}@keyframes lpulse{50%{opacity:.25}}
 
-.lbar{display:flex;flex-wrap:wrap;gap:.5em;align-items:center;margin:.4em 0}.lbar .sp{flex:1}.lbar input{min-width:14em}
-.lwarn{color:var(--warn);font-size:.85em;margin:.4em 0}.lwrap{overflow-x:auto;margin-top:.5em}
-.ltab{width:100%;border-collapse:collapse;font-size:.85em}.ltab th{position:sticky;top:0;text-align:left;font-weight:600;color:var(--dim);padding:.5em .7em;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
-@keyframes lrow{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}.ltab th{position:sticky}.lrs{position:absolute;top:0;right:0;bottom:0;width:10px;cursor:col-resize}.lrs::after{content:"";position:absolute;top:22%;bottom:22%;right:4px;width:2px;border-radius:1px;background:var(--line);transition:background .15s}.lrs:hover::after,.lrsing .lrs::after{background:var(--dim)}body.lrsing{cursor:col-resize;user-select:none}
+.lbar{display:flex;flex-wrap:wrap;gap:.45em;align-items:center;margin:.35em 0 .15em}.lbar .sp{flex:1}.lbar input{min-width:14em}
+.lbar .lseg{position:relative;display:inline-flex;flex-wrap:nowrap;gap:0;border:1px solid var(--line);border-radius:2em;padding:3px;background:rgba(0,0,0,.25)}
+.lbar .lseg-thumb{position:absolute;top:3px;bottom:3px;left:3px;width:0;border-radius:2em;background:rgba(255,255,255,.16);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.1);pointer-events:none;
+ transition:left .28s cubic-bezier(.22,.9,.28,1),width .28s cubic-bezier(.22,.9,.28,1)}
+.lbar .lseg .b{position:relative;z-index:1;border:0;border-radius:2em;box-shadow:none;padding:.32em .9em;background:transparent;color:var(--dim);font-weight:400}
+.lbar .lseg .b:hover{background:transparent;color:var(--text)}
+.lbar .lseg .b.sel,.lbar .lseg .b.pri{background:transparent;color:var(--text);font-weight:500}
+.lbar .b.ico{display:inline-flex;align-items:center;justify-content:center;width:2.2em;height:2.2em;min-width:2.2em;padding:0;gap:0;border-radius:50%}
+.lbar .b.ico .bi{display:flex;align-items:center;justify-content:center;width:1.15em;height:1.15em;margin:0}
+.lbar .b.ico .bi svg{width:1.15em;height:1.15em;display:block}
+@media (prefers-reduced-motion:reduce){.lbar .lseg-thumb{transition:none}}
+.ltop{display:flex;flex-wrap:wrap;gap:.6em;align-items:flex-start;justify-content:space-between;margin:0 0 .55em}
+.ltop .ltitle{flex:1;min-width:12em}.ltop .ltitle h3{margin:0 0 .25em}.ltop .ltitle .note,.ltop .ltitle p{margin:0}
+.ltop .lsearch{flex:1;min-width:12em;max-width:22em}
+.lwarn{color:var(--warn);font-size:.85em;margin:.4em 0}.lwrap{overflow-x:auto;margin-top:.5em;position:relative}
+.ltab{width:100%;border-collapse:separate;border-spacing:0;font-size:.85em}.ltab th{position:sticky;top:0;z-index:2;text-align:left;font-weight:600;color:var(--dim);padding:.5em .7em;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none;background:rgba(22,23,25,.96)}
+@keyframes lrow{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}.lrs{position:absolute;top:0;right:0;bottom:0;width:10px;cursor:col-resize}.lrs::after{content:"";position:absolute;top:22%;bottom:22%;right:4px;width:2px;border-radius:1px;background:var(--line);transition:background .15s}.lrs:hover::after,.lrsing .lrs::after{background:var(--dim)}body.lrsing{cursor:col-resize;user-select:none}
 .ltab.fx{table-layout:fixed;min-width:100%}.ltab.fx th,.ltab.fx td{overflow:hidden;text-overflow:ellipsis}.ltab.fx .lp{max-width:none}.ltab.fx .lg{min-width:0}.ltab.fx .lg span{overflow:hidden;text-overflow:ellipsis}
-.ltab td{white-space:nowrap;padding:.45em .7em;border-bottom:1px solid var(--line);vertical-align:middle}.ltab tr:hover td{background:var(--glass)}
+.ltab td{white-space:nowrap;padding:.45em .7em;border-bottom:1px solid var(--line);vertical-align:middle}.ltab tr:hover td{background:rgba(255,255,255,.06)}
 .ltab .lg{display:flex;align-items:center;gap:.7em;min-width:12em}.ltab img,.lgc img{width:3em;height:3em;border-radius:.4em;object-fit:cover;background:var(--glass);flex:none}
-.ltab .la .b,.ltab td .b{flex:none}.ltab .lp{max-width:14em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)}.ltab input{width:100%;min-width:8em}.ltab .la{display:flex;gap:.35em;align-items:center}.ltab .b{padding:.3em .8em;min-width:0;font-size:.95em}.ltab .la .b{flex:none}
-.lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(11em,1fr));gap:.8em;margin-top:.6em}.lgc{border:1px solid var(--line);border-radius:.8em;padding:.8em;display:grid;gap:.4em;justify-items:center;text-align:center;font-size:.85em}
-.lgc img{width:100%;height:auto;aspect-ratio:1;border-radius:.6em}.lgc .nm{font-weight:600}.lgc small{color:var(--dim)}.lgc .la{display:flex;gap:.35em;flex-wrap:wrap;justify-content:center}
+.ltab .la .b,.ltab td .b{flex:none}.ltab .lp{max-width:14em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)}.ltab td{overflow:hidden;max-width:0}.ltab td:has(.la),.ltab td:has(img),.ltab .lg{max-width:none}.ltab input{width:100%;min-width:0;max-width:100%;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis}.ltab .la{display:flex;gap:.35em;align-items:center;max-width:100%}.ltab .b{padding:.3em .8em;min-width:0;font-size:.95em}.ltab .la .b{flex:none}
+.lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(11em,1fr));gap:.8em;margin-top:.6em}.lgc{border:1px solid var(--line);border-radius:.8em;padding:.8em;display:grid;gap:.4em;justify-items:stretch;text-align:center;font-size:.85em}
+.lgc img{width:100%;height:auto;aspect-ratio:1;border-radius:.6em;justify-self:center}.lgc .nm{font-weight:600}.lgc small{color:var(--dim)}.lgc .la{display:flex;gap:.35em;flex-wrap:wrap;justify-content:center}
+.lgc>.hrow{margin-top:.35em;width:100%;display:grid;grid-template-columns:1fr;gap:.4em;justify-items:stretch}
+.lgc .lpair{display:grid;grid-template-columns:1fr auto;gap:.4em}
+.lgc .lpair .b.ico{width:2.35em;min-width:2.35em;padding:0;gap:0;justify-content:center}.lgc .lpair .b.ico .bt{display:none}.lgc .lpair .b.ico .bi{margin:0}
+.lgc>.hrow .b{width:100%;min-width:0;justify-content:center;padding:.45em .7em;font-size:inherit;min-height:2.35em}
 .fld{display:grid;gap:.2em;margin:.5em 0;font-size:.88em}.fld label{color:var(--dim)}
 .ldet{display:grid;grid-template-columns:9em 1fr;gap:.2em 1em;font-size:.88em;margin:.6em 0}.ldet span:nth-child(odd){color:var(--dim)}
 .qlist{display:grid;gap:.3em;margin:.5em 0}.qrow{display:flex;align-items:center;gap:.7em;padding:.35em .6em;border:1px solid var(--line);border-radius:.6em;font-size:.88em}.qrow .qn{flex:1;min-width:0}.qrow .qn small{display:block;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.qrow .qi{width:1.2em;text-align:center}.qrow.run{background:var(--glass)}
+/* ---- conversion queue drawer (right side) ---- */
+#qscrim{position:fixed;inset:0;background:rgba(0,0,0,.4);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);z-index:30;opacity:0;pointer-events:none;transition:opacity .3s ease}
+#qscrim.on{opacity:1;pointer-events:auto}
+#qdrawer{position:fixed;top:0;right:0;bottom:0;width:min(26em,94vw);z-index:31;display:flex;flex-direction:column;
+ background:rgba(16,17,19,.94);border-left:1px solid var(--line);
+ -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+ box-shadow:-1.4em 0 3.5em rgba(0,0,0,.5);
+ transform:translateX(104%);
+ transition:transform .38s cubic-bezier(.22,.9,.28,1),box-shadow .38s ease}
+#qdrawer.on{transform:none;box-shadow:-1.4em 0 3.5em rgba(0,0,0,.55)}
+#qdrawer.closing{transform:translateX(104%);transition:transform .28s cubic-bezier(.4,0,.7,.2)}
+#qdrawer .qhd{display:flex;align-items:center;gap:.7em;padding:1.05em 1.15em .8em;border-bottom:1px solid var(--line);flex:none;
+ opacity:0;transform:translateY(-6px);transition:opacity .28s ease .06s,transform .32s cubic-bezier(.22,.9,.28,1) .06s}
+#qdrawer.on .qhd{opacity:1;transform:none}
+#qdrawer .qhd h2{font-weight:400;font-size:1.05em;margin:0;letter-spacing:.01em;flex:1}
+#qdrawer .qbd{flex:1;overflow-y:auto;overflow-x:hidden;padding:.95em 1.15em 1.25em;scrollbar-gutter:stable;
+ opacity:0;transform:translateX(12px);transition:opacity .3s ease .1s,transform .36s cubic-bezier(.22,.9,.28,1) .1s}
+#qdrawer.on .qbd{opacity:1;transform:none}
+#qdrawer .qft{flex:none;padding:.9em 1.15em 1.15em;border-top:1px solid var(--line);display:grid;gap:.75em;
+ opacity:0;transform:translateY(8px);transition:opacity .28s ease .14s,transform .34s cubic-bezier(.22,.9,.28,1) .14s}
+#qdrawer.on .qft{opacity:1;transform:none}
+#qdrawer .qft .hrow{margin:0;flex-wrap:wrap}
+#qdrawer .qsec{display:grid;gap:.45em}
+#qdrawer .qsl{font-size:.72em;letter-spacing:.09em;text-transform:uppercase;color:var(--dim)}
+#qdrawer .qadd3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.4em}
+#qdrawer .qadd3 .b{width:100%;min-width:0;justify-content:center;padding:.5em .4em;white-space:nowrap;font-size:.92em}
+#qdrawer .qrunsec{padding-top:.7em;margin-top:.15em;border-top:1px solid var(--line)}
+#qdrawer .qrun{display:grid;grid-template-columns:1fr auto;gap:.45em}
+#qdrawer .qrun .b{justify-content:center}
+#qdrawer .qlh{display:flex;align-items:center;justify-content:space-between;margin:0 0 .5em}
+#qdrawer .qlh .b{font-size:.8em;padding:.2em .75em}
+#qdrawer .qnote{color:var(--dim);font-size:.78em;margin:0 0 .75em;line-height:1.4}
+#qdrawer .qempty{color:var(--dim);font-size:.88em;padding:.7em .2em;text-align:center;opacity:.85}
+#qdrawer .qrow{background:rgba(255,255,255,.04);opacity:0;transform:translateX(10px);
+ animation:qin .32s cubic-bezier(.22,.9,.28,1) forwards;gap:.55em;padding:.45em .55em;min-width:0}
+#qdrawer .qrow.run{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.3);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+#qdrawer .qrow .qico{width:2.55em;height:2.55em;border-radius:.45em;object-fit:cover;flex:none;background:var(--glass);border:1px solid var(--line)}
+#qdrawer .qrow.pending .qico{filter:grayscale(1) brightness(.72);opacity:.72}
+#qdrawer .qrow.ok .qico{filter:none;opacity:1}
+#qdrawer .qrow.err .qico{filter:grayscale(.4) brightness(.85);opacity:.9}
+#qdrawer .qrow .qi{flex:none;width:1.15em;text-align:center}
+#qdrawer .qrow .qn{flex:1;min-width:0;overflow:hidden}
+#qdrawer .qrow .qn>span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#qdrawer .qrow .b{flex:none;padding:.3em .7em;font-size:.9em;white-space:nowrap}
+@keyframes qin{to{opacity:1;transform:none}}
+.qbadge{display:inline-flex;align-items:center;justify-content:center;min-width:1.35em;height:1.35em;padding:0 .35em;margin-left:.4em;border-radius:1em;font-size:.72em;font-weight:600;background:var(--ring);color:var(--on);line-height:1;
+ transform:scale(0);transition:transform .25s cubic-bezier(.34,1.4,.64,1)}
+.qbadge[data-n]:not([data-n="0"]){transform:scale(1)}
+.qbadge[data-n="0"]{display:none}
+.b.qbtn{position:relative}
+@media (prefers-reduced-motion:reduce){
+ #qscrim,#qdrawer,#qdrawer .qhd,#qdrawer .qbd,#qdrawer .qft,.qbadge{transition:none!important}
+ #qdrawer .qrow{animation:none!important;opacity:1;transform:none}
+}
 input[type=text],input:not([type]),textarea{background:rgba(0,0,0,.35);color:var(--text);border:1px solid var(--line);border-radius:.6em;padding:.4em .7em;font:400 .85em Consolas,"Cascadia Mono","DejaVu Sans Mono",monospace;outline:none}
 input:focus,textarea:focus{border-color:var(--ring);box-shadow:0 0 0 .1em var(--ring)}
 input:disabled{opacity:.4}
@@ -99,6 +179,8 @@ input:disabled{opacity:.4}
 .b:hover{background:rgba(255,255,255,.2)}
 .b.pri{background:var(--ring);color:var(--on);font-weight:600;border-color:transparent}
 .b.pri:hover{background:var(--ring);filter:brightness(.9)}
+.b.dang{color:#ffb4be;border-color:rgba(255,107,129,.35);background:rgba(255,107,129,.1)}
+.b.dang:hover{background:rgba(255,107,129,.2);border-color:rgba(255,107,129,.5);color:#ffd0d6}
 .b.sel{background:rgba(255,255,255,.28)}
 .b:focus-visible,.opt:focus-visible,.chk:focus-visible{box-shadow:0 0 0 .12em var(--ring)}
 [aria-disabled=true]{opacity:.35;cursor:not-allowed}
@@ -111,6 +193,9 @@ input:disabled{opacity:.4}
 .opt i{width:1.05em;height:1.05em;border-radius:50%;border:1.5px solid var(--dim);position:relative;flex:none}
 .opt i{transition:border-color .22s}.opt i::after{content:"";position:absolute;inset:.2em;border-radius:50%;background:var(--ring);transform:scale(0);opacity:0;transition:transform .26s var(--ease),opacity .18s}.opt[aria-checked=true] i{border-color:var(--ring)}.opt[aria-checked=true] i::after{transform:scale(1);opacity:1}
 .opt small{color:var(--dim)}
+.hrow>.opt{transition:background .14s,box-shadow .14s,opacity .28s ease,transform .22s cubic-bezier(.34,1.56,.64,1)}
+body:not([data-bubble=off]) .hrow>.opt:hover:not([aria-disabled=true]){transform:scale(1.025)}
+body:not([data-bubble=off]) .hrow>.opt:active:not([aria-disabled=true]){transform:scale(.97);transition-duration:.14s,.14s,.28s,.1s}
 .chk{display:flex;gap:.7em;align-items:center;padding:.3em .6em;border-radius:.7em;width:100%}
 .chk .box{width:1.1em;height:1.1em;border-radius:.3em;border:1.5px solid var(--dim);flex:none;margin-top:0;text-align:center;line-height:1em;font-size:.8em;position:relative;overflow:hidden;transition:border-color .22s}
 .chk .box::before{content:"";position:absolute;inset:0;background:var(--ring);transform:scale(0);opacity:0;transition:transform .26s var(--ease),opacity .18s}
@@ -135,13 +220,27 @@ input:disabled{opacity:.4}
 #pb{height:.3em;border-radius:1em;background:rgba(255,255,255,.12);overflow:hidden;margin:.9em 0 0}
 #pb i{display:block;height:100%;width:0;background:var(--ring);transition:width .2s}
 #pb.ind i{width:30%;animation:ind 1.2s ease-in-out infinite}
+.qprog{display:none;gap:.35em;margin:0 0 .55em;grid-template-columns:minmax(0,1fr)}
+.qprog.on{display:grid}
+.qprog .qpb,.qprog .qpb.ind{margin:0}
+.qprog .qpb{height:.28em;border-radius:1em;background:rgba(255,255,255,.12);overflow:hidden}
+.qprog .qpb i{display:block;height:100%;width:0;background:var(--ring);transition:width .2s;margin:0}
+.qprog .qpb.ind i{width:30%!important;margin:0!important;transition:none;animation:qind 1.2s ease-in-out infinite}
+@keyframes qind{0%{transform:translateX(-100%)}100%{transform:translateX(333%)}}
+.qprog .qplab{font-size:.78em;color:var(--dim);line-height:1.3}
+@keyframes qsweep{0%{background-position:0 0}100%{background-position:100% 0}}
+@keyframes qpulse{0%{background-position:100% 0;opacity:.55}50%{background-position:0 0;opacity:1}100%{background-position:-100% 0;opacity:.55}}
+@keyframes logslide{from{transform:translateY(22px);opacity:.4}to{transform:none;opacity:1}}
+#log.log-hi{animation:logslide .55s cubic-bezier(.22,.9,.28,1) both}
+#logbar.log-hi .card{animation:logslide .55s cubic-bezier(.22,.9,.28,1) .05s both}
+@media (prefers-reduced-motion:reduce){#log.log-hi,#logbar.log-hi .card{animation:none!important}}
 @keyframes ind{0%{margin-left:-30%}100%{margin-left:100%}}
 #log{margin-top:.8em;height:36vh;min-height:12em;overflow:auto;padding:.9em 1.1em;border-radius:1em;background:rgba(0,0,0,.42);border:1px solid var(--line);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
  font:400 calc(13.5px*var(--scale))/1.55 Consolas,"Cascadia Mono","DejaVu Sans Mono",monospace;white-space:pre-wrap;outline:none;-webkit-user-select:text;user-select:text;cursor:text}
 #log *{-webkit-user-select:text;user-select:text}
 #log:focus-visible{box-shadow:0 0 0 .1em var(--ring)}
 #log .step{color:var(--mag);font-weight:700;margin-top:.6em}#log .detail{color:var(--dim)}#log .progress{color:var(--blue)}#log .info{color:var(--text)}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:20}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:40}
 .dlg,.cfm{background:rgba(30,32,35,.62);border:1px solid var(--line);border-radius:1.2em;padding:1.2em 1.4em;display:flex;flex-direction:column;
  -webkit-backdrop-filter:blur(28px) saturate(150%);backdrop-filter:blur(28px) saturate(150%);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 2em 5em #000a}
 .cfm{width:min(32em,88vw)}.cfm h2{font-weight:300;margin:0 0 .4em}.cfm p{color:var(--dim);margin:0 0 .8em;white-space:pre-line}
@@ -306,7 +405,7 @@ input[type=text]:focus,input:not([type]):focus,textarea:focus,.prow input[type=n
 .pdn{stroke:rgba(255,255,255,.3);stroke-width:1.3;stroke-linecap:round}.pdn.act{stroke:var(--ring)}
 .pdp{fill:var(--dim);cx:0;cy:0}.pdp.act{fill:var(--ring);filter:drop-shadow(0 0 3px rgba(255,255,255,.6))}
 .prow{display:flex;align-items:center;gap:.7em;margin-top:.4em}.prow .sl2{min-width:14em;font-size:.85em}.prow input{width:7em;flex:none}.prow small{color:var(--dim)}
-.adv summary{cursor:pointer;color:var(--dim);font-size:.8em;letter-spacing:.02em}.advb{overflow:hidden;margin:0 -.6em -.6em;padding:0 .6em .6em}.advi{padding-top:.6em}
+.adv summary{cursor:pointer;color:var(--dim);font-size:.8em;letter-spacing:.02em}.advb{box-sizing:border-box;overflow:hidden;margin:0 -.6em -.6em;padding:0 .6em .6em}.advi{padding-top:.6em}
 .prow input[type=range]{flex:1;min-width:8em;width:auto;accent-color:var(--ring);cursor:default;margin:0}
 .prow input[type=number]{width:5.2em;text-align:right;background:rgba(0,0,0,.35);color:var(--text);border:1px solid var(--line);border-radius:.6em;padding:.3em .5em;font:400 .85em Consolas,"Cascadia Mono","DejaVu Sans Mono",monospace;outline:none}
 .prow input[type=number]:focus{border-color:var(--ring)}
@@ -350,7 +449,37 @@ body.noring .b:focus-visible{box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 
 body.noring :is(.opt,.chk,.sw,.pm,.pi,.rst):focus-visible{box-shadow:none!important;outline:none!important}
 body.noring .cmb:not(.open) .cbtn:focus-visible{border-color:var(--line)!important;box-shadow:none!important}
 #hd{display:flex;align-items:flex-start;justify-content:space-between;gap:1em;flex-wrap:wrap}
-#top{margin-top:.7em}#topbtn{display:flex;gap:.6em}#topbtn .b{padding:.4em .95em;flex-direction:row-reverse}
+#top{margin-top:.7em}#topbtn{display:flex;gap:.6em;align-items:center}
+#topbtn .b{padding:.4em .95em;flex-direction:row-reverse;transition:padding .28s cubic-bezier(.22,.9,.28,1),gap .28s ease,font-size .28s ease,border-radius .28s ease,background .25s ease,box-shadow .14s,filter .14s,transform .22s cubic-bezier(.34,1.56,.64,1)}
+#topbtn .b .bt{transition:opacity .22s ease;white-space:nowrap}
+#topbtn .b .bt small{display:none}
+#topbtn .ver{margin-right:.25em;white-space:nowrap}#topbtn.dock .ver{margin:0 .2em 0 .55em;font-size:.78em}
+#topbtn.dock{position:fixed;top:.75em;right:.9em;z-index:25;gap:.35em;padding:.32em;border-radius:2em;
+ background:rgba(16,17,19,.9);border:1px solid var(--line);
+ -webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%);
+ box-shadow:0 .45em 1.6em rgba(0,0,0,.45);
+ animation:topDockIn .32s cubic-bezier(.22,.9,.28,1)}
+@keyframes topDockIn{from{opacity:.6;transform:translateY(-6px) scale(.96)}to{opacity:1;transform:none}}
+#topbtn.dock .b{padding:.32em .7em;font-size:.82em;gap:.4em;border-radius:1.6em}
+body:not([data-bubble=off]) #topbtn .b:active:not([aria-disabled=true]){transition-duration:.28s,.28s,.28s,.28s,.25s,.14s,.14s,.1s}
+#topbtn.dock .b .bi svg{width:1.15em;height:1.15em}
+#topbtn.dock .qbadge{position:absolute;top:-.25em;right:-.15em;margin:0;transform:scale(.9)}
+#topbtn.dock .qbadge[data-n]:not([data-n="0"]){transform:scale(.9)}
+#totop{position:fixed;right:max(1.3em,calc(1.3em + env(safe-area-inset-right,0px)));bottom:1.4em;z-index:26;width:2.9em;height:2.9em;min-width:2.9em;padding:0;border-radius:50%;
+ display:inline-flex;align-items:center;justify-content:center;background:rgba(24,25,28,.92);border:1px solid var(--line);color:var(--text);
+ -webkit-backdrop-filter:blur(14px) saturate(150%);backdrop-filter:blur(14px) saturate(150%);box-shadow:0 .45em 1.4em rgba(0,0,0,.45);
+ opacity:0;visibility:hidden;pointer-events:none;transform:translateY(18px) scale(.7);
+ transition:opacity .22s ease,transform .38s cubic-bezier(.34,1.56,.64,1),visibility 0s linear .38s,background .14s,box-shadow .14s}
+#totop.on{opacity:1;visibility:visible;pointer-events:auto;transform:none;transition:opacity .22s ease,transform .38s cubic-bezier(.34,1.56,.64,1),visibility 0s,background .14s,box-shadow .14s}
+#totop .bi{display:flex;align-items:center;justify-content:center;width:1.3em;height:1.3em;margin:0;transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
+#totop .bi svg{width:1.3em;height:1.3em}
+body:not([data-bubble=off]) #totop.on:hover{transform:translateY(-3px) scale(1.08);background:rgba(255,255,255,.2)}
+body:not([data-bubble=off]) #totop.on:hover .bi{transform:translateY(-.14em)}
+body:not([data-bubble=off]) #totop.on:active{transform:scale(.92);transition-duration:.22s,.1s,0s,.14s,.14s}
+#totop.go .bi{animation:totopGo .5s cubic-bezier(.4,0,.2,1)}
+@keyframes totopGo{0%{transform:translateY(0)}45%{transform:translateY(-.9em);opacity:0}46%{transform:translateY(.9em);opacity:0}100%{transform:translateY(0);opacity:1}}
+@media (prefers-reduced-motion:reduce){#totop,#totop.on,#totop .bi{transition:none!important;animation:none!important}}
+@media (prefers-reduced-motion:reduce){#topbtn .b,#topbtn.dock{transition:none!important;animation:none!important}}
 .readyrow{display:flex;align-items:center;justify-content:space-between;gap:.8em;flex-wrap:wrap;margin-top:.8em;padding:.5em .6em .5em 1em;border-radius:.9em;border:1px solid var(--line);background:var(--glass)}
 .card>.readyrow{margin-top:0;padding:0 0 .6em;border:0;border-radius:0;background:none}
 .card>.readyrow+.adv{border-top:1px solid var(--line);padding-top:.6em}
@@ -399,7 +528,7 @@ textarea:not(:focus):hover,
 </style></head><body data-bg="grid" class="intro">
 <div id="bg" aria-hidden="true"><i></i><i></i><i></i></div>
 <div id="page"><div id="in">
- <div id="hd"><div><h1>AnyPS5 <small class="gui">GUI</small></h1><p class="tagline">Unwrap SELF → ELF  ·  Convert PS5 game to PC  ·  Runtime and input</p></div><div id="top" class="hrow"><small class="ver" id="ver"></small><span id="topbtn"></span></div></div>
+ <div id="hd"><div><h1>AnyPS5 <small class="gui">GUI</small></h1><p class="tagline">Your games in one place · Convert when needed · Launch from the Library</p></div><div id="top" class="hrow"><span id="topbtn"></span></div></div>
  <div id="cards"></div>
  <div id="pb" role="progressbar"><i></i></div>
  <div id="log" role="log" aria-live="polite" tabindex="0" data-nav="1" aria-label="Log"></div>
@@ -408,6 +537,13 @@ textarea:not(:focus):hover,
 <p class="legal">Originally part of the project <a href="#" id="origin">Lenny4250gh/AnyPS5-GUI</a>. Released under GPL-2.0-only.</p>
 </div></div>
 <div id="toast" role="status" aria-live="polite"></div>
+<button type="button" id="totop" class="b ico" aria-label="Back to top" title="Back to top" tabindex="-1"><span class="bi"><svg viewBox="0 0 24 24"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"/></svg></span></button>
+<div id="qscrim" aria-hidden="true"></div>
+<aside id="qdrawer" role="dialog" aria-label="Conversion queue" aria-modal="true">
+ <div class="qhd"><h2>Conversion queue</h2><button type="button" class="b ico" data-k="qclose" aria-label="Close queue" id="qclosebtn"></button></div>
+ <div class="qbd" id="qbody"></div>
+ <div class="qft" id="qfoot"></div>
+</aside>
 <script>
 const closeM=m=>{if(m._c)return;m._c=1;m.classList.add("out");SND.play("close");setTimeout(()=>m.remove(),190)};
 setTimeout(()=>document.body.classList.remove("intro"),1400);
@@ -434,7 +570,7 @@ function applyUI(u){const c=HEX.test(u.accent)?u.accent.toLowerCase():UIDEF.acce
  st.setProperty("--ring",c);st.setProperty("--blue",c);st.setProperty("--mag",c);st.setProperty("--on",(.299*r+.587*g+.114*b)>.55?"#0b0c0e":"#ffffff");
  document.body.dataset.bg=BGS.some(x=>x[0]==u.bg)?u.bg:UIDEF.bg;document.body.dataset.bubble=(u.bubble===false||u.bubble==="false")?"off":"on"}
 let queue=[],qBusy=false,qStop=false,qWait=null;
-let S,cfg,status=[],space=null,running=false,log=[],pct="idle",folder="",playFolder="",poller=null,view="convert",vAnim="",advOpen={};
+let S,cfg,status=[],space=null,running=false,log=[],pct="idle",folder="",playFolder="",poller=null,view="library",vAnim="",advOpen={};
 const TI={err:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/>',warn:'<path d="M12 3.8 21.5 20h-19z"/><path d="M12 10v4.5M12 17.5h.01"/>',ok:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.5"/>'};
 // ---------- sound effects (generated with Web Audio: no files) ----------
 const SND=(()=>{let ctx=null,on=true,vol=.6,last=0;
@@ -484,7 +620,7 @@ const dis=(e,off)=>{const k=e.dataset.k,o=!!off,
  prev=k!=null?disMem[k]:undefined;if(k!=null)disMem[k]=o;
  // when the state changed since the last render, paint the old state first and switch after two frames so the opacity fades
  if(prev!==undefined&&prev!==o){apply(prev);requestAnimationFrame(()=>requestAnimationFrame(()=>apply(o)))}else apply(o);return e};
-const ICON={tcv:'<svg viewBox="0 0 24 24"><path d="M4 8h13M13.5 4.5 17 8l-3.5 3.5"/><path d="M20 16H7M10.5 12.5 7 16l3.5 3.5"/></svg>',tbd:'<svg viewBox="0 0 24 24"><path d="M8.5 8 4.5 12l4 4M15.5 8l4 4-4 4M13.5 5.5l-3 13"/></svg>',tdk:'<svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="2.8"/><path d="M5 6v6c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V6M5 12v6c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-6"/></svg>',tpl:'<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>',tpt:'<svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 1 0 0 16c1.4 0 2-.9 2-1.8 0-1.3-1-1.7-1-2.9 0-1 .8-1.8 1.9-1.8H17a3 3 0 0 0 3-3C20 6.9 16.4 4 12 4z"/><path d="M8 11h.01M11 8h.01M15 8.5h.01"/></svg>',pad:'<svg viewBox="0 0 24 24"><path d="M7 8.5h10a4 4 0 0 1 4 4v1.5a3 3 0 0 1-5.2 2l-1.3-1.5h-5L8.2 16A3 3 0 0 1 3 14v-1.5a4 4 0 0 1 4-4z"/><path d="M8.2 11v3M6.7 12.5h3"/><path d="M15.5 11.6h.01M17.6 13.4h.01"/></svg>',
+const ICON={tcv:'<svg viewBox="0 0 24 24"><path d="M4 8h13M13.5 4.5 17 8l-3.5 3.5"/><path d="M20 16H7M10.5 12.5 7 16l3.5 3.5"/></svg>',que:'<svg viewBox="0 0 24 24"><path d="M9.5 6H20M9.5 12H20M9.5 18H20"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>',qadd:'<svg viewBox="0 0 24 24"><path d="M4 6h11M4 12h7M4 18h7"/><path d="M17.5 13.5v7M14 17h7"/></svg>',tbd:'<svg viewBox="0 0 24 24"><path d="M8.5 8 4.5 12l4 4M15.5 8l4 4-4 4M13.5 5.5l-3 13"/></svg>',tdk:'<svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="2.8"/><path d="M5 6v6c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V6M5 12v6c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-6"/></svg>',tpl:'<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>',tpt:'<svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 1 0 0 16c1.4 0 2-.9 2-1.8 0-1.3-1-1.7-1-2.9 0-1 .8-1.8 1.9-1.8H17a3 3 0 0 0 3-3C20 6.9 16.4 4 12 4z"/><path d="M8 11h.01M11 8h.01M15 8.5h.01"/></svg>',pad:'<svg viewBox="0 0 24 24"><path d="M7 8.5h10a4 4 0 0 1 4 4v1.5a3 3 0 0 1-5.2 2l-1.3-1.5h-5L8.2 16A3 3 0 0 1 3 14v-1.5a4 4 0 0 1 4-4z"/><path d="M8.2 11v3M6.7 12.5h3"/><path d="M15.5 11.6h.01M17.6 13.4h.01"/></svg>',
  tune:'<svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>',
  download:'<svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>',
  pause:'<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>',
@@ -507,9 +643,9 @@ function radio(label,on,fn,k,sub){const b=el("button","opt");b.dataset.k=k;b.set
  b.onclick=()=>{if(b.getAttribute("aria-disabled")!="true"){rflip=k;try{fn()}finally{rflip=null}}};return dis(b,0)}
 let flip=null;
 /* Options the relinker in use lists in "relinker --help" (null = unknown: nothing is disabled) */
-let CAPS=null;const NOFLAG="Not in this relinker",noFlag=f=>!!(CAPS&&f&&!CAPS.has(f)),flagOf=l=>{const m=/^(--[a-z][\w-]*)/i.exec(l||"");return m?m[1]:""};
+let CAPS=null,vzBusy=0;const NOFLAG="Not in this relinker",noFlag=f=>!!(CAPS&&f&&!CAPS.has(f)),flagOf=l=>{const m=/^(--[a-z][\w-]*)/i.exec(l||"");return m?m[1]:""};
 async function loadCaps(){let n=null;try{const r=await api("relinker_flags");if(r&&r.known)n=new Set(r.flags)}catch(e){}
- const a=CAPS?[...CAPS].sort().join(" "):"",b=n?[...n].sort().join(" "):"";CAPS=n;if(a!==b&&typeof renderCards==="function"&&$("#cards")){const go=()=>{if($("#cards"))renderCards()};if(document.body.classList.contains("intro"))setTimeout(go,1500);else go()}}
+ const a=CAPS?[...CAPS].sort().join(" "):"",b=n?[...n].sort().join(" "):"";CAPS=n;if(a!==b&&typeof renderCards==="function"&&$("#cards")){const go=()=>{if($("#cards"))renderCards()},w=vzBusy-Date.now();if(document.body.classList.contains("intro"))setTimeout(go,1500);else if(w>0)setTimeout(go,w+30);else go()}}
 function check(label,hint,get,set,k,o={}){const b=el("button","chk");b.dataset.k=k;b.setAttribute("role","checkbox");b.setAttribute("aria-checked",!!get());
  const t=el("span","",""),x=el("span","",label);t.append(x);if(o.tag)t.append(el("span","tag",o.tag));if(hint)t.append(el("small","",hint));
  b.append(el("span","box"),t);b.onclick=()=>{if(b.getAttribute("aria-disabled")!="true"){const nv=!get();flip=[k,nv];try{set(nv)}finally{flip=null}}};
@@ -568,13 +704,18 @@ window.askRepoUpdate=info=>{
  b.append(c,hr);m.append(b);document.body.append(m);y.focus();return true};
 // ---------- main page (same layout as the Tk version) ----------
 function setMain(sec,key,val){cfg[sec][key]=val;api("set_cfg",{[sec]:{[key]:val}});renderCards();refresh()}
-function foldAnim(d,sm,wb,key){let an=null;const rm=()=>matchMedia("(prefers-reduced-motion:reduce)").matches;
- sm.addEventListener("click",e=>{e.preventDefault();if(an){an.cancel();an=null}
-  const op=d.open,set=v=>{d.open=v;advOpen[key]=v?1:0;saveAdv()};d.classList.toggle("op",!op);
-  if(rm()){set(!op);return}
-  if(op){const h=wb.offsetHeight;wb.style.overflow="hidden";an=wb.animate([{height:h+"px",opacity:1},{height:"0px",opacity:0}],{duration:240,easing:"cubic-bezier(.2,.8,.2,1)"});
-   an.onfinish=an.oncancel=()=>{an=null;set(false)}}
-  else{set(true);const h=wb.offsetHeight;an=wb.animate([{height:"0px",opacity:0},{height:h+"px",opacity:1}],{duration:300,easing:"cubic-bezier(.2,.8,.2,1)"});an.onfinish=an.oncancel=()=>{an=null}}})}
+function foldAnim(d,sm,wb,key){let an=null;const rm=()=>matchMedia("(prefers-reduced-motion:reduce)").matches,px=v=>parseFloat(v)||0;
+ sm.addEventListener("click",e=>{e.preventDefault();const tgt=!d.classList.contains("op");
+  d.classList.toggle("op",tgt);advOpen[key]=tgt?1:0;saveAdv();
+  if(rm()){if(an){an.onfinish=an.oncancel=null;an.cancel();an=null}d.open=tgt;return}
+  const from=an?wb.getBoundingClientRect().height:(d.open?wb.getBoundingClientRect().height:0);
+  if(an){an.onfinish=an.oncancel=null;an.cancel();an=null}
+  d.open=true;
+  const cs=getComputedStyle(wb),H=wb.getBoundingClientRect().height,pt=px(cs.paddingTop),pb=px(cs.paddingBottom),mb=px(cs.marginBottom);
+  const st=h=>{const r=H?Math.max(0,Math.min(h/H,1)):0;return{height:h+"px",paddingTop:pt*r+"px",paddingBottom:pb*r+"px",marginBottom:mb*r+"px",opacity:r}};
+  const a=an=wb.animate([st(from),st(tgt?H:0)],{duration:tgt?320:260,easing:"cubic-bezier(.2,.8,.2,1)"});
+  a.onfinish=()=>{if(an!==a)return;an=null;if(!tgt)d.open=false};
+  a.oncancel=()=>{if(an===a)an=null}})}
 async function makeReport(){const t=await api("make_report",log.map(x=>x[1]).join("\n"));
  const ok=await api("save_log",t,"anyps5-report.txt");if(ok)toast("Report exported","ok")}
 async function debugPack(){const r=await api("export_debug_package",log.map(x=>x[1]).join("\n"));
@@ -602,24 +743,50 @@ function feedback(){const m=el("div","modal"),b=el("div","cfm fbd");b.setAttribu
  const go=k=>{api("open_feedback",k);m.done()},opt=(l,s,k,o)=>{const c=btn(l,()=>go(k),{k:"fb-"+k,icon:"ext",sub:s,...o});c.classList.add("fbo");return c};
  const list=el("div","fbl");list.append(opt("Report a bug","Opens a form with your app version and system filled in","bug",{pri:1}),opt("Suggest something","Share an idea or a feature you would like","idea"),opt("See open issues","See what has already been reported","all"));
  b.append(hd,el("p","","This opens GitHub in your browser, where you need an account to post. Nothing else is sent, and you can edit the form before posting."),list);m.append(b);document.body.append(m);list.firstChild.focus()}
+function syncTopDock(){const page=$("#page"),tb=$("#topbtn");if(!page||!tb)return;
+ const on=page.scrollTop>56;if(tb.classList.contains("dock")===on)return;
+ tb.classList.toggle("dock",on);
+ const map=on?{qopen:"Queue",fb:"Report",gear:"Settings"}:{qopen:"Queue",fb:"Report or suggest",gear:"Settings"};
+ tb.querySelectorAll(".b[data-k]").forEach(b=>{const k=b.dataset.k,lab=map[k];if(!lab)return;const s=b.querySelector(".bt span");if(s)s.textContent=lab;else{const bt=b.querySelector(".bt");if(bt)bt.textContent=lab}})}
 function renderTop(){const t=$("#topbtn");t.textContent="";
- t.append(btn("Report or suggest",feedback,{k:"fb",icon:"ext",tip:"Report a bug or suggest something (opens GitHub)"}),btn("Settings",()=>openSettings("Appearance"),{k:"gear",icon:"tune",tip:"Settings (Ctrl+K to search them all)"}))}
+ const ver=el("small","ver");ver.id="ver";ver.textContent=(typeof S!=="undefined"&&S&&S.version)?"v"+S.version:"";t.append(ver);
+ const qb=btn("Queue",toggleQueue,{k:"qopen",icon:"que",tip:"Conversion queue — convert several games one after the other"});
+ qb.classList.add("qbtn");const badge=el("span","qbadge");badge.id="qbadge";badge.dataset.n="0";qb.append(badge);
+ t.append(qb,btn("Report or suggest",feedback,{k:"fb",icon:"ext",tip:"Report a bug or suggest something (opens GitHub)"}),btn("Settings",()=>openSettings("Appearance"),{k:"gear",icon:"tune",tip:"Settings (Ctrl+K to search them all)"}));
+ qBadge();syncTopDock()}
+(()=>{const page=$("#page");if(page)page.addEventListener("scroll",syncTopDock,{passive:true})})();
+(()=>{const page=$("#page"),tt=$("#totop");if(!page||!tt)return;let on=false;
+ const upd=()=>{const v=page.scrollTop>320;if(v===on)return;on=v;tt.classList.toggle("on",v);tt.tabIndex=v?0:-1};
+ page.addEventListener("scroll",upd,{passive:true});
+ tt.onclick=()=>{const rm=matchMedia("(prefers-reduced-motion:reduce)").matches;tt.classList.remove("go");void tt.offsetWidth;if(!rm)tt.classList.add("go");page.scrollTo({top:0,behavior:rm?"auto":"smooth"})};
+ tt.addEventListener("animationend",()=>tt.classList.remove("go"))})();
 function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$("#cards"),a=document.activeElement,fk=a&&root.contains(a)&&a.dataset.k;root.textContent="";
  const s=cfg.settings,r=cfg.relinker,rel=s.mode=="relink",gh=r.relinker_source=="github",rls=r.relinker_source=="release";
  const card=(t,...k)=>{const c=el("section","card");c.append(el("h3","",t),...k);root.append(c);return c};
  const fold=(key,t,...k)=>{const c=el("section","card"),d=document.createElement("details"),sm=document.createElement("summary");d.className="adv";d.open=!!advOpen[key];d.classList.toggle("op",d.open);d.ontoggle=()=>{advOpen[key]=d.open?1:0};sm.textContent=t;const wb=el("div","advb"),wi=el("div","advi");wi.append(...k);wb.append(wi);d.append(sm,wb);foldAnim(d,sm,wb,key);c.append(d);root.append(c);return c};
- const tabs=hrow(btn("Convert",()=>{if(view!="convert"){view="convert";vAnim="L"}renderCards()},{k:"vc",icon:"tcv"}),btn("Play",()=>{if(view!="play"){view="play";vAnim="R"}renderCards()},{k:"vp",icon:"play"}),btn("Library",()=>{if(view!="library"){view="library";vAnim="R";lib.loaded=false}renderCards()},{k:"vl",icon:"folder"}));tabs.classList.add("mode-tabs");tabs.children[view=="play"?1:view=="library"?2:0].classList.add("sel");root.append(tabs);
+ const tabs=hrow(
+  btn("Library",()=>{if(view!="library"){view="library";vAnim="L";lib.loaded=false}renderCards()},{k:"vl",icon:"folder",tip:"Home: your games — launch, convert, queue."}),
+  btn("Convert",()=>{if(view!="convert"){view="convert";vAnim="R"}renderCards()},{k:"vc",icon:"tcv",tip:"Convert one game step by step, or fill the Queue for several."}),
+  btn("By path",()=>{if(view!="play"){view="play";vAnim="R"}renderCards()},{k:"vp",icon:"play",tip:"Launch a converted folder by path (when it is not in the Library)."}));
+ tabs.classList.add("mode-tabs");
+ tabs.children[view=="convert"?1:view=="play"?2:0].classList.add("sel");
+ root.append(tabs);
+ const hints={library:"Home. Add your dump and output folders once, then launch or convert from the list.",
+  convert:"Manual conversion of one dump. Several games → Queue (top right). Games already registered → prefer Library.",
+  play:"Only if you need to open a converted folder that is not in the Library."};
+ root.append(el("p","mode-hint",hints[view]||""));
+ if(view=="convert"){const fl=el("div","flow");fl.append(el("b","","1 · Game"),el("span","sep","→"),el("b","","2 · Mode"),el("span","sep","→"),el("b","","3 · Convert"),el("span","sep","·"),document.createTextNode(" Queue for batch"));root.append(fl)}
+ if(view=="play"){const fl=el("div","flow");fl.append(el("b","","Pick folder"),el("span","sep","→"),el("b","","Launch / shortcut"));root.append(fl)}
  const logb=()=>[el("span","sp"),btn("Export report…",makeReport,{k:"rep",tip:"Saves a report file with the test info of GAME_TESTING.md (host, GPU, variables, exit code), the automatic reading and the FULL log. Ready to attach on Discord or GitHub."}),btn("Debug package…",debugPack,{k:"dbgpk",tip:"Saves a zip with the bug report, the full report, your settings and the .registry.json files. User name, computer name and home folder are hidden; check it before you share it."}),btn("Copy for bug",copyBug,{k:"cpb",tip:"Copies a short report (versions, host report, last 60 log lines, personal names hidden) to paste in a GitHub issue."}),btn("Clear log",()=>{log=[];$("#log").textContent=""},{k:"clr"})];
  if(view=="library"){libraryView(root);{const res=el("section","card step"),rh=el("div","rh");rh.append(el("h3","","Log"),hrow(...logb().slice(1)));res.append(rh);lbar.append(res)}if(vAnim){vAnim="";[...root.children].slice(1).forEach(c=>{c.style.animation="vinR .38s var(--ease) both"})}return}
  if(view=="convert") {
-  card("PS5 game path",note("Original PS5 game source. Used by Convert only."),hrow(field("folder",()=>folder,async v=>{folder=await api("set_folder",v);refresh()} ,"Path to PS5 game folder or .zip / .rar",{label:"PS5 source path",live:v=>api("set_folder",v)}),btn("Browse folder…",async()=>{const p=await api("pick_folder");if(p){folder=p;renderCards();refresh()}},{k:"browse"}),btn("Choose archive…",async()=>{const p=await api("pick_archive");if(p){folder=p;renderCards();refresh()}},{k:"browsezip",tip:"Select a .zip or .rar archive; .rar requires 7-Zip."})),note(folder?"Selected: "+folder:"No PS5 source selected."));
-  root.append(queueCard());
+  card("1. Select the PS5 game",note("Folder or archive of the original dump. Required for Convert on this page."),hrow(field("folder",()=>folder,async v=>{folder=await api("set_folder",v);refresh()} ,"Path to PS5 game folder or .zip / .rar",{label:"PS5 source path",live:v=>api("set_folder",v)}),btn("Browse folder…",async()=>{const p=await api("pick_folder");if(p){folder=p;renderCards();refresh()}},{k:"browse"}),btn("Choose archive…",async()=>{const p=await api("pick_archive");if(p){folder=p;renderCards();refresh()}},{k:"browsezip",tip:"Select a .zip or .rar archive; .rar requires 7-Zip."})),note(folder?"Selected: "+folder:"No PS5 source selected yet."));
  } else {
-  card("Converted PC game path",note("Converted PC game output folder. Used by Play, Launch game and Create shortcut."),hrow(field("playfolder",()=>playFolder,async v=>{playFolder=await api("set_play_folder",v);refresh()} ,"Path to converted PC game folder",{label:"PC game path",live:v=>api("set_play_folder",v)}),btn("Browse PC game…",async()=>{const p=await api("pick_play_folder");if(p){playFolder=p;renderCards();refresh()}},{k:"browseplay"})),note(playFolder?"Selected: "+playFolder:"No PC game selected; automatic output-folder lookup will be attempted."));
+  card("Converted game folder",note("Path of an already converted PC package. Prefer the Library if this game is listed there."),hrow(field("playfolder",()=>playFolder,async v=>{playFolder=await api("set_play_folder",v);refresh()} ,"Path to converted PC game folder",{label:"PC game path",live:v=>api("set_play_folder",v)}),btn("Browse PC game…",async()=>{const p=await api("pick_play_folder");if(p){playFolder=p;renderCards();refresh()}},{k:"browseplay"})),note(playFolder?"Selected: "+playFolder:"No folder selected — the app can try the default output folder by game name."));
  }
   const mkopts=()=>btn("AnyPS5 settings…",()=>openSettings(),{k:"opts",icon:"tune",tip:"Conversion, Source build, Runtime, Input and Appearance settings."});
  if(view=="play") {
-  card("Play a converted game",note("Launch and shortcut use the converted PC game path above. If it is empty, the app tries the configured output folder using the PS5 source game's name."),
+  card("Launch",note("Uses the folder above. Empty path → lookup in the configured output folder. For games already in the Library, launch from there."),
    hrow(btn("Launch game",playExe,{k:"play",icon:"pad",sub:"With your current settings",tip:"Automatically finds the converted executable using the Converted PC game path and target settings. Starts with current runtime settings."}),
     btn("Create shortcut…",shortcutExe,{k:"mkshort",icon:"link",sub:"With your current settings",tip:"Automatically finds the converted executable using the Converted PC game path and creates a shortcut with the current runtime settings."}),
     btn("Compatibility",async()=>{const r=await api("open_compatibility");if(r&&r.ok)toast("Opened the Game bring-up discussions for "+r.title_id,"ok");else toast(r&&r.error||"Unable to open the page","err")},{k:"compat",icon:"ext",sub:"Search this game on GitHub",tip:"Opens the Game bring-up discussions of AnyPS5 in your browser, searching the title ID of the selected converted game."})),
@@ -688,7 +855,7 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
   vz("guide",(()=>{const p=el("p","muted","You can also use a fork, or a different branch or tag from the official repository. "),a=el("button","tlink","Guide ↗");a.type="button";a.title="Opens the \"Advanced: forks and custom builds\" section of the README in your browser.";a.onclick=()=>api("open_fork_guide");p.append(a);return p})(),1),
   vz("imp",hrow(el("span","lbl","Local files:"),btn("Import files…",importTools,{k:"imptools",tip:"Copy the files the app uses into the app data folder: unwrap_self.py, relinker-*, prx-*.zip, nid_patcher, anyps5-input.ini (input map), fonts (.ttf/.otf/.ttc) and import_audit.py / pad_input.py."}),el("span","muted","unwrap_self.py · relinker-* · prx-*.zip · nid_patcher · anyps5-input.ini · fonts")),1),
   note("Used by unwrap, libs and relink. Local files: the files you import (or put) in the app data folder. Release: latest GitHub release. Build: compiles the repository with CMake. CMake target and the other build options: AnyPS5 settings → Source build."));
-  if(from!==src)requestAnimationFrame(()=>requestAnimationFrame(()=>vzs.forEach(f=>f())));
+  if(from!==src){vzBusy=Date.now()+520;requestAnimationFrame(()=>requestAnimationFrame(()=>vzs.forEach(f=>f())))}
   const sc=S.schema.Conversion.find(it=>/autorun/.test(it.label||"")),ar=sc&&yes(cfg[sc.section][sc.key]),
   sumT="Will do: "+(rel?"convert for "+String(S.targets[r.target]||r.target).split(" (")[0]+" · "+(yes(s.keep_game)?"copy the game (original kept)":"move the game (original deleted)")+(ar?" · start the game afterwards":""):"unwrap only · files are unwrapped in place in the game folder (backup kept, restorable)"),
   act1=el("div","step");act1.append(el("h3","","3. Start"),hrow(btn(rel?"▶  Convert game":"▶  Unwrap files",()=>act("start"),{pri:1,k:"start"}),btn("■  Stop",()=>{qStop=true;api("cancel")},{k:"stop",off:1}),...(rel?[btn("Preview files…",()=>act("dry_run"),{k:"dryrun",off:noFlag("--dry-run"),tip:noFlag("--dry-run")?"This relinker does not have --dry-run.":"Runs the relinker with --dry-run: it converts in memory and lists the files it would create, without writing anything. The game must already be unwrapped (eboot.bin is an ELF)."})]:[]),btn("↺  Restore backup",()=>act("restore"),{k:"restore"})),el("p","sum",sumT));ut.prepend(act1);ut.querySelector(".advi").append(hrow(btn("Open tools and updates settings",()=>openSettings("Source build"),{k:"os3",icon:"tune",tip:"Source build tab: release tag, branch, CMake, update checks"}),btn("Open storage settings",()=>openSettings("Storage"),{k:"os4",icon:"folder",tip:"Storage tab: where tools, builds, backups and settings are kept"})));root.append(ut);
@@ -1047,11 +1214,18 @@ if(it.key==="trace_dir"||it.key==="videoout_telemetry_dir")w.append(hrow(btn("Op
   try{for(const s in vals)Object.assign(cfg[s]||(cfg[s]={}),vals[s]);if(w)S.input=inText;ui={...A};sndSync(cfg.runtime);try{await api("set_ui",ui)}catch(e){}renderCards();refresh();toast("Settings saved","ok")}catch(e){toast("Settings saved","ok")}}
  srchEl=field("search",()=>sq,v=>{sq=v;draw()},"Search settings… e.g. language, rpath, deadzone",{label:"Search settings",live:v=>{sq=v;draw()}});d.append(el("h2","","AnyPS5 Settings"),srchEl,tabs,body,(()=>{const f=hrow(el("span","sp"),btn("Cancel",()=>{applyUI(ui);sndSync(cfg.runtime);closeM(m)},{k:"cancel"}),btn("Save and close",save,{pri:1,k:"save"}));f.style.justifyContent="flex-end";return f})());
  document.body.append(m);draw();srchEl.focus()}
-// ---------- conversion queue ----------
+// ---------- conversion queue (right drawer) ----------
 const QI={wait:"○",run:"▶",ok:"✔",err:"✖",skip:"–"};
-function qAdd(list){let n=0;for(const p of list||[])if(!queue.some(x=>x.path==p)){const it={path:p,name:"",st:"wait",msg:""};queue.push(it);n++;Promise.resolve(api("queue_name",p)).then(t=>{it.name=t;if(view=="convert"&&!qBusy)renderCards()}).catch(()=>{})}return n}
+let qOpen=false,qCloseTimer=null;
+function qPending(){return queue.filter(x=>x.st!="ok"&&x.st!="skip").length}
+function qBadge(){const n=queue.length,b=$("#qbadge");if(b){b.textContent=n?String(n):"";b.dataset.n=String(n)}}
+function qRefresh(){qBadge();if(qOpen)renderQueuePanel();if(view=="library"&&lib.loaded)libDraw()}
+function qAdd(list){let n=0;for(const p of list||[])if(!queue.some(x=>x.path==p)){const it={path:p,name:"",st:"wait",msg:""};queue.push(it);n++;Promise.resolve(api("queue_name",p)).then(t=>{it.name=t;qRefresh()}).catch(()=>{})}if(n)qRefresh();return n}
 function qLog(k,t){const x=[k,t];log.push(x);addLine(x)}
-async function runQueue(){
+function openQueue(){if(qOpen)return;clearTimeout(qCloseTimer);qOpen=true;const d=$("#qdrawer");d.classList.remove("closing");renderQueuePanel();$("#qscrim").classList.add("on");d.classList.add("on");SND.play("open");const c=$("#qclosebtn");c&&c.focus()}
+function closeQueue(){if(!qOpen)return;qOpen=false;const d=$("#qdrawer");d.classList.add("closing");d.classList.remove("on");$("#qscrim").classList.remove("on");SND.play("close");clearTimeout(qCloseTimer);qCloseTimer=setTimeout(()=>d.classList.remove("closing"),300)}
+function toggleQueue(){qOpen?closeQueue():openQueue()}
+async function runQueue(direct){
  if(running||qBusy)return toast("An operation is already running.","warn");
  const todo=queue.filter(x=>x.st!="ok");if(!todo.length)return toast("The queue has nothing to do.","warn");
  const keep=folder,unw=cfg.settings.mode!="relink",seen=new Set(),confirms=[];let tools=[];
@@ -1062,16 +1236,18 @@ async function runQueue(){
   for(const [t,x] of p.confirms){if(t=="Install missing tools"){if(!tools.length){confirms.push(x);tools=p.tools}}else confirms.push(it.name+": "+x)}}
  await api("set_folder",keep);
  const run=todo.filter(x=>x.st!="skip"),skipped=todo.filter(x=>x.st=="skip");
- if(!run.length){renderCards();return toast(skipped.length?skipped[0].name+": "+skipped[0].msg:"Nothing to run.","err")}
+ if(!run.length){qRefresh();return toast(skipped.length?skipped[0].name+": "+skipped[0].msg:"Nothing to run.","err")}
  let txt=(unw?"Unwrap ":"Convert ")+run.length+" game"+(run.length>1?"s":"")+", one after the other.";
  if(skipped.length)txt+="\n\nSkipped:\n"+skipped.map(x=>"• "+x.name+": "+x.msg).join("\n");
  if(confirms.length)txt+="\n\nYou confirm all of this:\n"+confirms.map(x=>"• "+x).join("\n");
- if(!await ask("Start the queue",txt,"Start","Cancel")){renderCards();return}
- qBusy=true;qStop=false;log=[];$("#log").textContent="";renderCards();
+ if(!(direct&&!confirms.length&&!skipped.length)&&!await ask("Start the queue",txt,"Start","Cancel")){qRefresh();return}
+ qBusy=true;qStop=false;log=[];$("#log").textContent="";
+ if(qOpen)closeQueue();showLog();qRefresh();
  let ok=0,bad=0,first=true;
  for(const [i,it] of run.entries()){
   if(qStop)break;
-  it.st="run";renderCards();qLog("step","Queue "+(i+1)+"/"+run.length+": "+it.name);
+  it.st="run";const qpl=$("#qplab");if(qpl){qpl.dataset.hold="1";qpl.textContent="Queue "+(i+1)+"/"+run.length+" · "+(it.name||"…")}
+  qRefresh();qLog("step","Queue "+(i+1)+"/"+run.length+": "+it.name);
   await api("set_folder",it.path);pct=null;setRunning(true);setPct(null);
   const started=await api("run","start",first?tools:[]);first=false;
   if(!started){it.st="err";it.msg="Could not start.";bad++;setRunning(false);continue}
@@ -1080,22 +1256,46 @@ async function runQueue(){
   if(lib.loaded)libLoad();
   if(qStop)break}
  for(const it of run)if(it.st=="wait"||it.st=="run"){it.st="skip";it.msg="Stopped."}
- await api("set_folder",keep);qBusy=false;qWait=null;
+ await api("set_folder",keep);qBusy=false;qWait=null;const qpl=$("#qplab");if(qpl){qpl.dataset.hold="";qpl.textContent=""};
  const msg="Queue finished: "+ok+" done"+(bad?", "+bad+" with errors":"")+(qStop?" (stopped)":"");qLog(bad||qStop?"warn":"ok",msg);
- toast(msg,bad||qStop?"warn":"ok",bad||qStop?"warn":"done");renderCards()}
-function queueCard(){const rel=cfg.settings.mode=="relink",off=running||qBusy,c=el("section","card");
- c.append(el("h3","","Conversion queue"),note((rel?"Convert":"Unwrap")+" several games one after the other with the current settings. A game that fails does not stop the queue."));
+ toast(msg,bad||qStop?"warn":"ok",bad||qStop?"warn":"done");qRefresh()}
+function qWorkLabel(p){const cur=queue.find(x=>x.st=="run");return(cur?("Working on "+(cur.name||"…")):"Working…")+(typeof p=="number"?(" · "+Math.round(p)+"%"):"")}
+function renderQueuePanel(){
+ const rel=cfg.settings.mode=="relink",off=running||qBusy,body=$("#qbody"),foot=$("#qfoot");
+ if(!body||!foot)return;
+ body.textContent="";foot.textContent="";
+ body.append(el("p","qnote",(rel?"Convert":"Unwrap")+" several games one after the other with the current settings. A game that fails does not stop the queue."));
+ if(queue.length){const lh=el("div","qlh");lh.append(el("span","qsl","Queue · "+queue.length+(queue.length>1?" games":" game")),btn("Clear",()=>{queue=[];qRefresh()},{k:"qclr",off:off,tip:"Remove every game from the queue"}));body.append(lh)}
  const l=el("div","qlist");
- if(!queue.length)l.append(note("The queue is empty."));
- queue.forEach((it,i)=>{const r=el("div","qrow"+(it.st=="run"?" run":"")),ic=el("span","qi "+(it.st=="ok"?"ok":it.st=="err"?"err":it.st=="skip"?"warn":""),QI[it.st]),n=el("span","qn"),sm=el("small","",it.msg?it.msg:it.path);
-  n.append(el("span","",it.name||it.path),sm);r.append(ic,n,btn("Remove",()=>{queue.splice(i,1);renderCards()},{k:"qrm"+i,off:off}));l.append(r)});
- c.append(l,hrow(
-  btn("Add current game",()=>{if(!folder)return toast("Select a game first.","warn");if(!qAdd([folder]))toast("Already in the queue.","warn");renderCards()},{k:"qcur",off:off}),
-  btn("Add games from a folder…",async()=>{const r=await api("pick_queue_games");if(!r)return;if(!r.games.length)return toast("No PS5 game found in that folder.","warn");const n=qAdd(r.games);toast(n?"Added "+n+" game"+(n>1?"s":""):"Already in the queue.",n?"ok":"warn");renderCards()},{k:"qdir",off:off,tip:"Pick a game folder, or a folder that contains several game folders: each one that looks like a PS5 game is added."}),
-  btn("Add archives…",async()=>{const l2=await api("pick_queue_archives");if(!l2||!l2.length)return;const n=qAdd(l2);toast(n?"Added "+n+" archive"+(n>1?"s":""):"Already in the queue.",n?"ok":"warn");renderCards()},{k:"qarc",off:off}),
-  btn("Clear",()=>{queue=[];renderCards()},{k:"qclr",off:off||!queue.length})),
-  hrow(btn(rel?"▶  Convert queue":"▶  Unwrap queue",runQueue,{pri:1,k:"qgo",off:off||!queue.length}),btn("■  Stop queue",()=>{qStop=true;api("cancel")},{k:"qstop",off:!qBusy})));
- return c}
+ if(!queue.length)l.append(el("div","qempty","The queue is empty."));
+ queue.forEach((it,i)=>{const pending=it.st=="wait"||it.st=="run"||it.st=="skip",cls="qrow"+(it.st=="run"?" run":"")+(it.st=="ok"?" ok":it.st=="err"?" err":pending?" pending":"");
+  const r=el("div",cls);r.style.animationDelay=(Math.min(i,8)*.04)+"s";
+  const im=el("img","qico");im.alt="";im.src=(typeof DEF_ICON!="undefined"?DEF_ICON:"");im.dataset.qp=it.path;
+  if(typeof libIcons!="undefined"&&it.path in libIcons&&libIcons[it.path])im.src=libIcons[it.path];
+  else Promise.resolve(api("library_icon",it.path)).then(u=>{if(typeof libIcons!="undefined")libIcons[it.path]=u||"";if(u)document.querySelectorAll("img[data-qp]").forEach(x=>{if(x.dataset.qp==it.path)x.src=u})}).catch(()=>{});
+  const ic=el("span","qi "+(it.st=="ok"?"ok":it.st=="err"?"err":it.st=="skip"?"warn":""),QI[it.st]),n=el("span","qn"),sm=el("small","",it.msg?it.msg:it.path);
+  n.append(el("span","",it.name||it.path),sm);r.append(im,ic,n,btn("Remove",()=>{queue.splice(i,1);qRefresh()},{k:"qrm"+i,off:off}));l.append(r)});
+ body.append(l);
+ const prog=el("div","qprog");prog.id="qprog";const qpb=el("div","qpb");qpb.id="qpb";qpb.append(el("i"));const qpl=el("div","qplab");qpl.id="qplab";
+ if(qBusy||running){prog.classList.add("on");const ind=pct==null||pct=="idle";qpb.className=ind?"qpb ind":"qpb";
+  if(qpb.firstChild){if(typeof pct=="number")qpb.firstChild.style.width=pct+"%";else qpb.firstChild.style.width="";qpb.firstChild.style.marginLeft=""}
+  qpl.dataset.hold="1";qpl.textContent=qWorkLabel(pct)}
+ else{qpl.dataset.hold="";qpl.textContent=""}
+ prog.append(qpb,qpl);
+ const addSec=el("div","qsec"),addRow=el("div","qadd3"),runSec=el("div","qsec qrunsec"),runRow=el("div","qrun");
+ addSec.append(el("span","qsl","Add games"));
+ addRow.append(btn("Current game",()=>{if(!folder)return toast("Select a game first.","warn");if(!qAdd([folder]))toast("Already in the queue.","warn");else openQueue()},{k:"qcur",off:off,tip:"Add the game selected in the Convert page"}),
+  btn("Folder…",async()=>{const r=await api("pick_queue_games");if(!r)return;if(!r.games.length)return toast("No PS5 game found in that folder.","warn");const n=qAdd(r.games);toast(n?"Added "+n+" game"+(n>1?"s":""):"Already in the queue.",n?"ok":"warn");if(n)openQueue()},{k:"qdir",off:off,tip:"Pick a game folder, or a folder that contains several game folders: each one that looks like a PS5 game is added."}),
+  btn("Archives…",async()=>{const l2=await api("pick_queue_archives");if(!l2||!l2.length)return;const n=qAdd(l2);toast(n?"Added "+n+" archive"+(n>1?"s":""):"Already in the queue.",n?"ok":"warn");if(n)openQueue()},{k:"qarc",off:off,tip:"Pick one or more game archives (.zip, .rar)"}));
+ addSec.append(addRow);
+ runRow.append(btn(rel?"▶  Convert queue":"▶  Unwrap queue",runQueue,{pri:1,k:"qgo",off:off||!queue.length}),btn("■  Stop",()=>{qStop=true;api("cancel")},{k:"qstop",off:!qBusy}));
+ runSec.append(runRow);
+ foot.append(prog,addSec,runSec);
+ qBadge()}
+(function(){const sc=$("#qscrim"),cl=$("#qclosebtn");
+ if(sc)sc.onclick=()=>closeQueue();
+ if(cl){cl.innerHTML='<span class="bi"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span>';cl.onclick=()=>closeQueue()}
+ addEventListener("keydown",e=>{if(e.key=="Escape"&&qOpen&&!document.querySelector(".modal:not(.out)")){closeQueue();e.preventDefault()}})})();
 // ---------- Library ----------
 let lib={games:[],roots:[],extra:[],dump_dirs:[],sizing:false,running:false,loaded:false,loading:false},libQ="",libF="all",libPick={},libGrid=true,libAct={},opItem=null,libSort=["name",1],libW={},libUi=false,libTimer=null,libIcons={};
 const DEF_ICON="data:image/svg+xml;utf8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="8" fill="#2a2d31"/><path d="M13 19h22a5 5 0 0 1 5 5v4a4 4 0 0 1-7 2.6L30 28H18l-3 2.6A4 4 0 0 1 8 28v-4a5 5 0 0 1 5-5z" fill="none" stroke="#8a9096" stroke-width="2"/></svg>');
@@ -1106,7 +1306,7 @@ async function libLoad(force){if(lib.loading)return;lib.loading=true;let r;try{r
 function libIcon(r,img){img.dataset.lp=r.path;img.alt="";img.src=DEF_ICON;if(!r.icon)return;
  if(r.path in libIcons){if(libIcons[r.path])img.src=libIcons[r.path];return}
  libIcons[r.path]="";Promise.resolve(api("library_icon",r.path)).then(u=>{libIcons[r.path]=u||"";if(u)document.querySelectorAll("img[data-lp]").forEach(i=>{if(i.dataset.lp==r.path)i.src=u})}).catch(()=>{})}
-async function libLaunch(r){if(r.busy)return toast("This game is busy: "+r.status.text,"warn");libAct[r.key]="Launching…";libDraw();let x;try{x=await api("library_launch",r.path)}finally{delete libAct[r.key]}if(x&&x.ok){toast("Started "+r.name,"ok");$("#log").scrollIntoView({block:"nearest"});if(!poller)await tick();libLoad();if(r.status.text!="In game")setTimeout(()=>{if(view=="library")libLoad()},2000)}else{toast(x&&x.error||"Unable to start the game","err");libDraw()}}
+async function libLaunch(r){if(r.busy)return toast("This game is busy: "+r.status.text,"warn");libAct[r.key]="Launching…";libDraw();let x;try{x=await api("library_launch",r.path)}finally{delete libAct[r.key]}if(x&&x.ok){toast("Started "+r.name,"ok");showLog();if(!poller)await tick();libLoad();if(r.status.text!="In game")setTimeout(()=>{if(view=="library")libLoad()},2000)}else{toast(x&&x.error||"Unable to start the game","err");libDraw()}}
 async function libShortcut(r){const x=await api("library_shortcut",r.path);if(x&&x.ok)toast("Shortcut created for "+r.name,"ok");else toast(x&&x.error||"Unable to create the shortcut","err");if(!poller)await tick()}
 function libModal(title,...kids){const m=el("div","modal"),d=el("div","dlg fit");d.setAttribute("role","dialog");m.done=()=>closeM(m);d.append(el("h2","",title),...kids);m.append(d);document.body.append(m);m.addEventListener("click",e=>{if(e.target===m)m.done()});return [m,d]}
 function libFolders(r){const info=note("");const [m,d]=libModal(r.name+" · folders");d.append(info);
@@ -1146,11 +1346,17 @@ function libView(g){const bz=libBusy(g),p=g.pkgs.find(x=>x.path==libPick[g.key])
   with:p?p.with:"",custom:p?p.custom:false,busy:!!bz,status:bz?{text:bz,level:"busy"}:p?p.status:{text:"Not converted",level:"muted"},
   state:p?"Converted · "+cap(p.target)+(d?" · dump kept":""):"Dump only"+(d.eboot=="self"?" · needs unwrap":d.eboot=="elf"?" · unwrapped":"")}}
 async function libConvert(r){if(running||qBusy)return toast("An operation is already running.","warn");
- folder=await api("set_folder",r.dump.path);const old=queue.find(x=>x.path==r.dump.path);if(old){old.st="wait";old.msg=""}else qAdd([r.dump.path]);
- view="convert";vAnim="L";renderCards();refresh();await runQueue()}
-function libQueue(r){const n=qAdd([r.dump.path]);toast(n?"Added to the queue (Convert page).":"Already in the queue.",n?"ok":"warn");libDraw()}
+ folder=await api("set_folder",r.dump.path);const solo=queue.every(x=>x.path==r.dump.path),old=queue.find(x=>x.path==r.dump.path);if(old){old.st="wait";old.msg=""}else qAdd([r.dump.path]);
+ view="convert";vAnim="L";renderCards();refresh();await runQueue(solo)}
+function libUnqueue(r){const i=r.dump?queue.findIndex(x=>x.path==r.dump.path):-1;if(i<0)return;
+ if(running||qBusy)return toast("The queue is running: stop it first to remove games.","warn");
+ queue.splice(i,1);qRefresh();toast("Removed from the queue.","ok")}
+function libQBtn(r,k,o={}){const it=r.dump&&queue.find(x=>x.path==r.dump.path);
+ if(it)return btn("Remove from queue",()=>{if(o.after)o.after();libUnqueue(r)},{k,off:running||qBusy,tip:"Take this game out of the conversion queue"});
+ return btn("Add to queue",()=>{if(o.after)o.after();libQueue(r)},{k,pri:o.pri,off:r.busy,tip:"Add this dump to the conversion queue"})}
+function libQueue(r){const n=qAdd([r.dump.path]);toast(n?"Added to the queue.":"Already in the queue.",n?"ok":"warn");if(n)openQueue();libDraw()}
 function libConvertAll(){const l=lib.games.filter(g=>!g.pkgs.length&&g.dumps.length).map(g=>g.dumps[0].path);
- if(!l.length)return toast("Every dump already has a converted package.","ok");const n=qAdd(l);toast(n+" game"+(n==1?"":"s")+" added to the queue: press Convert queue.","ok");view="convert";vAnim="L";renderCards()}
+ if(!l.length)return toast("Every dump already has a converted package.","ok");const n=qAdd(l);toast(n+" game"+(n==1?"":"s")+" added to the queue.","ok");if(n)openQueue()}
 const libCm=(r,i)=>field("lc"+i,()=>r.comment,async x=>{r.comment=x;r.g.comment=x;await api("library_set_comment",r.key,x)},"Add a comment",{label:"Comment for "+r.name});
 function libDetails(r){const [m,d]=libModal(r.name),g=el("div","ldet");
  const rows=[["Serial",r.serial||"unknown"],["Game version",r.version||"unknown"],["Size",fmtSize(r.size)],["State",r.state]];
@@ -1160,10 +1366,11 @@ function libDetails(r){const [m,d]=libModal(r.name),g=el("div","ldet");
  rows.forEach(([a,b])=>g.append(el("span","",a),el("span","",b)));
  const acts=[];
  if(r.pkg)acts.push(btn("Launch",()=>{m.done();libLaunch(r)},{pri:1,k:"ldl",off:r.busy}),btn("Create shortcut",()=>libShortcut(r),{k:"lds"}),btn("Folders…",()=>libFolders(r),{k:"ldf"}),btn("Runtime settings…",()=>libSettings(r),{k:"ldr"}));
- if(r.dump)acts.push(btn(r.pkg?"Convert again":"Convert",()=>{m.done();libConvert(r)},{pri:!r.pkg,k:"ldv",off:r.busy}),btn("Add to queue",()=>libQueue(r),{k:"ldq",off:r.busy}));
- const dels=[];r.g.dumps.forEach((x,i)=>dels.push(btn(r.g.dumps.length>1?"Delete dump "+(i+1)+"…":"Delete PS5 dump…",()=>{m.done();libDelete(r,"dump",x.path)},{k:"ldd"+i,off:r.busy,tip:"Deletes the original PS5 game folder from your disk."})));
- r.g.pkgs.forEach((x,i)=>dels.push(btn(r.g.pkgs.length>1?"Delete "+cap(x.target)+" package…":"Delete converted game…",()=>{m.done();libDelete(r,"pkg",x.path)},{k:"ldp"+i,off:r.busy,tip:"Deletes the converted PC package (its saves and trophies are inside it)."})));
- d.append(g,hrow(libCm(r,"d")),hrow(...acts),...(dels.length?[hrow(...dels)]:[]),hrow(el("span","sp"),btn("Close",()=>m.done(),{k:"ldc"})))}
+ if(r.dump){if(queue.length&&!r.pkg)acts.push(libQBtn(r,"ldq",{pri:1,after:()=>m.done()}));else acts.push(btn(r.pkg?"Convert again":"Convert",()=>{m.done();libConvert(r)},{pri:!r.pkg,k:"ldv",off:r.busy}),libQBtn(r,"ldq"));}
+ const dels=[];r.g.dumps.forEach((x,i)=>{const b=btn(r.g.dumps.length>1?"Delete dump "+(i+1)+"…":"Delete PS5 dump…",()=>{m.done();libDelete(r,"dump",x.path)},{k:"ldd"+i,off:r.busy,tip:"Deletes the original PS5 game folder from your disk."});b.classList.add("dang");dels.push(b)});
+ r.g.pkgs.forEach((x,i)=>{const b=btn(r.g.pkgs.length>1?"Delete "+cap(x.target)+" package…":"Delete converted game…",()=>{m.done();libDelete(r,"pkg",x.path)},{k:"ldp"+i,off:r.busy,tip:"Deletes the converted PC package (its saves and trophies are inside it)."});b.classList.add("dang");dels.push(b)});
+ const foot=hrow(...dels,el("span","sp"),btn("Close",()=>m.done(),{k:"ldc"}));
+ const cm=hrow(libCm(r,"d"));cm.style.margin="0.75em 0 0";const ac=hrow(...acts);ac.style.marginTop="1.15em";d.append(g,cm,ac,foot)}
 async function libDelete(r,kind,path){const dump=kind=="dump";if(r.busy)return toast("This game is busy: "+r.status.text,"warn");
  if(!await ask(dump?"Delete the PS5 dump?":"Delete the converted game?",
   (dump?"This deletes the original PS5 game folder from your disk:\n":"This deletes the converted PC package from your disk, with its saves, trophies and screenshots:\n")+path+"\n\n"+r.name+(r.serial?" ("+r.serial+")":"")+"\n\nIt does not go to the recycle bin and cannot be undone. Are you sure?","Delete","Cancel"))return;
@@ -1182,33 +1389,62 @@ function libFoldersList(){const [m,d]=libModal("Library folders");
  const bar=hrow(el("span","sp"),btn("Close",()=>m.done(),{pri:1,k:"lfx"}));bar.classList.add("lfb");
  d.append(note("Only the folder itself and its direct sub-folders are looked at: the whole disk is never scanned. A dump and a converted game with the same Title ID are shown as one game."),bar);draw()}
 let libAnim=0;
-function libDraw(){libDraw0();if(!libAnim)return;libAnim=0;const box=$("#libc");if(!box||matchMedia("(prefers-reduced-motion:reduce)").matches)return;
- [...box.querySelectorAll(".lbar+*, .ltab tr:not(:first-child), .lgc")].forEach((e,i)=>{e.style.animation="lrow .34s var(--ease) both";e.style.animationDelay=Math.min(i,14)*28+"ms"})}
+function libSwapLab(b){return String(b.getAttribute("aria-label")||b.textContent).split(" - ")[0].trim()+(b.classList.contains("ico")?"#":"")}
+function libSnap(){const m=new Map(),box=$("#libc");if(!box)return m;
+ box.querySelectorAll("[data-gk]").forEach(e=>{const a=e.querySelector(":scope>.hrow, .la");if(!a)return;const l=e.querySelector(".lst");
+  const n=a.cloneNode(true);n.querySelectorAll(".lghost").forEach(x=>x.remove());m.set(e.dataset.gk,{labs:[...a.querySelectorAll(".b")].filter(b=>!b.closest(".lghost")).map(libSwapLab),node:n,st:l?l.textContent:""})});return m}
+function libSwapAnim(snap){if(!snap||!snap.size||matchMedia("(prefers-reduced-motion:reduce)").matches)return;const box=$("#libc");if(!box)return;
+ box.querySelectorAll("[data-gk]").forEach(e=>{const o=snap.get(e.dataset.gk);if(!o)return;
+  const a=e.querySelector(":scope>.hrow, .la");
+  if(a){const nb=[...a.querySelectorAll(".b")].filter(b=>!b.closest(".lghost")),fresh=nb.filter(b=>!o.labs.includes(libSwapLab(b))),gone=o.labs.length!==nb.length||fresh.length;
+   if(gone){a.style.position="relative";const gh=o.node;gh.querySelectorAll("[data-k]").forEach(x=>x.removeAttribute("data-k"));gh.setAttribute("aria-hidden","true");gh.classList.add("lghost");gh.inert=true;
+    gh.style.cssText+=";position:absolute;inset:0;margin:0;pointer-events:none";a.append(gh);
+    gh.animate([{opacity:1,transform:"scale(1)"},{opacity:0,transform:"scale(.88)"}],{duration:170,easing:"ease-in",fill:"forwards"}).onfinish=()=>gh.remove();
+    fresh.forEach(b=>b.animate([{opacity:0,transform:"scale(.8)"},{opacity:1,transform:"scale(1)"}],{duration:300,delay:90,easing:"cubic-bezier(.34,1.56,.64,1)",fill:"backwards"}))}}
+  const l=e.querySelector(".lst");if(l&&l.textContent!==o.st)l.animate([{opacity:0,transform:"translateY(6px)"},{opacity:1,transform:"none"}],{duration:280,easing:"cubic-bezier(.2,.8,.2,1)"})})}
+let libSwapKeep=null;
+function libDraw(){const full=libAnim;let snap=null;if(!full){const now=Date.now();if(libSwapKeep&&now-libSwapKeep.t<450)snap=libSwapKeep.snap;else{snap=libSnap();libSwapKeep={snap,t:now}}}
+ libDraw0();if(!full){libSwapAnim(snap);return}libAnim=0;const box=$("#libc");if(!box||matchMedia("(prefers-reduced-motion:reduce)").matches)return;
+ [...box.querySelectorAll(".ltab tr:not(:first-child), .lgc, .lempty, .lwarn")].forEach((e,i)=>{e.style.animation="lrow .34s var(--ease) both";e.style.animationDelay=Math.min(i,14)*28+"ms"})}
+function libSegThumb(seg){const thumb=seg.querySelector(".lseg-thumb"),sel=seg.querySelector(".b.sel");if(!thumb||!sel)return;
+ const place=()=>{thumb.style.left=sel.offsetLeft+"px";thumb.style.width=sel.offsetWidth+"px"};
+ requestAnimationFrame(()=>requestAnimationFrame(place))}
+function libUpdateBar(all,nConv,nTodo){const f=$("#libbar");if(!f)return;
+ const labels={all:"All · "+all.length,conv:"Done · "+nConv,todo:"Pending · "+nTodo};
+ f.querySelectorAll(".lseg .b").forEach(b=>{const k=(b.dataset.k||"").replace(/^lf_/,"");if(labels[k]!=null)b.textContent=labels[k];b.classList.toggle("sel",k==libF)});
+ const qa=f.querySelector('[data-k="lca"]'),need=nTodo&&lib.games.some(g=>!g.pkgs.length&&g.dumps.length);
+ if(qa)qa.style.display=need?"":"none";
+ const seg=f.querySelector(".lseg");if(seg)libSegThumb(seg)}
 function libDraw0(){const box=$("#libc");if(!box)return;box.textContent="";
  const q=libQ.trim().toLowerCase();let all=lib.games.map(libView);
  const nConv=all.filter(r=>r.pkg).length,nTodo=all.filter(r=>!r.pkg).length;
  let rows=all.filter(r=>(libF=="all"||(libF=="conv")==!!r.pkg)&&(!q||r.name.toLowerCase().includes(q)||r.serial.toLowerCase().includes(q)));
  const [sk,sd]=libSort,val={name:r=>r.name.toLowerCase(),serial:r=>r.serial,version:r=>r.version,size:r=>r.size==null?-1:r.size,state:r=>r.state,path:r=>r.path.toLowerCase(),with:r=>r.with,status:r=>r.status.text,comment:r=>r.comment.toLowerCase()}[sk];
  rows=[...rows].sort((a,b)=>{const x=val(a),y=val(b);return (x<y?-1:x>y?1:0)*sd});
- const f=el("div","lbar");[["all","All ("+all.length+")"],["conv","Converted ("+nConv+")"],["todo","Not converted ("+nTodo+")"]].forEach(([k,l])=>f.append(btn(l,()=>{libF=k;libAnim=1;libDraw()},{k:"lf_"+k,pri:libF==k})));
- f.append(el("span","sp"),btn("Convert all not converted",libConvertAll,{k:"lca",off:!nTodo||!lib.games.some(g=>!g.pkgs.length&&g.dumps.length),tip:"Adds every dump that has no converted package to the conversion queue (Convert page)."}));box.append(f);
+ libUpdateBar(all,nConv,nTodo);
  const dups=all.filter(r=>r.dup);
  if(dups.length)box.append(el("p","lwarn","⚠ Same Title ID twice (two dumps, or two packages for the same system): "+dups.map(r=>(r.serial||r.name)+" → "+[...r.g.dumps.map(x=>x.path),...r.g.pkgs.map(x=>x.path)].map(x=>x.split(/[\\/]/).pop()).join(", ")).join(" · ")));
- if(!all.length){box.append(note("No games found. Add the folder with your PS5 dumps and the folder with your converted games from \"Folders…\" (the output folder is always included: "+lib.roots[0]+")."));return}
- if(!rows.length){box.append(note("No game matches."));return}
- const st=r=>el("span",r.status.level=="muted"?"muted-c":r.status.level,"● "+r.status.text);
+ if(!all.length){const em=el("div","lempty");em.append(el("h4","","No games yet"),
+  el("p","","Add the folder of your PS5 dumps and (optionally) where converted packages live. The default output folder is always included"+(lib.roots&&lib.roots[0]?": "+lib.roots[0]:".")+"."),
+  hrow(btn("Add folders…",libFoldersList,{pri:1,k:"le-folders",icon:"folder"}),
+   btn("Convert a game…",()=>{view="convert";vAnim="R";renderCards()},{k:"le-conv",icon:"tcv"}),
+   btn("Open Queue",()=>openQueue(),{k:"le-q",icon:"que"})));box.append(em);return}
+ if(!rows.length){const em=el("div","lempty");em.append(el("h4","","Nothing in this filter"),el("p","","Try “All” or clear the search."),hrow(btn("Show all",()=>{libF="all";libQ="";libAnim=1;libDraw()},{pri:1,k:"le-all"})));box.append(em);return}
+ const st=r=>{const e=el("span",r.status.level=="muted"?"muted-c":r.status.level,"● "+r.status.text);e.classList.add("lst");return e};
  const cyc=r=>r.g.pkgs.length>1?btn(cap(r.pkg.target)+" ⇄",()=>{const l=r.g.pkgs,i=l.indexOf(r.pkg);libPick[r.key]=l[(i+1)%l.length].path;libDraw()},{k:"lcy"+r.key,tip:"This game has more than one converted package: click to switch."}):null;
- if(libGrid){const g=el("div","lgrid");rows.forEach((r,i)=>{const c=el("div","lgc"),im=el("img");libIcon(r,im);
+ if(libGrid){const g=el("div","lgrid");rows.forEach((r,i)=>{const c=el("div","lgc"),im=el("img");c.dataset.gk=r.key;libIcon(r,im);
    c.append(im,el("div","nm",r.name),el("small","",(r.serial||"unknown")+(r.dup?" ⚠":"")+" · "+fmtSize(r.size)),el("small","",r.state),st(r),
-    hrow(r.pkg?btn("Launch",()=>libLaunch(r),{k:"gl"+i,pri:1,off:r.busy}):btn("Convert",()=>libConvert(r),{k:"gc"+i,pri:1,off:r.busy}),btn("More…",()=>libDetails(r),{k:"gm"+i})));g.append(c)});box.append(g);return}
+    hrow(r.pkg?btn("Launch",()=>libLaunch(r),{k:"gl"+i,pri:1,off:r.busy}):(queue.length?libQBtn(r,"gq"+i,{pri:1}):(()=>{const d=el("div","lpair");d.append(btn("Convert",()=>libConvert(r),{k:"gc"+i,pri:1,off:r.busy,tip:"Convert now (starts the queue)"}),(()=>{const q=btn("Add to queue",()=>libQueue(r),{k:"gq"+i,icon:"qadd",off:r.busy,tip:"Add this dump to the conversion queue"});q.classList.add("ico");return q})());return d})()),btn("More…",()=>libDetails(r),{k:"gm"+i})));g.append(c)});box.append(g);return}
  const cols=[["name","Game"],["serial","Serial"],["version","Game Version"],["size","Size"],["state","State"],["path","Path"],["with","Converted with"],["status","Status"],["comment","Comments"]];
- const t=el("table","ltab"),h=el("tr");cols.forEach(([k,l])=>{const th=el("th","",l+(sk==k?(sd>0?" ▲":" ▼"):""));th.onclick=()=>{libSort=[k,sk==k?-sd:1];libAnim=1;libDraw()};h.append(th)});h.append(el("th","","Actions"));t.append(h);
+ const t=el("table","ltab"),h=el("tr");cols.forEach(([k,l])=>{const th=el("th","",l+(sk==k?(sd>0?" ▲":" ▼"):""));th.onclick=()=>{libSort=[k,sk==k?-sd:1];libAnim=1;libDraw()};h.append(th)});
+ h.append(el("th","","Actions"));t.append(h);
  rows.forEach((r,i)=>{const tr=el("tr"),td=(...k)=>{const c=el("td");c.append(...k);tr.append(c);return c},im=el("img"),nm=el("div","lg");libIcon(r,im);nm.append(im,el("span","",r.name));
-  td(nm);const sc=td(r.serial||"unknown");if(r.dup){sc.classList.add("warn");sc.title="Same Title ID found more than once";sc.textContent+=" ⚠"}
+  tr.dataset.gk=r.key;td(nm);const sc=td(r.serial||"unknown");if(r.dup){sc.classList.add("warn");sc.title="Same Title ID found more than once";sc.textContent+=" ⚠"}
   td(r.version||"unknown");td(fmtSize(r.size));td(r.state,...(cyc(r)?[" ",cyc(r)]:[]));const pc=td(r.path);pc.className="lp";pc.title=[...r.g.dumps.map(x=>"Dump: "+x.path),...r.g.pkgs.map(x=>"Package: "+x.path)].join("\n");td(r.with||"—");td(st(r));td(libCm(r,i));
   const a=el("div","la");td(a);
   if(r.pkg)a.append(btn("Launch",()=>libLaunch(r),{k:"ll"+i,pri:1,off:r.busy}),btn("Shortcut",()=>libShortcut(r),{k:"ls"+i}),btn("Folders…",()=>libFolders(r),{k:"lf"+i}),btn(r.custom?"Settings ●":"Settings…",()=>libSettings(r),{k:"lr"+i,tip:r.custom?"This game has its own runtime settings.":"Runtime settings for this game only."}));
-  else a.append(btn("Convert",()=>libConvert(r),{k:"lv"+i,pri:1,off:r.busy}),btn("Add to queue",()=>libQueue(r),{k:"lq"+i,off:r.busy}));
+  else if(queue.length)a.append(libQBtn(r,"lq"+i,{pri:1}));
+  else a.append(btn("Convert",()=>libConvert(r),{k:"lv"+i,pri:1,off:r.busy,tip:"Convert now (starts the queue)"}),btn("Add to queue",()=>libQueue(r),{k:"lq"+i,off:r.busy}));
   a.append(btn("More…",()=>libDetails(r),{k:"lm"+i}));t.append(tr)});
  const ks=[...cols.map(c=>c[0]),"act"],saveW=()=>{Promise.resolve(api("library_set_ui",{widths:libW})).catch(()=>{})},
   applyW=ws=>{const o=t.querySelector("colgroup");if(o)o.remove();const cg=el("colgroup");ws.forEach(x=>{const c=el("col");c.style.width=x+"px";cg.append(c)});t.prepend(cg);t.classList.add("fx");t.style.width=ws.reduce((a,b)=>a+b,0)+"px"};
@@ -1219,28 +1455,51 @@ function libDraw0(){const box=$("#libc");if(!box)return;box.textContent="";
    const mv=ev=>{ws[i]=Math.max(50,w0+ev.clientX-x0);applyW(ws)},up=()=>{document.removeEventListener("mousemove",mv);document.removeEventListener("mouseup",up);document.body.classList.remove("lrsing");ks.forEach((k,j)=>libW[k]=ws[j]);saveW()};
    document.addEventListener("mousemove",mv);document.addEventListener("mouseup",up)};th.append(hd)});
  const w=el("div","lwrap");w.append(t);box.append(w)}
-function libraryView(root){const c=el("section","card");c.append(el("h3","","Library"),note("Your PS5 dumps and converted games, one line per game (matched by Title ID). Only the folders you add are read, never the whole disk."));
+function libraryView(root){const c=el("section","card");
+ const top=el("div","ltop"),tit=el("div","ltitle");tit.append(el("h3","","Your games"),note("Launch, convert, or queue — only the folders you add are scanned."));
  const sf=field("libq",()=>libQ,x=>{libQ=x;libDraw()},"Search name or serial",{label:"Search name or serial",live:x=>{libQ=x;libDraw()}});
- c.append(hrow(btn("Refresh",()=>libLoad(true),{k:"lrf",icon:"reset",tip:"Reads the folders again and recalculates the sizes."}),btn("Folders…",libFoldersList,{k:"lfs",icon:"folder",tip:"Folders with PS5 dumps and with converted games."}),
-  btn(libGrid?"Table view":"Grid view",()=>{libGrid=!libGrid;libAnim=1;Promise.resolve(api("library_set_ui",{grid:libGrid})).catch(()=>{});renderCards()},{k:"lgv"}),el("span","sp"),sf));
+ sf.classList.add("lsearch");top.append(tit,sf);c.append(top);
+ const f=el("div","lbar");f.id="libbar";
+ const foldBtn=btn("Folders",libFoldersList,{k:"lfs",icon:"folder",tip:"Folders with PS5 dumps and converted games."});
+ const refBtn=btn("",()=>libLoad(true),{k:"lrf",icon:"reset",tip:"Refresh list and sizes"});
+ refBtn.classList.add("ico");refBtn.setAttribute("aria-label","Refresh");
+ const viewBtn=btn("",()=>{libGrid=!libGrid;libAnim=1;Promise.resolve(api("library_set_ui",{grid:libGrid})).catch(()=>{});renderCards()},{k:"lgv",tip:libGrid?"Table view":"Grid view"});
+ viewBtn.classList.add("ico");viewBtn.setAttribute("aria-label",libGrid?"Table view":"Grid view");
+ viewBtn.innerHTML='<span class="bi">'+(libGrid?'<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>':'<svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>')+'</span>';
+ const seg=el("div","lseg"),thumb=el("i","lseg-thumb");seg.append(thumb);
+ [["all","All · 0"],["conv","Done · 0"],["todo","Pending · 0"]].forEach(([k,l])=>{
+  const b=btn(l,()=>{if(libF==k)return;libF=k;libAnim=1;libUpdateBar(lib.games.map(libView),lib.games.filter(g=>g.pkgs.length).length,lib.games.filter(g=>!g.pkgs.length).length);libDraw()},{k:"lf_"+k});
+  if(libF==k)b.classList.add("sel");seg.append(b)});
+ const qa=btn("Queue all",libConvertAll,{k:"lca",tip:"Add every dump without a package to the Queue"});qa.style.display="none";
+ f.append(foldBtn,refBtn,viewBtn,seg,el("span","sp"),qa);c.append(f);
  const box=el("div","");box.id="libc";c.append(box);root.append(c);
- if(lib.loaded)libDraw();else{box.append(note("Reading the folders…"));libLoad()}}
+ if(lib.loaded)libDraw();else{box.append(note("Reading the folders…"));libLoad()}
+ requestAnimationFrame(()=>libSegThumb(seg))}
 // ---------- log / run ----------
 function addLine([k,t]){const l=$("#log"),I={ok:"✔ ",warn:"⚠ ",err:"✖ ",info:"ℹ ",detail:"    ",step:"▸ ",progress:"… "};
  if(k=="progress"&&l.lastChild&&l.lastChild.dataset.pr)l.lastChild.remove();const d=el("div",k,(I[k]||"")+t);if(k=="progress")d.dataset.pr=1;l.append(d);l.scrollTop=l.scrollHeight}
-function setPct(p){const b=$("#pb");b.className=running&&(p==null||p=="idle")?"ind":"";b.firstChild.style.width=typeof p=="number"?p+"%":""}
+function showLog(){const log=$("#log"),bar=$("#logbar");if(!log)return;
+ clearTimeout(showLog._t);log.classList.remove("log-hi");bar&&bar.classList.remove("log-hi");
+ void log.offsetWidth;log.classList.add("log-hi");bar&&bar.classList.add("log-hi");
+ const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
+ {const pg=$("#page");if(pg)pg.scrollTo({top:pg.scrollHeight,behavior:reduce?"auto":"smooth"});else log.scrollIntoView({behavior:reduce?"auto":"smooth",block:"nearest"})}
+ showLog._t=setTimeout(()=>{log.classList.remove("log-hi");bar&&bar.classList.remove("log-hi")},700)}
+function setPct(p){const b=$("#pb");if(b){b.className=running&&(p==null||p=="idle")?"ind":"";if(b.firstChild)b.firstChild.style.width=typeof p=="number"?p+"%":""}
+ const qb=$("#qpb"),ql=$("#qplab"),busy=(running||qBusy),ind=busy&&(p==null||p=="idle");
+ if(qb){qb.className=ind?"qpb ind":"qpb";const fi=qb.firstChild;if(fi){if(typeof p=="number"){fi.style.width=p+"%";fi.style.marginLeft=""}else{fi.style.width="";fi.style.marginLeft=""}}}
+ if(ql){if(ql.dataset.hold){if(busy&&qBusy)ql.textContent=qWorkLabel(p)}else{if(busy)ql.textContent=typeof p=="number"?("Progress: "+Math.round(p)+"%"):(ind?"Working…":"");else ql.textContent=""}}}
 async function tick(){const r=await api("poll");
  r.lines.forEach(x=>{if(x[0]=="progress"&&log.length&&log[log.length-1][0]=="progress")log.pop();log.push(x);addLine(x)});
  if(r.pct!="keep")pct=r.pct;const was=running;running=r.running;setRunning(running);setPct(pct);
  if(was&&!running){clearInterval(poller);poller=null;pct="idle";setPct(pct);refresh();if(!qWait){opItem=null;if(lib.loaded)libLoad(); }if(qWait){const w=qWait;qWait=null;w(r)}else{const lv=r.cancelled?"warn":r.ok?"ok":"err",sn=r.ok&&!r.cancelled?"done":lv,msg=r.cancelled?"Operation cancelled":r.ok?"Operation completed successfully":"Operation finished with errors";if(yes(cfg.settings.notify))toast(msg,lv,sn);else SND.play(sn)}}}
-async function playExe(){if(running)return toast("An operation is already running.","warn");await api("play_exe");$("#log").scrollIntoView({block:"nearest"});await tick()}
-async function shortcutExe(){if(running)return toast("An operation is already running.","warn");await api("shortcut_exe");$("#log").scrollIntoView({block:"nearest"});await tick()}
+async function playExe(){if(running)return toast("An operation is already running.","warn");await api("play_exe");showLog();await tick()}
+async function shortcutExe(){if(running)return toast("An operation is already running.","warn");await api("shortcut_exe");showLog();await tick()}
 async function act(a){if(running||qBusy)return toast("An operation is already running.","warn");
  const p=await api("prepare",a);if(p.error)return toast(p.error,"err");
  for(const [t,x] of p.confirms)if(!await ask(t,x))return;
  if(a!="play"){log=[];$("#log").textContent="";pct=null;setRunning(true);setPct(null);const unw=cfg.settings.mode!="relink";opItem={path:folder,name:String(folder).split(/[\\/]/).pop(),label:a=="restore"?"Restoring backup…":a=="dryrun"?"Previewing conversion…":unw?"Unwrapping…":"Converting…"}}
  if(!await api("run",a,p.tools)){setRunning(false);opItem=null;return}
- $("#log").scrollIntoView({block:"nearest"});if(a=="play"){await tick();return}poller=setInterval(tick,200)}
+ showLog();if(a=="play"){await tick();return}poller=setInterval(tick,200)}
 async function importTools(){let plan;try{plan=await api("pick_tool_files")}catch(e){toast("Import failed: "+(e&&e.message||e)+" (is AnyPS5_GUI.py the updated version?)","err");return}if(!plan||!plan.length)return;
  const ok=plan.filter(x=>!x.skip),sk=plan.filter(x=>x.skip);
  if(!ok.length){toast("Nothing to import: "+sk.map(x=>x.name+" ("+x.skip+")").join("; "),"err");return}
@@ -1322,5 +1581,5 @@ function checkUpdate(){api("check_update").then(u=>{if(!u)return;
 document.getElementById("origin").onclick=e=>{e.preventDefault();api("open_origin_page")};
 // ---------- start ----------
 (async()=>{if(!window.pywebview)await new Promise(r=>addEventListener("pywebviewready",r,{once:true}));
- S=await api("get_state");if(S.version)$("#ver").textContent="v"+S.version;ui={...UIDEF,...(S.ui||{})};if(ui.bg=="orbs")ui.bg="accent";applyUI(ui);renderTop();cfg=S.cfg;sndSync(cfg.runtime);{const o=cfg.settings.open_sections;if(o)advOpen=Object.fromEntries(o.split(",").filter(x=>x&&x!="none").map(k=>[k,1]))}folder=S.folder;renderCards();await refresh();const f=$('[data-k="folder"]');f&&f.focus();checkUpdate()})();
+ S=await api("get_state");ui={...UIDEF,...(S.ui||{})};if(ui.bg=="orbs")ui.bg="accent";applyUI(ui);renderTop();cfg=S.cfg;sndSync(cfg.runtime);{const o=cfg.settings.open_sections;if(o)advOpen=Object.fromEntries(o.split(",").filter(x=>x&&x!="none").map(k=>[k,1]))}folder=S.folder;renderCards();await refresh();const f=$('[data-k="folder"]');f&&f.focus();checkUpdate()})();
 </script></body></html>
