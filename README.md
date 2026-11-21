@@ -364,16 +364,11 @@ The **Library** is the home screen: one place for your dumps and converted packa
 
 - **Visual controller editor:** click a button, then press a key, mouse button or wheel direction. Alternate inputs supported.
 - **Controller button remapping:** on a second controller diagram, click a button and choose which PlayStation button it presses (for example swap Cross and Circle), or turn a button off with `None`. It is saved as `SDLButton:button = Button` lines and checked when you save or import.
-
-  <img src="docs/screenshots/4.png" alt="Input mapping">
-
 - **Stick deadzones and mouse-as-stick settings** (sensitivity, curve, smoothing, decay).
-
-  <img src="docs/screenshots/5.png" alt="Input deadzones and mouse settings">
-
 - **Import / export** your settings, or edit `anyps5-input.ini` directly in text view (with validity check).
 
-  <img src="docs/screenshots/6.png" alt="Input deadzones and mouse settings">
+  <img src="docs/screenshots/4.png" alt="Input mapping">
+  <img src="docs/screenshots/5.png" alt="Input deadzones and mouse settings">
 
 ### Test report
 
