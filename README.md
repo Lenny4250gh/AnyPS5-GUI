@@ -80,7 +80,7 @@ Need checksums, folders or portable mode? See [Installation & requirements](#ins
 | Section | What you will find |
 |:--|:--|
 | [Download](#download) | Builds for Windows, Linux and macOS |
-| [Quick start](#quick-start) | From dump to launch in 5 steps |
+| [Quick start](#quick-start) | From dump to launch, starting from the Library |
 | [What is this for?](#what-is-this-for) | What the GUI does and the typical flow |
 | [Who is it for?](#who-is-it-for) | Beginners and experienced users |
 | [Highlights](#highlights) | The best features at a glance |
@@ -97,11 +97,13 @@ Need checksums, folders or portable mode? See [Installation & requirements](#ins
 
 ## Quick start
 
-1. **Open the app** and go to **Convert a game**.
-2. **Check the requirements.** The app tells you what is missing (tools, CPU, GPU, memory) and can download the tools for you. On the first run it already picks the system, `--to-intel` and `--to-rosetta` options that fit your computer.
-3. **Pick your game folder** (your own dump), or a `.zip` / `.rar` of it: archives are extracted automatically.
-4. **Run Unwrap** if your files are decrypted SELF/fSELF, **then Relink**. The result is a `<GAME>-<system>` package in your output folder (by default a `Converted games` folder next to the program; change it in the settings).
-5. **Go to Play a game** and press **Launch**, or create a shortcut.
+1. **Open the app.** You land on **Library** (your games in one place).
+2. **Add folders** once via **Folders…**: the folder with your PS5 dumps, and (optionally) where converted packages live. The default output folder is always included.
+3. **Check the requirements** on the **Convert** tab if tools are missing. The app can download them for you. On the first run it already picks the system, `--to-intel` and `--to-rosetta` options that fit your computer.
+4. **Convert a dump** from the Library (**Convert** / **Add to queue** / **Queue all**), or open the **Convert** tab for a single game step by step (folder or `.zip` / `.rar`). Run **Unwrap** if needed, then **Relink**. The result is a `<GAME>-<system>` package in your output folder.
+5. **Launch** from the Library when the game shows as converted, or use **By path** only if the package is not listed yet.
+
+The **Queue** button (top bar, with a badge showing how many games wait) opens a side panel for batch conversion from any tab. Adding a game from the Library opens it automatically.
 
 Settings (runtime, input, appearance) can be changed at any time from their tabs.
 
@@ -178,6 +180,9 @@ What you get besides "a window instead of a command line":
 
 ### Comfort
 
+- **Library first.** Games, conversion and launch live in one home tab; the conversion queue is a side panel from any page. **Convert** is the manual / batch tool and **By path** is only for converted folders that are not in the Library; short hints and a `1 · Game → 2 · Mode → 3 · Convert` strip explain each page.
+- **Always within reach.** When you scroll down, the top bar condenses into a floating pill (version, **Queue** with its badge, **Report**, **Settings**) and a round **Back to top** button appears at the bottom right.
+- **Visible feedback.** Launching a game, creating a shortcut or starting a conversion scrolls to the log with a short highlight; Library buttons and status texts cross-fade when a game's actions change. All animations respect your system's reduced-motion setting.
 - **Sound effects.** Short clicks and chimes, made by the app, with a volume slider (you can turn them off).
 
 ---
@@ -188,8 +193,9 @@ Everything the app can do, organized by page.
 
 | Page | Jump to |
 |:--|:--|
-| Convert a game | [Convert](#convert-a-game) · [Patches & fixed-base](#conversion-patches-and-fixed-base-options) |
-| Play a game | [Play](#play-a-game) · [Library](#library) · [Game data & screenshots](#converted-game-data-and-screenshots) |
+| Library (home) | [Library](#library) · [Game data & screenshots](#converted-game-data-and-screenshots) |
+| Convert | [Convert](#convert-a-game) · [Patches & fixed-base](#conversion-patches-and-fixed-base-options) · [Queue](#conversion-queue) |
+| By path | [By path](#by-path) |
 | Settings | [Settings](#settings) · [Runtime diagnostics & overlay](#runtime-diagnostics-and-overlay) |
 | Input | [Input](#input) |
 | Reports | [Test report](#test-report) |
@@ -205,7 +211,7 @@ Everything the app can do, organized by page.
 | **Unwrap** | Already-decrypted SELF/fSELF → ELF, using the official `unwrap_self.py` (the original files are backed up, with a *Restore backup* button). |
 | **Relink** | Builds the `<GAME>-<system>` package (app0 + libs + executable) for Windows, Linux or macOS. |
 | **Output folder** | Converted games go to the output folder you choose in the settings. When it is empty, the default is a `Converted games` folder next to the program, created automatically. |
-| **Conversion queue** | Add several games (the selected one, a folder with many games, or archives) and convert or unwrap them one after the other with the current settings. One confirmation at the start; a failed game does not stop the queue, and *Stop queue* cancels it. |
+| **Conversion queue** | Opened from the **Queue** button in the top bar (side panel, available on every tab). Add several games from the Library or Convert, then convert or unwrap them one after the other with the current settings. One confirmation at the start; a failed game does not stop the queue, and *Stop* cancels it. See [Conversion queue](#conversion-queue). |
 | **Game archives** | The game can be a folder or a `.zip` / `.rar` (`.rar` needs 7-Zip installed). |
 | **First-run defaults** | Without a config file, the system is set to your own, `--to-intel` is on for Intel CPUs and `--to-rosetta` is on for Apple silicon. |
 | **Rosetta** | The *Apple silicon via Rosetta (--to-rosetta)* option sits under the system choice and is hidden when the Windows system is selected. |
@@ -238,6 +244,24 @@ Shows what is missing before you start, and downloads the tools for you when nee
   <img src="docs/screenshots/2.png" alt="Convert Page 2">
 </p>
 
+### Conversion queue
+
+<a id="conversion-queue"></a>
+
+The conversion queue is a **side panel** that slides in from the right, like a browser's download manager. It is opened from the **Queue** button in the top bar (the badge shows how many games are in it) and is available from every tab. **Esc** or a click outside closes it.
+
+<p align="center">
+  <img src="docs/screenshots/queue-screenshot.png" alt="Conversion queue panel">
+</p>
+
+| Feature | Description |
+|:--|:--|
+| **Add games** | From the Library (**Add to queue**, **Queue all**, or **Convert**), or from the panel's **Add games** section: **Current game** (the one selected in Convert), **Folder…** (a game folder, or a folder with several games) and **Archives…** (`.zip` / `.rar`). Adding from the Library opens the panel automatically. |
+| **Run** | **Convert queue** (or **Unwrap queue**) processes the items one after the other with the current Convert settings. One confirmation at the start (none when you start a single game with **Convert** from the Library). The panel closes by itself and the log slides into view. |
+| **Live progress** | While the queue runs, the panel footer shows a progress bar with *Working on <game> · N%* that updates in real time. |
+| **Icons** | Each row shows the game icon (grayscale while pending, full colour when finished). |
+| **Stop / Remove / Clear** | **Stop** cancels the rest; **Remove** takes out a single item and **Clear** empties the list (both are blocked while the queue is running). A failed game does not stop the others. |
+
 ### Conversion patches and fixed-base options
 
 - **`--patches`** accepts a patch file. If no explicit file is supplied, the relinker may use `relinker-patches.toml` next to `eboot.bin` when present.
@@ -247,7 +271,10 @@ Shows what is missing before you start, and downloads the tools for you when nee
 - **`--function-symbol-roots`** treats defined function symbols as code entry points instead of trusting `st_size` ranges (export validation and Windows/macOS analysis).
 - **`--omit-unavailable-dependencies`** (Linux only) omits bundled-module dependencies that no converted module provides and that are not on `--rpath`. Prefer this only when the run path already holds every needed system library.
 
-### Play a game
+### By path
+
+Use this tab when you need to open a converted package that is **not** listed in the Library. Prefer the Library when the game is already registered. If the path is empty, the app tries the configured output folder using the game's name.
+
 
 - **Compatibility** opens the AnyPS5 [Game bring-up](https://github.com/boykopovar/AnyPS5/discussions/categories/game-bring-up) discussions in your browser, searching the Title ID of the selected converted game.
 - **Launch** a converted game with your current settings, or **create a shortcut** that starts it with the right variables. The shortcut is named after the real game title read from the game's `param.json` (e.g. *Dreaming Sarah* instead of `PPSA02929`); if the title can't be read, the folder name is used.
@@ -262,12 +289,16 @@ Shows what is missing before you start, and downloads the tools for you when nee
 
 ### Library
 
-- **Dumps and converted games in one table.** The **Library** tab lists your PS5 dumps and your converted games together, one line per game: a dump and its converted package are matched by Title ID (without one, by folder name). Add the folder with your dumps and the folder with your converted games from **Folders…**; the output folder is always included. Only those folders and their direct sub-folders are read: the whole disk is never scanned.
-- **Columns:** icon (`icon0.png`, or a default icon), name, serial (Title ID), game version, size (calculated in the background and cached; **Refresh** recalculates it), state (dump only / needs unwrap / converted), path, *Converted with* (from `conversion_info.json`), status (from the last `anyps5-report.json`) and your own comment. Click a column to sort; filter All / Converted / Not converted; search by name or serial; switch between grid view (the default) and table view. Drag the edge of a column header to resize it (double-click a handle to reset all columns); the widths are remembered, and so is the choice between table and grid view. Changing the filter, the view or the sorting animates the rows.
+The **Library** is the home screen: one place for your dumps and converted packages.
+
+- **Dumps and converted games in one list.** One row (or card) per Title ID: a dump and its converted package are matched by Title ID (without one, by folder name). Add the folder with your dumps and the folder with your converted games from **Folders…**; the output folder is always included. Only those folders and their direct sub-folders are read: the whole disk is never scanned.
+- **Toolbar.** One compact bar: **Folders**, refresh and grid/table icons, the filters **All · n** | **Done · n** | **Pending · n** (a sliding segment) and **Queue all**, shown only when there are dumps without a package. The search box sits next to the title. When the Library is empty or a filter shows nothing, the page offers direct actions (add folders, convert a game, open Queue, show all).
+- **Table view:** columns scroll horizontally; the **Actions** column stays fixed on the right so Launch / Convert / queue controls remain visible. Long names and paths are cut with an ellipsis and stay inside their column. In grid view the buttons fill the width of each card.
+- **Columns:** icon (`icon0.png`, or a default icon), name, serial (Title ID), game version, size (calculated in the background and cached; **Refresh** recalculates it), state (dump only / needs unwrap / converted), path, *Converted with* (from `conversion_info.json`), status (from the last `anyps5-report.json`) and your own comment. Click a column to sort; filter All / Done / Pending; search by name or serial; switch between grid view (the default) and table view. Drag the edge of a column header to resize it (double-click a handle to reset all columns); the widths are remembered, and so is the choice between table and grid view. Changing the filter, the view or the sorting animates the rows.
 - **Converted games:** **Launch**, **Shortcut**, **Folders…** (package, `_sd`, `_sd_mem`, `_trophy`, screenshots, save backups, trophy reset) and **Settings…** (language, present mode, fullscreen, overlay, GPU, upscale, FPS limit, extra variables for that game only; the shortcut uses them too). If a game has packages for more than one system, a button switches between them.
 - **Live states:** while the app works on a game, its Status shows what is happening right now instead of the last run: *In conversion queue* / *In unwrap queue*, *Converting…*, *Unwrapping…*, *Previewing conversion…*, *Restoring backup…*, *Launching…*, *Deleting PS5 dump…* and *Deleting converted game…*. A busy game cannot be launched, converted, queued or deleted until it finishes, and the Library is read again by itself when a conversion ends.
-- **Dumps not converted yet:** **Convert** opens the Convert page with the dump selected, adds it to the [conversion queue](#convert-a-game) and starts the queue (you confirm once; games already waiting in the queue are converted too), **Add to queue** adds it to the [conversion queue](#convert-a-game), and **Convert all not converted** queues every such dump.
-- **Delete:** **More…** has **Delete PS5 dump…** and **Delete converted game…**, each with an "Are you sure?" window; the folder is deleted for good, not sent to the recycle bin. The Library folders themselves and a running game are protected.
+- **Dumps not converted yet:** with an empty [conversion queue](#conversion-queue), **Convert** starts the conversion right away (you confirm once, unless it is the only game; in grid view a small queue icon sits next to it) and **Add to queue** adds the game and opens the panel. As soon as the queue has games, **Add to queue** becomes the main action and turns into **Remove from queue** for games already in it. **Queue all** queues every dump without a package.
+- **Delete:** **More…** has **Delete PS5 dump…** and **Delete converted game…** (red buttons, kept apart from the main actions), each with an "Are you sure?" window; the folder is deleted for good, not sent to the recycle bin. The Library folders themselves and a running game are protected.
 - **Duplicates:** a warning appears when the same Title ID is found twice (two dumps, or two packages for the same system).
 
 <p align="center">
@@ -276,15 +307,11 @@ Shows what is missing before you start, and downloads the tools for you when nee
 
 ### Converted game data and screenshots
 
-- **Converted package path.** The **Play** view has a separate path for the converted PC game package, independent from the PS5 source path used for conversion. Launch and shortcut creation use the selected converted package; when no path is selected, the app attempts the configured output folder (`Converted games` by default).
+- **Converted package path.** The **By path** view has a separate path for the converted PC game package, independent from the PS5 source path used for conversion. Launch and shortcut creation use the selected converted package; when no path is selected, the app attempts the configured output folder (`Converted games` by default).
 - **Game folders (saves and trophies)** lets you open `_sd`, `_sd_mem` and `_trophy`. Save-data folders can be backed up as ZIP files; trophy data can be reset after a confirmation prompt. These actions operate on the selected/last-launched package, so check the displayed package path first.
 - **Trophies:** after a run, the app counts the unlocked trophies in `_trophy` (PS5 and PS4 formats) and warns about damaged files, because the game stops when it reads one.
-- **Screenshots:** the runtime `ANYPS5_SCREENSHOTS` setting accepts an absolute folder. When empty, screenshots go to `anyps5-screenshots/` next to the game executable. The **Screenshot gallery** in the Play view shows the latest ones (click to open) and has a button for the folder; the folder may not exist until the first F12 screenshot.
+- **Screenshots:** the runtime `ANYPS5_SCREENSHOTS` setting accepts an absolute folder. When empty, screenshots go to `anyps5-screenshots/` next to the game executable. The **Screenshot gallery** in the By path view shows the latest ones (click to open) and has a button for the folder; the folder may not exist until the first F12 screenshot.
 - **Shader cache:** Runtime settings show the effective AnyPS5 shader-cache path and current size, allow a custom absolute path through `ANYPS5_SHADER_CACHE_DIR`, and provide a clear-cache action. Clearing removes the AnyPS5 cache at that configured path, not the graphics driver's cache. `ANYPS5_NO_SHADER_CACHE` disables the on-disk cache; shaders may need to be rebuilt on later runs.
-
-<p align="center">
-  <img src="docs/screenshots/queue-screenshot.png" alt="Library (grid view)">
-</p>
 
 ### Settings
 
@@ -364,6 +391,7 @@ Shows what is missing before you start, and downloads the tools for you when nee
 ### Appearance
 
 - **Main color** (presets or custom hex) and **animated background** (soft grid, orbs or none). It stops automatically if your system asks for reduced motion.
+- **Animations:** option chips zoom softly on hover and press (can be turned off with the bubble-animation setting), collapsible sections open and close smoothly, and the queue panel slides in and out. Everything is disabled when your system asks for reduced motion.
 - **Sound effects:** short sounds generated by the app (no audio files) for buttons, tabs, dialogs, success and errors. Turn them off or change the volume in Appearance. They play only while the window has focus.
 
 <p align="center">
