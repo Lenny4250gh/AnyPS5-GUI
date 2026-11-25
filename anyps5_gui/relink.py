@@ -13,7 +13,8 @@ from .settings import (
     OUTPUT_NEXT_TO_APP0, RELINKER_PREFIX, SCRIPT_DIR, TARGETS, UNWRAP_SCRIPT_NAME
 )
 from .config import yes
-from .util import _remove_quiet, check_cancel, dir_size, file_state, is_inside, package_dir, split_list
+from .util import (_remove_quiet, check_cancel, dir_size, file_state, format_duration, is_inside, package_dir,
+                   split_list)
 from .repo import set_active_relinker_cfg
 from .input_ini import validate_input_ini
 from .process import stream_process
@@ -130,21 +131,25 @@ def do_dry_run(folder, cfg, log, cancel, holder):
   log("step", "Running the relinker in preview mode (nothing is written)")
   log("detail", "Command: " + " ".join(f'"{c}"' if " " in c else c for c in cmd))
   planned = []
+  rlog = make_relink_log(log)
 
   def sink(kind, text):
     text = str(text)
     if text.startswith("Would write: "):
       planned.append(text[len("Would write: "):].strip())
     elif not text.startswith("No output files were written"):
-      log(kind, text)
+      rlog(kind, text)
 
   try:
     code = stream_process(cmd, sink, cancel, holder, "Relinker", stdin=subprocess.DEVNULL)
   except Cancelled:
+    rlog.finish()
     raise
   except Exception as e:
+    rlog.finish()
     log("err", f"Unable to start the relinker: {e}")
     return False
+  rlog.finish()
   if code != 0:
     meaning = {1: "invalid arguments", 2: "conversion failed (see below)"}.get(code, "")
     log("err", f"The relinker exited with code {code}" + (f": {meaning}." if meaning else "."))
@@ -470,14 +475,18 @@ def _do_relink(folder, cfg, log, cancel, holder, created, mover=None):
     run_env.update(runtime_env(rt, target, pkg_dir))
     log("info", "--autorun: after the conversion the relinker starts the game (with the Runtime settings) "
                 "and this step ends when the game exits.")
+  rlog = make_relink_log(log)
   try:
-    code = stream_process(cmd, log, cancel, holder, "Relinker", env=run_env,
+    code = stream_process(cmd, rlog, cancel, holder, "Relinker", env=run_env,
                           stdin=subprocess.DEVNULL if autorun else None)
   except Cancelled:
+    rlog.finish()
     raise
   except Exception as e:
+    rlog.finish()
     log("err", f"Unable to start the relinker: {e}")
     return False
+  rlog.finish()
 
   if code != 0 and autorun and os.path.isfile(out_exe):
     # with --autorun the exit code is the one of the game: the conversion itself worked
@@ -535,6 +544,87 @@ def _do_relink(folder, cfg, log, cancel, holder, created, mover=None):
   log("detail", f"Structure:  app0/  {LIBS_DIR_NAME}/")
   log("detail", f"Executable: {out_exe}")
   return True
+
+
+# Share of the whole conversion taken by each phase of the relinker output (percent of the bar)
+_RL_SCAN_END = 8.0      # instruction/syscall scan of the main executable
+_RL_PRX_END = 85.0      # conversion of the modules (PRX conversion i/n)
+_RL_IMAGE_END = 97.0    # output image
+_RL_STAGE = re.compile(r"^\s*([A-Za-z][A-Za-z ]*?)\s*\|\s*(.+?)\s*\|\s*(\d+)%(?:\s*\((\d+)/(\d+)\))?\s*$")
+
+
+def make_relink_log(log):
+  """Wraps log(): turns the progress lines of the relinker ('PRX conversion | file | 46% (6/13)',
+  'Instruction scan | file | 57%', 'Output image | ...', 'Write output | ...') into ONE progress bar with
+  the real overall percentage, the module being converted, elapsed and estimated remaining time.
+  The raw percentage lines are replaced by the bar; every other line passes through unchanged."""
+  t0 = time.time()
+  st = {"last": 0.0, "pct": 0.0, "done": 0, "total": 0, "cur": "", "phase": "Scanning", "shown": False}
+
+  def show(pct, force=False):
+    pct = max(st["pct"], min(100.0, pct))  # never goes backwards
+    st["pct"] = pct
+    now = time.time()
+    if not force and now - st["last"] < 0.25 and pct < 100:
+      return
+    st["last"] = now
+    elapsed = now - t0
+    text = "Relinker: %.0f%%" % pct
+    detail = []
+    if st["total"]:
+      detail.append("%d/%d modules" % (min(st["done"], st["total"]), st["total"]))
+    if st["cur"]:
+      detail.append(st["cur"])
+    if detail:
+      text += " (" + " · ".join(detail) + ")"
+    text += " · " + st["phase"].lower()
+    text += " · elapsed " + format_duration(elapsed)
+    if elapsed > 5 and 3 <= pct < 100:
+      text += " · about %s remaining" % format_duration(elapsed * (100 - pct) / pct)
+    st["shown"] = True
+    log("percent", pct)
+    log("progress", text)
+
+  def finish():
+    if st["shown"]:
+      st["shown"] = False
+      log("percent", None)
+      log("progress", "")
+
+  def blog(kind, msg):
+    if kind in ("info", "progress") and isinstance(msg, str):
+      m = _RL_STAGE.match(msg)
+      if m:
+        stage, name, p = m.group(1).strip(), m.group(2).strip(), int(m.group(3))
+        frac = p / 100.0
+        if stage == "PRX conversion" and m.group(4) is not None:
+          st["done"], st["total"] = int(m.group(4)), int(m.group(5))
+          st["cur"], st["phase"] = name, "Converting"
+          if st["total"]:
+            show(_RL_SCAN_END + (_RL_PRX_END - _RL_SCAN_END) * st["done"] / st["total"])
+        elif stage in ("Instruction scan", "Syscall scan"):
+          sub = frac * 0.9 if stage == "Instruction scan" else 0.95
+          if st["total"] and name == st["cur"]:
+            span = (_RL_PRX_END - _RL_SCAN_END) / st["total"]
+            show(_RL_SCAN_END + span * (st["done"] + sub))
+          elif not st["total"]:
+            st["cur"], st["phase"] = name, "Scanning"
+            show(_RL_SCAN_END * sub)
+        elif stage == "Output image":
+          st["cur"], st["phase"] = name, "Building image"
+          show(_RL_PRX_END + (_RL_IMAGE_END - _RL_PRX_END) * frac)
+        elif stage == "Write output":
+          st["cur"], st["phase"] = name, "Writing"
+          show(_RL_IMAGE_END + (100.0 - _RL_IMAGE_END) * frac, force=(p >= 100))
+        else:
+          log(kind, msg)
+        return  # the bar line replaces the raw percentage line
+      if msg.strip() == "Conversion complete":
+        show(100.0, force=True)
+        finish()
+    log(kind, msg)
+  blog.finish = finish
+  return blog
 
 
 def run_import_audit(out_exe, app0_dir, pkg_dir, rl, log, cancel, holder):
