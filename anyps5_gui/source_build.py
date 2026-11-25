@@ -141,12 +141,12 @@ def relinker_status(rl):
   return f"{repo} · will be built when needed  ⚠", "warn"
 
 
-def _capture(cmd, cwd=None, env=None):
-  """Run a short command, returns (exit code, stdout). Exit code -1 if it cannot start."""
+def _capture(cmd, cwd=None, env=None, timeout=120):
+  """Run a short command, returns (exit code, stdout). Exit code -1 if it cannot start or times out."""
   kwargs = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
   try:
     res = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True,
-                         encoding="utf-8", errors="replace", timeout=120, **kwargs)
+                         encoding="utf-8", errors="replace", timeout=timeout, **kwargs)
   except (OSError, subprocess.SubprocessError):
     return -1, ""
   return res.returncode, (res.stdout or "").strip()
@@ -551,6 +551,23 @@ def quote_cmake_include_paths(repo, log):
   return fixed
 
 
+def _update_clone(repo, env, ref, log, cancel, holder):
+  """git fetch + reset + submodules of the clone, with the same steps the relinker build uses.
+  True if everything worked, False (with a warning) if a step failed."""
+  log("step", "Updating the repository")
+  steps = [(["git", "fetch", "--depth", "1", "--no-tags", "origin", ref or "HEAD"], "git fetch"),
+           (["git", "reset", "--hard", "FETCH_HEAD"], "git reset"),
+           (["git", "submodule", "sync", "--recursive"], "git submodule sync"),
+           (["git", "submodule", "update", "--init", "--recursive", "--depth", "1", "--jobs", "4"],
+            "git submodule update")]
+  for cmd, label in steps:
+    code = stream_process(cmd, log, cancel, holder, label, cwd=repo, env=env)
+    if code != 0:
+      log("warn", f"{label} failed (exit code {code}): using the existing checkout.")
+      return False
+  return True
+
+
 def ensure_source_libs(rl, log, cancel, holder, target=None):
   """Build the 'libs' CMake target of the cloned repo (full configuration: the relinker-only
   one does not include core/libs) and collect the .prx files (+ the MinGW runtime DLLs on
@@ -566,14 +583,47 @@ def ensure_source_libs(rl, log, cancel, holder, target=None):
   info_path = os.path.join(root, LIBS_INFO_NAME)
   out = os.path.join(root, LIBS_OUT_NAME)
   env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
-  code, commit = _capture(["git", "rev-parse", "HEAD"], cwd=repo, env=env)
-  commit = commit if code == 0 and commit else "unknown"
   cfgp = configparser.ConfigParser(interpolation=None)
   try:
     cfgp.read(info_path, encoding="utf-8")
   except Exception as _exc:
     hidden_error("ensure_source_libs", _exc)
     pass
+  # 0. same check as the relinker build: is there a newer commit than the one the libs were built from?
+  _DECLINED_REPOS.discard(root)
+  if yes(rl.get("repo_update", "yes")):
+    prev = cfgp.get("build", "commit", fallback="") if read_built_libs(p) else ""
+    log("step", "Checking for a new commit")
+    remote = remote_commit(p["url"], p["ref"], env)
+    if prev and remote and remote == prev:
+      log("ok", f"Libs already up to date (commit {remote[:12]}): nothing to download or build.")
+      return read_built_libs(p, target)
+    if prev and remote and remote != prev:
+      log("info", f"New commit on the remote: {remote[:12]}")
+      if unwrapper_mod.UPDATE_PROMPT and yes(rl.get("repo_update_ask", "yes")):
+        log("step", "A new version of the repository is available: reading the list of changes")
+        prompt_info = {"url": p["url"], "old": prev[:12], "new": remote[:12], "what": "libs"}
+        try:
+          prompt_info.update(repo_changes(p["url"], repo, prev, remote, p["ref"], env))
+        except Exception as _exc:
+          hidden_error("ensure_source_libs", _exc)
+          pass  # the list of changes is only a courtesy
+        check_cancel(cancel)
+        log("step", "Waiting for your choice")
+        answer = unwrapper_mod.UPDATE_PROMPT(prompt_info, cancel)
+        check_cancel(cancel)
+        if answer and not answer.get("update", True):
+          _DECLINED_REPOS.add(root)
+          log("ok", f"Keeping the current libs (commit {prev[:12]}).")
+          return read_built_libs(p, target)
+        log("info", "Updating and rebuilding.")
+    # bring the clone to the remote commit (skipped when the relinker build already did it)
+    code, head = _capture(["git", "rev-parse", "HEAD"], cwd=repo, env=env)
+    if not (remote and code == 0 and head == remote):
+      _update_clone(repo, env, p["ref"], log, cancel, holder)
+      check_cancel(cancel)
+  code, commit = _capture(["git", "rev-parse", "HEAD"], cwd=repo, env=env)
+  commit = commit if code == 0 and commit else "unknown"
   if cfgp.get("build", "commit", fallback="") == commit and read_built_libs(p):
     log("ok", f"Libs already built from commit {commit[:12]}")
     return read_built_libs(p, target)
@@ -621,12 +671,29 @@ def ensure_source_libs(rl, log, cancel, holder, target=None):
     quote_cmake_include_paths(repo, log)
   predownload_ffmpeg(repo, build, env, log, cancel)
   cfg_cmd = ["cmake", "-S", repo, "-B", build, "-DCMAKE_BUILD_TYPE=Release"] + extra_args
+  _, cmake_ver = _capture(["cmake", "--version"], env=env, timeout=20)
+  log("detail", "CMake: " + (cmake_ver.splitlines()[0] if cmake_ver else "version unknown") + " · build folder: " + build)
+  cleaned = False
   for attempt in range(1, 4):
     del errors[:]
     code = stream_process(cfg_cmd, log, cancel, holder, "cmake", env=env, errors=errors, logfile=logfile)
     if code == 0:
       break
     text = "\n".join(errors) + "\n" + "\n".join(holder.get("tail", []))
+    # "no known features for CXX compiler": CMake kept a compiler check from an earlier, incomplete
+    # configure in the build folder. Start again from an empty build folder (once).
+    if not cleaned and re.search(r"no known features for CXX compiler", text, re.I):
+      cleaned = True
+      log("warn", "CMake could not read the C++ features of the compiler (stale cache in the build folder?): "
+                  "starting again from a clean build folder.")
+      _rmtree_force(build)
+      os.makedirs(build, exist_ok=True)
+      try:
+        with open(env_mark, "w", encoding="utf-8") as fh:
+          fh.write(env_key)
+      except OSError:
+        pass
+      continue
     # Windows: ninja cannot rewrite its .ninja_deps/.ninja_log while an antivirus, a sync client
     # (OneDrive on Desktop) or a leftover process holds them. Drop them (they are only caches) and retry.
     if attempt < 3 and re.search(r"failed recompaction|Permission denied", text, re.I):
@@ -643,6 +710,10 @@ def ensure_source_libs(rl, log, cancel, holder, target=None):
   if code != 0:
     log("err", f"CMake configuration of the full build failed (exit code {code}).")
     _log_build_errors(errors, logfile, log)
+    if re.search(r"no known features for CXX compiler", "\n".join(errors), re.I):
+      log("info", "The compiler check of CMake failed even on a clean build folder. To see why, open "
+                  + os.path.join(build, "CMakeFiles", "CMakeConfigureLog.yaml")
+                  + " (or CMakeError.log) and look for the first failed test of the C++ compiler.")
     return None
   check_cancel(cancel)
   log("step", "Building target 'libs' - this can take a long time")
@@ -751,33 +822,97 @@ def _compare_url(url, old, new):
   return "https://github.com/%s/%s/compare/%s...%s" % (m.group(1), m.group(2), old, new)
 
 
+def _github_changes(url, old, new, limit):
+  """Fast path for GitHub repositories: ONE small HTTPS request to the compare API (no git, no
+  download of objects). Returns the same dict as repo_changes, or None on any failure
+  (offline, rate limit, private repo, ...): the caller then falls back to git."""
+  import datetime
+  import json
+  import urllib.request
+  m = re.match(r"^(?:https://github\.com/|git@github\.com:)([^/\s]+)/([^/\s]+?)(?:\.git)?/?$", (url or "").strip())
+  if not m:
+    return None
+  base = "https://api.github.com/repos/%s/%s/compare/%s...%s" % (m.group(1), m.group(2), old, new)
+
+  def get(page):
+    req = urllib.request.Request(base + "?per_page=100&page=%d" % page,
+                                 headers={"Accept": "application/vnd.github+json", "User-Agent": "AnyPS5-GUI"})
+    with urllib.request.urlopen(req, timeout=8) as r:
+      return json.loads(r.read().decode("utf-8"))
+
+  def local(iso):
+    try:
+      dt = datetime.datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone()
+      return dt.strftime("%Y-%m-%d %H:%M")
+    except Exception:
+      return ""
+
+  try:
+    data = get(1)
+    total = int(data.get("total_commits") or len(data.get("commits") or []))
+    commits = data.get("commits") or []
+    if total > 100:  # commits are oldest first: the newest ones are on the last page
+      commits = get((total + 99) // 100).get("commits") or commits
+    if not commits:
+      return None
+    rows = [c for c in commits if len(c.get("parents") or []) < 2]  # like --no-merges
+    rows = rows[::-1]  # newest first
+    info = {"commits": [], "partial": total > len(commits) or len(rows) > limit, "old_date": "", "new_date": "",
+            "compare": _compare_url(url, old, new)}
+    for c in rows[:limit]:
+      cm = c.get("commit") or {}
+      info["commits"].append({"h": (c.get("sha") or "")[:7],
+                              "d": local(((cm.get("committer") or {}).get("date")) or ""),
+                              "s": ((cm.get("message") or "").splitlines() or [""])[0][:140]})
+    bc = (data.get("base_commit") or {}).get("commit") or {}
+    info["old_date"] = local(((bc.get("committer") or {}).get("date")) or "")
+    info["new_date"] = info["commits"][0]["d"] if info["commits"] else ""
+    return info
+  except Exception as _exc:
+    hidden_error("_github_changes", _exc)
+    return None
+
+
 def repo_changes(url, repo, old, new, ref, env, limit=12):
   """What changed between the commit already built and the remote one, for the update popup.
-  Reads at most `limit` commit titles (hash, date, title) with a shallow `git fetch` that only
-  fills FETCH_HEAD (the working tree is not touched). Everything is best effort: on any failure
-  the popup simply shows the two hashes and the link."""
+  Reads at most `limit` commit titles (hash, date, title). To be fast it fetches ONLY the commit
+  objects (--filter=tree:0: no trees, no files) into a throw-away bare repository, so the real
+  checkout is never touched and nothing heavy is downloaded. Everything is best effort, with a
+  time limit: on any failure the popup simply shows the two hashes and the link."""
+  import tempfile
+  fast = _github_changes(url, old, new, limit)
+  if fast:
+    return fast
   info = {"commits": [], "partial": False, "old_date": "", "new_date": "", "compare": _compare_url(url, old, new)}
-  if not os.path.isdir(repo):
+  fmt = "--date=format-local:%Y-%m-%d %H:%M"
+  if os.path.isdir(repo):  # the old commit is already in the local clone
+    _, d = _capture(["git", "log", "-1", fmt, "--format=%cd", old], cwd=repo, env=env, timeout=15)
+    info["old_date"] = d.strip()
+  tmp = tempfile.mkdtemp(prefix="anyps5_chg_")
+  try:
+    if _capture(["git", "init", "--bare", "-q", tmp], env=env, timeout=15)[0] != 0:
+      return info
+    code, _ = _capture(["git", "fetch", "--depth", "50", "--no-tags", "--filter=tree:0", "--no-recurse-submodules",
+                        url, ref or "HEAD"], cwd=tmp, env=env, timeout=25)
+    if code != 0:
+      return info
+    _, d = _capture(["git", "log", "-1", fmt, "--format=%cd", "FETCH_HEAD"], cwd=tmp, env=env, timeout=15)
+    info["new_date"] = d.strip()
+    # the old commit is reachable from the fetched history only if fewer than ~50 commits are new
+    reach, _ = _capture(["git", "merge-base", "--is-ancestor", old, "FETCH_HEAD"], cwd=tmp, env=env, timeout=15)
+    if reach != 0 and os.path.isdir(repo):  # old commit unknown to the temp repo: it is in the real clone
+      reach = 1
+    rng = (old + "..FETCH_HEAD") if reach == 0 else "FETCH_HEAD"
+    code, out = _capture(["git", "log", "-n", str(limit + 1), "--no-merges", fmt, "--format=%h%x1f%cd%x1f%s", rng],
+                         cwd=tmp, env=env, timeout=15)
+    if code != 0:
+      return info
+    rows = [l.split("\x1f") for l in out.splitlines() if l.count("\x1f") == 2]
+    info["partial"] = reach != 0 or len(rows) > limit  # "and more": the list is cut
+    info["commits"] = [{"h": r[0], "d": r[1], "s": r[2][:140]} for r in rows[:limit]]
     return info
-  code, _ = _capture(["git", "fetch", "--depth", "50", "--no-tags", "--no-recurse-submodules", "origin", ref or "HEAD"],
-                     cwd=repo, env=env)
-  if code != 0:
-    return info
-  _, d = _capture(["git", "log", "-1", "--date=format-local:%Y-%m-%d %H:%M", "--format=%cd", old], cwd=repo, env=env)
-  info["old_date"] = d.strip()
-  _, d = _capture(["git", "log", "-1", "--date=format-local:%Y-%m-%d %H:%M", "--format=%cd", "FETCH_HEAD"], cwd=repo, env=env)
-  info["new_date"] = d.strip()
-  # the old commit is reachable from the fetched history only if fewer than ~50 commits are new
-  reach, _ = _capture(["git", "merge-base", "--is-ancestor", old, "FETCH_HEAD"], cwd=repo, env=env)
-  rng = (old + "..FETCH_HEAD") if reach == 0 else "FETCH_HEAD"
-  code, out = _capture(["git", "log", "-n", str(limit + 1), "--no-merges", "--date=format-local:%Y-%m-%d %H:%M", "--format=%h%x1f%cd%x1f%s", rng],
-                       cwd=repo, env=env)
-  if code != 0:
-    return info
-  rows = [l.split("\x1f") for l in out.splitlines() if l.count("\x1f") == 2]
-  info["partial"] = reach != 0 or len(rows) > limit  # "and more": the list is cut
-  info["commits"] = [{"h": r[0], "d": r[1], "s": r[2][:140]} for r in rows[:limit]]
-  return info
+  finally:
+    _rmtree_force(tmp)
 
 
 def remote_commit(url, ref, env):
@@ -919,7 +1054,7 @@ def ensure_source_relinker(rl, log, cancel, holder):
       # a build already exists and the repository changed: let the user decide (only when the
       # settings are unchanged, otherwise a rebuild is needed anyway)
       if same_settings and unwrapper_mod.UPDATE_PROMPT and yes(rl.get("repo_update_ask", "yes")):
-        log("step", "A new version of the repository is available: waiting for your choice")
+        log("step", "A new version of the repository is available: reading the list of changes")
         prompt_info = {"url": p["url"], "old": previous["commit"][:12], "new": remote[:12]}
         try:
           prompt_info.update(repo_changes(p["url"], repo, previous["commit"], remote, p["ref"], env))
@@ -927,6 +1062,7 @@ def ensure_source_relinker(rl, log, cancel, holder):
           hidden_error("ensure_source_relinker", _exc)
           pass  # the list of changes is only a courtesy
         check_cancel(cancel)
+        log("step", "Waiting for your choice")
         answer = unwrapper_mod.UPDATE_PROMPT(prompt_info, cancel)
         check_cancel(cancel)
         if answer and not answer.get("update", True):
