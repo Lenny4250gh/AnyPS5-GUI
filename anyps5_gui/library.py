@@ -7,11 +7,12 @@ in the data folder."""
 import base64
 import json
 import os
+import shutil
 import threading
 import time
 
 from .settings import DATA_DIR, DEFAULT_OUTPUT_DIR, EXECUTABLE_NAME, TARGETS, hidden_error
-from .util import file_state
+from .util import _rmtree_force, file_state
 from .files import folder_game_problems
 from .runtime import title_name
 from .report import read_run_report
@@ -328,3 +329,67 @@ def merged_runtime(cfg, data, pkg):
     if k in GAME_RT_KEYS and isinstance(v, str) and v.strip():
       rt[k] = v.strip()
   return rt
+
+
+def _tree_stats(path):
+  """(number of files, total size) of a folder: used to check a copy before the original is deleted."""
+  count = total = 0
+  for r, _d, files in os.walk(path):
+    for n in files:
+      count += 1
+      try:
+        total += os.path.getsize(os.path.join(r, n))
+      except OSError:
+        pass
+  return count, total
+
+
+def _same_volume(a, b):
+  try:
+    return os.stat(a).st_dev == os.stat(b).st_dev
+  except OSError:
+    return False
+
+
+def move_folder(src, dest_parent):
+  """Moves the folder `src` inside `dest_parent`. Same drive: a rename (instant). Another drive: copy,
+  check (file count and size), then delete the original; if anything goes wrong the partial copy is
+  removed and the original is left untouched. Returns (new_path, error, left): `left` is True when the
+  copy is complete but some files of the original could not be deleted (in use)."""
+  src, dest_parent = norm(src), norm(dest_parent)
+  name = os.path.basename(src)
+  new = os.path.join(dest_parent, name)
+  if os.path.normcase(os.path.dirname(src)) == os.path.normcase(dest_parent):
+    return "", "This folder is already in the chosen location.", False
+  if (os.path.normcase(dest_parent) + os.sep).startswith(os.path.normcase(src) + os.sep):
+    return "", "You cannot move a folder inside itself.", False
+  if os.path.lexists(new):
+    return "", "A folder named '%s' already exists in the chosen location." % name, False
+  try:
+    os.makedirs(dest_parent, exist_ok=True)
+  except OSError as e:
+    return "", "Cannot use the chosen folder: %s" % e, False
+  try:
+    os.rename(src, new)
+    return new, "", False
+  except OSError as e:
+    if _same_volume(src, dest_parent):  # a rename on the same drive only fails when something is in use
+      return "", "Could not move the folder (is a file in use? close the game and other programs): %s" % e, False
+  try:
+    shutil.copytree(src, new, symlinks=True, copy_function=shutil.copy2)
+    if _tree_stats(src) != _tree_stats(new):
+      raise OSError("the copy does not match the original")
+  except (OSError, shutil.Error) as e:
+    try:
+      _rmtree_force(new)
+    except OSError as _exc:
+      hidden_error("move_folder cleanup", _exc)
+    return "", "Copy failed (the original is untouched): %s" % e, False
+  try:
+    if os.path.islink(src):
+      os.unlink(src)
+    else:
+      _rmtree_force(src)
+  except OSError as _exc:
+    hidden_error("move_folder delete", _exc)
+  return new, "", os.path.lexists(src)
