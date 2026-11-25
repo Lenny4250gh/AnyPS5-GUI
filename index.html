@@ -217,6 +217,7 @@ body:not([data-bubble=off]) .hrow>.opt:active:not([aria-disabled=true]){transfor
 .cpkh i{top:50%}
 .cpks:focus-visible,.cpkh:focus-visible{box-shadow:0 0 0 .15em var(--ring)}
 .cpkr{display:flex;align-items:center;gap:.7em}.cpkp{width:2em;height:2em;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.35);flex:none}.cpkx{font:400 .85em Consolas,"Cascadia Mono","DejaVu Sans Mono",monospace;color:var(--dim)}
+#pbw{display:flex;align-items:center;gap:.7em;margin:.9em 0 0}#pbw #pb{flex:1;margin:0}#pbp{min-width:3.2em;text-align:right;font-variant-numeric:tabular-nums;font-size:.85em;font-weight:700;color:var(--text)}#pbp:empty{display:none}
 #pb{height:.3em;border-radius:1em;background:rgba(255,255,255,.12);overflow:hidden;margin:.9em 0 0}
 #pb i{display:block;height:100%;width:0;background:var(--ring);transition:width .2s}
 #pb.ind i{width:30%;animation:ind 1.2s ease-in-out infinite}
@@ -239,6 +240,11 @@ body:not([data-bubble=off]) .hrow>.opt:active:not([aria-disabled=true]){transfor
  font:400 calc(13.5px*var(--scale))/1.55 Consolas,"Cascadia Mono","DejaVu Sans Mono",monospace;white-space:pre-wrap;outline:none;-webkit-user-select:text;user-select:text;cursor:text}
 #log *{-webkit-user-select:text;user-select:text}
 #log:focus-visible{box-shadow:0 0 0 .1em var(--ring)}
+#logjw{position:relative;height:0;z-index:5}
+#logjump{position:absolute;right:1.7em;bottom:.8em;gap:.5em;padding:.4em .95em .4em .7em;background:rgba(40,44,48,.94);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:0 4px 14px rgba(0,0,0,.45);opacity:0;visibility:hidden;transform:translateY(6px);pointer-events:none;transition:opacity .18s ease,transform .22s ease,visibility 0s .22s;white-space:nowrap}
+#logjump.on{opacity:1;visibility:visible;transform:none;pointer-events:auto;transition:opacity .18s ease,transform .22s ease,visibility 0s}
+#logjump .bi{display:flex;align-items:center;height:1em;flex:none}
+@media (prefers-reduced-motion:reduce){#logjump,#logjump.on{transition:none;transform:none}}
 #log .step{color:var(--mag);font-weight:700;margin-top:.6em}#log .detail{color:var(--dim)}#log .progress{color:var(--blue)}#log .info{color:var(--text)}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:40}
 .dlg,.cfm{background:rgba(30,32,35,.62);border:1px solid var(--line);border-radius:1.2em;padding:1.2em 1.4em;display:flex;flex-direction:column;
@@ -343,11 +349,11 @@ textarea{width:100%;height:34vh;resize:none}
 
 .dbody.tin{animation:tab .26s var(--ease) both}
 .cmb.open .cpop{animation:pop .16s var(--ease);transform-origin:top center}
-body.intro h1,body.intro .tagline,body.intro .card,body.intro #pb,body.intro #log{animation:up .5s var(--ease) both}
+body.intro h1,body.intro .tagline,body.intro .card,body.intro #pbw,body.intro #log{animation:up .5s var(--ease) both}
 body.intro .tagline{animation-delay:.05s}
 body.intro .card:nth-child(1){animation-delay:.1s}body.intro .card:nth-child(2){animation-delay:.17s}
 body.intro .card:nth-child(3){animation-delay:.24s}body.intro .card:nth-child(4){animation-delay:.31s}
-body.intro #pb{animation-delay:.36s}body.intro #log{animation-delay:.4s}
+body.intro #pbw{animation-delay:.36s}body.intro #log{animation-delay:.4s}
 #log div:not(.progress){animation:lg .22s ease-out}
 #toast{transform:translateX(-50%) translateY(14px);transition:opacity .25s,transform .32s var(--ease)}
 #toast.on{transform:translateX(-50%) translateY(0)}
@@ -530,8 +536,9 @@ textarea:not(:focus):hover,
 <div id="page"><div id="in">
  <div id="hd"><div><h1>AnyPS5 <small class="gui">GUI</small></h1><p class="tagline">Your games in one place · Convert when needed · Launch from the Library</p></div><div id="top" class="hrow"><span id="topbtn"></span></div></div>
  <div id="cards"></div>
- <div id="pb" role="progressbar"><i></i></div>
+ <div id="pbw"><div id="pb" role="progressbar"><i></i></div><span id="pbp"></span></div>
  <div id="log" role="log" aria-live="polite" tabindex="0" data-nav="1" aria-label="Log"></div>
+ <div id="logjw"><button type="button" id="logjump" class="b ic" tabindex="-1" aria-label="Scroll to the latest log lines" title="Back to the latest lines (resume automatic scrolling)"><span class="bi"><svg viewBox="0 0 24 24"><path d="M12 5v13M6.5 12.5 12 18l5.5-5.5"/></svg></span><span id="logjn"></span></button></div>
  <div id="logbar"></div>
 <p class="legal">AnyPS5 GUI is an unofficial, independent tool. It is not affiliated with, endorsed by or sponsored by Sony Interactive Entertainment. PlayStation and PS5 are trademarks of Sony Interactive Entertainment. Use it only with games you legally own; do not use it to obtain or share pirated content.</p>
 <p class="legal">Originally part of the project <a href="#" id="origin">Lenny4250gh/AnyPS5-GUI</a>. Released under GPL-2.0-only.</p>
@@ -620,7 +627,7 @@ const dis=(e,off)=>{const k=e.dataset.k,o=!!off,
  prev=k!=null?disMem[k]:undefined;if(k!=null)disMem[k]=o;
  // when the state changed since the last render, paint the old state first and switch after two frames so the opacity fades
  if(prev!==undefined&&prev!==o){apply(prev);requestAnimationFrame(()=>requestAnimationFrame(()=>apply(o)))}else apply(o);return e};
-const ICON={tcv:'<svg viewBox="0 0 24 24"><path d="M4 8h13M13.5 4.5 17 8l-3.5 3.5"/><path d="M20 16H7M10.5 12.5 7 16l3.5 3.5"/></svg>',que:'<svg viewBox="0 0 24 24"><path d="M9.5 6H20M9.5 12H20M9.5 18H20"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>',qadd:'<svg viewBox="0 0 24 24"><path d="M4 6h11M4 12h7M4 18h7"/><path d="M17.5 13.5v7M14 17h7"/></svg>',tbd:'<svg viewBox="0 0 24 24"><path d="M8.5 8 4.5 12l4 4M15.5 8l4 4-4 4M13.5 5.5l-3 13"/></svg>',tdk:'<svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="2.8"/><path d="M5 6v6c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V6M5 12v6c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-6"/></svg>',tpl:'<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>',tpt:'<svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 1 0 0 16c1.4 0 2-.9 2-1.8 0-1.3-1-1.7-1-2.9 0-1 .8-1.8 1.9-1.8H17a3 3 0 0 0 3-3C20 6.9 16.4 4 12 4z"/><path d="M8 11h.01M11 8h.01M15 8.5h.01"/></svg>',pad:'<svg viewBox="0 0 24 24"><path d="M7 8.5h10a4 4 0 0 1 4 4v1.5a3 3 0 0 1-5.2 2l-1.3-1.5h-5L8.2 16A3 3 0 0 1 3 14v-1.5a4 4 0 0 1 4-4z"/><path d="M8.2 11v3M6.7 12.5h3"/><path d="M15.5 11.6h.01M17.6 13.4h.01"/></svg>',
+const ICON={stop:'<svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.2"/></svg>',tcv:'<svg viewBox="0 0 24 24"><path d="M4 8h13M13.5 4.5 17 8l-3.5 3.5"/><path d="M20 16H7M10.5 12.5 7 16l3.5 3.5"/></svg>',que:'<svg viewBox="0 0 24 24"><path d="M9.5 6H20M9.5 12H20M9.5 18H20"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>',qadd:'<svg viewBox="0 0 24 24"><path d="M4 6h11M4 12h7M4 18h7"/><path d="M17.5 13.5v7M14 17h7"/></svg>',tbd:'<svg viewBox="0 0 24 24"><path d="M8.5 8 4.5 12l4 4M15.5 8l4 4-4 4M13.5 5.5l-3 13"/></svg>',tdk:'<svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="2.8"/><path d="M5 6v6c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V6M5 12v6c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-6"/></svg>',tpl:'<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>',tpt:'<svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 1 0 0 16c1.4 0 2-.9 2-1.8 0-1.3-1-1.7-1-2.9 0-1 .8-1.8 1.9-1.8H17a3 3 0 0 0 3-3C20 6.9 16.4 4 12 4z"/><path d="M8 11h.01M11 8h.01M15 8.5h.01"/></svg>',pad:'<svg viewBox="0 0 24 24"><path d="M7 8.5h10a4 4 0 0 1 4 4v1.5a3 3 0 0 1-5.2 2l-1.3-1.5h-5L8.2 16A3 3 0 0 1 3 14v-1.5a4 4 0 0 1 4-4z"/><path d="M8.2 11v3M6.7 12.5h3"/><path d="M15.5 11.6h.01M17.6 13.4h.01"/></svg>',
  tune:'<svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>',
  download:'<svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>',
  pause:'<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>',
@@ -688,8 +695,8 @@ window.askRepoUpdate=info=>{
  const m=el("div","modal"),b=el("div","cfm ruc");b.setAttribute("role","dialog");
  const cs=info.commits||[],n=cs.length;
  b.append(el("h2","","New version available"),
-  el("p","",n?"The repository has "+(info.partial?"more than "+n:n)+" new change"+(n==1&&!info.partial?"":"s")+" since the relinker you built. Update and rebuild now, or keep the build you already have?"
-   :"The repository has a newer version than the relinker you built. Update and rebuild now, or keep the build you already have?"));
+  el("p","",n?"The repository has "+(info.partial?"more than "+n:n)+" new change"+(n==1&&!info.partial?"":"s")+" since the "+(info.what||"relinker")+" you built. Update and rebuild now, or keep the build you already have?"
+   :"The repository has a newer version than the "+(info.what||"relinker")+" you built. Update and rebuild now, or keep the build you already have?"));
  const vs=el("div","ruv"),ver=(lb,h,d)=>{const x=el("div","ruvb");x.append(el("span","rul",lb),el("code","",h),el("span","rud",d||""));return x};
  vs.append(ver("Your build",info.old,info.old_date),el("span","rua","→"),ver("Latest",info.new,info.new_date));b.append(vs);
  if(n){const ul=el("ul","rucl");
@@ -752,7 +759,8 @@ function renderTop(){const t=$("#topbtn");t.textContent="";
  const ver=el("small","ver");ver.id="ver";ver.textContent=(typeof S!=="undefined"&&S&&S.version)?"v"+S.version:"";t.append(ver);
  const qb=btn("Queue",toggleQueue,{k:"qopen",icon:"que",tip:"Conversion queue — convert several games one after the other"});
  qb.classList.add("qbtn");const badge=el("span","qbadge");badge.id="qbadge";badge.dataset.n="0";qb.append(badge);
- t.append(qb,btn("Report or suggest",feedback,{k:"fb",icon:"ext",tip:"Report a bug or suggest something (opens GitHub)"}),btn("Settings",()=>openSettings("Appearance"),{k:"gear",icon:"tune",tip:"Settings (Ctrl+K to search them all)"}));
+ const gs=btn("Stop",stopOp,{k:"gstop",icon:"stop",tip:"Stops the operation in progress (download, build, conversion or queue)."});gs.classList.add("dang");gs.style.display=(running||qBusy)?"":"none";
+ t.append(gs,qb,btn("Report or suggest",feedback,{k:"fb",icon:"ext",tip:"Report a bug or suggest something (opens GitHub)"}),btn("Settings",()=>openSettings("Appearance"),{k:"gear",icon:"tune",tip:"Settings (Ctrl+K to search them all)"}));
  qBadge();syncTopDock()}
 (()=>{const page=$("#page");if(page)page.addEventListener("scroll",syncTopDock,{passive:true})})();
 (()=>{const page=$("#page"),tt=$("#totop");if(!page||!tt)return;let on=false;
@@ -777,7 +785,7 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
  root.append(el("p","mode-hint",hints[view]||""));
  if(view=="convert"){const fl=el("div","flow");fl.append(el("b","","1 · Game"),el("span","sep","→"),el("b","","2 · Mode"),el("span","sep","→"),el("b","","3 · Convert"),el("span","sep","·"),document.createTextNode(" Queue for batch"));root.append(fl)}
  if(view=="play"){const fl=el("div","flow");fl.append(el("b","","Pick folder"),el("span","sep","→"),el("b","","Launch / shortcut"));root.append(fl)}
- const logb=()=>[el("span","sp"),btn("Export report…",makeReport,{k:"rep",tip:"Saves a report file with the test info of GAME_TESTING.md (host, GPU, variables, exit code), the automatic reading and the FULL log. Ready to attach on Discord or GitHub."}),btn("Debug package…",debugPack,{k:"dbgpk",tip:"Saves a zip with the bug report, the full report, your settings and the .registry.json files. User name, computer name and home folder are hidden; check it before you share it."}),btn("Copy for bug",copyBug,{k:"cpb",tip:"Copies a short report (versions, host report, last 60 log lines, personal names hidden) to paste in a GitHub issue."}),btn("Clear log",()=>{log=[];$("#log").textContent=""},{k:"clr"})];
+ const logb=()=>[el("span","sp"),btn("■  Stop",stopOp,{k:"stoplog",off:!(running||qBusy),tip:"Stops the operation in progress (download, build, conversion or queue)."}),btn("Export report…",makeReport,{k:"rep",tip:"Saves a report file with the test info of GAME_TESTING.md (host, GPU, variables, exit code), the automatic reading and the FULL log. Ready to attach on Discord or GitHub."}),btn("Debug package…",debugPack,{k:"dbgpk",tip:"Saves a zip with the bug report, the full report, your settings and the .registry.json files. User name, computer name and home folder are hidden; check it before you share it."}),btn("Copy for bug",copyBug,{k:"cpb",tip:"Copies a short report (versions, host report, last 60 log lines, personal names hidden) to paste in a GitHub issue."}),btn("Clear log",()=>{log=[];$("#log").textContent=""},{k:"clr"})];
  if(view=="library"){libraryView(root);{const res=el("section","card step"),rh=el("div","rh");rh.append(el("h3","","Log"),hrow(...logb().slice(1)));res.append(rh);lbar.append(res)}if(vAnim){vAnim="";[...root.children].slice(1).forEach(c=>{c.style.animation="vinR .38s var(--ease) both"})}return}
  if(view=="convert") {
   card("1. Select the PS5 game",note("Folder or archive of the original dump. Required for Convert on this page."),hrow(field("folder",()=>folder,async v=>{folder=await api("set_folder",v);refresh()} ,"Path to PS5 game folder or .zip / .rar",{label:"PS5 source path",live:v=>api("set_folder",v)}),btn("Browse folder…",async()=>{const p=await api("pick_folder");if(p){folder=p;renderCards();refresh()}},{k:"browse"}),btn("Choose archive…",async()=>{const p=await api("pick_archive");if(p){folder=p;renderCards();refresh()}},{k:"browsezip",tip:"Select a .zip or .rar archive; .rar requires 7-Zip."})),note(folder?"Selected: "+folder:"No PS5 source selected yet."));
@@ -835,7 +843,7 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
   m.append(wr)}
  m.append(check("Notify when an operation finishes or fails","Shows an in-app message and a system notification (Windows / macOS / Linux).",()=>yes(s.notify),v=>setMain("settings","notify",v?"yes":"no"),"notify"));m.append(check("Open the trash folder automatically","When a failed or cancelled operation moves an incomplete folder to the trash, open the trash so you can see or restore it.",()=>yes(s.open_trash),v=>setMain("settings","open_trash",v?"yes":"no"),"open_trash"));m.append(hrow(btn("Open conversion settings",()=>openSettings("Conversion"),{k:"os2",icon:"tune",tip:"Conversion tab: all relinker flags (--to-rosetta, --rpath, --lazy-binding…)"})));
  const src=gh?"github":rls?"release":"prebuilt",from=prevSrc||src;prevSrc=src;
- const SHOW={prebuilt:{repo:0,unoff:0,tag:0,ref:0,guide:0,dl:0,build:0,imp:1},release:{repo:1,unoff:1,tag:1,ref:0,guide:1,dl:1,build:0,imp:0},github:{repo:1,unoff:1,tag:0,ref:1,guide:1,dl:0,build:1,imp:0}},vzs=[];
+ const SHOW={prebuilt:{repo:0,unoff:0,tag:0,ref:0,guide:0,dl:0,build:0,buildlibs:0,imp:1},release:{repo:1,unoff:1,tag:1,ref:0,guide:1,dl:1,build:0,buildlibs:0,imp:0},github:{repo:1,unoff:1,tag:0,ref:1,guide:1,dl:0,build:1,buildlibs:1,imp:0}},vzs=[];
  const vz=(key,node,row)=>{const w=el("div",row?"vzr":"vz");if(row){const i=el("div","vzin");i.append(node);w.append(i)}else w.append(node);
   const set=(s,anim)=>{const g=!SHOW[s][key],was=w.classList.contains("gone");w.inert=g;
    if(!row){clearTimeout(w._t);
@@ -848,7 +856,7 @@ function renderCards(){const lbar=$("#logbar");lbar.textContent="";const root=$(
   set(from);vzs.push(()=>set(src,1));return w};
  const ut=fold("ut","Tools and updates: where they come from",hrow(el("span","lbl","Source:"),radio("Local files (manual)",!gh&&!rls,()=>setMain("relinker","relinker_source","prebuilt"),"s1"),radio("Release from GitHub repo (auto-update)",rls,()=>setMain("relinker","relinker_source","release"),"s3"),radio("Build from GitHub source (auto-update)",gh,()=>setMain("relinker","relinker_source","github"),"s2")),
   vz("repo",hrow(el("span","lbl","Repository:"),field("repo",()=>r.repo_url,v=>setMain("relinker","repo_url",v||S.default_repo),"",{label:"Repository"}),
-   btn("Default",()=>setMain("relinker","repo_url",S.default_repo),{k:"repodef"}),vz("dl",btn("Download now",()=>act("download"),{k:"dl",off:running})),vz("build",btn("Build now",()=>act("build"),{k:"build",off:running})),btn("Stop",()=>api("cancel"),{k:"stopdl",off:!running,tip:"Stops the download or build in progress."}),btn("Relinker version",async()=>{const r=await api("relinker_version");if(r)toast(r.text,r.level==="ok"?"ok":r.level)},{k:"relver",tip:"Runs relinker --version. The version used is also saved in conversion_info.json inside each converted package."})),1),
+   btn("Default",()=>setMain("relinker","repo_url",S.default_repo),{k:"repodef"}),vz("dl",btn("Download now",()=>act("download"),{k:"dl",off:running})),vz("build",btn("Build now",()=>act("build"),{k:"build",off:running})),vz("buildlibs",btn("Build libs",()=>act("build_libs"),{k:"buildlibs",off:running,tip:"Compiles the libs (.prx) from the repository source instead of using the prx-*.zip libs. It can take a long time."})),btn("Stop",()=>api("cancel"),{k:"stopdl",off:!running,tip:"Stops the download or build in progress."}),btn("Relinker version",async()=>{const r=await api("relinker_version");if(r)toast(r.text,r.level==="ok"?"ok":r.level)},{k:"relver",tip:"Runs relinker --version. The version used is also saved in conversion_info.json inside each converted package."})),1),
   ...(repoOfficial(r.repo_url)?[]:[vz("unoff",el("p","muted warn","Unofficial repository: run only code you trust."),1)]),
   vz("tag",hrow(el("span","lbl","Release tag:"),field("reltag",()=>r.release_tag||"",v=>setMain("relinker","release_tag",v),"empty = latest release",{label:"Release tag"}),el("span","muted","Same value as Settings → Source build")),1),
   vz("ref",hrow(el("span","lbl","Branch or tag:"),field("repref",()=>r.repo_ref||"",v=>setMain("relinker","repo_ref",v),"empty = default branch",{label:"Branch or tag"}),el("span","muted","Same value as Settings → Source build")),1),
@@ -882,7 +890,12 @@ function applyStatus(){const rd=$("#ready");if(rd){
 
 status.forEach(([k,,v,lv])=>{const e=$("#st-"+k);if(e){e.textContent=v;e.className=lv=="muted"?"muted-c":lv}});
  const e=$("#st-space");if(e){e.textContent=space?space.text:"—";e.className=space?space.level:"muted-c"}}
-function setRunning(b){running=b;document.querySelectorAll('[data-k="stop"],[data-k="stopdl"]').forEach(t=>dis(t,!b));document.querySelectorAll('[data-k="dl"],[data-k="build"]').forEach(t=>dis(t,b));["start","dryrun","restore","play"].forEach(k=>{const e=$(`#cards [data-k="${k}"]`);e&&dis(e,b&&k!="play")})}
+// Stop on every page: top bar button (visible only while something runs) and the one in the log bar.
+const stopOp=()=>{if(qBusy)qStop=true;api("cancel")};
+function stopSync(){const on=!!(running||qBusy),g=document.querySelector('#topbtn [data-k="gstop"]');if(g)g.style.display=on?"":"none";
+ document.querySelectorAll('[data-k="stoplog"]').forEach(t=>dis(t,!on))}
+setInterval(stopSync,300);
+function setRunning(b){running=b;document.querySelectorAll('[data-k="stop"],[data-k="stopdl"]').forEach(t=>dis(t,!b));stopSync();document.querySelectorAll('[data-k="dl"],[data-k="build"],[data-k="buildlibs"]').forEach(t=>dis(t,b));["start","dryrun","restore","play"].forEach(k=>{const e=$(`#cards [data-k="${k}"]`);e&&dis(e,b&&k!="play")})}
 // ---------- settings dialog (tabs like the Tk version) ----------
 // ---------- visual input mapping (controller diagram) ----------
 const PAD_NAMES=["Cross","Circle","Triangle","Square","L1","R1","L2","R2","L3","R3","Options","Up","Right","Down","Left","LeftStickLeft","LeftStickRight","LeftStickUp","LeftStickDown","RightStickLeft","RightStickRight","RightStickUp","RightStickDown","TouchLeft","TouchRight","StickModifier","Shake","ToggleMouse","ToggleFullscreen","TogglePerformanceOverlay","Screenshot"];
@@ -1242,7 +1255,7 @@ async function runQueue(direct){
  if(confirms.length)txt+="\n\nYou confirm all of this:\n"+confirms.map(x=>"• "+x).join("\n");
  if(!(direct&&!confirms.length&&!skipped.length)&&!await ask("Start the queue",txt,"Start","Cancel")){qRefresh();return}
  qBusy=true;qStop=false;log=[];$("#log").textContent="";
- if(qOpen)closeQueue();showLog();qRefresh();
+ if(qOpen)closeQueue();showLog(view=="library");qRefresh();
  let ok=0,bad=0,first=true;
  for(const [i,it] of run.entries()){
   if(qStop)break;
@@ -1347,7 +1360,7 @@ function libView(g){const bz=libBusy(g),p=g.pkgs.find(x=>x.path==libPick[g.key])
   state:p?"Converted · "+cap(p.target)+(d?" · dump kept":""):"Dump only"+(d.eboot=="self"?" · needs unwrap":d.eboot=="elf"?" · unwrapped":"")}}
 async function libConvert(r){if(running||qBusy)return toast("An operation is already running.","warn");
  folder=await api("set_folder",r.dump.path);const solo=queue.every(x=>x.path==r.dump.path),old=queue.find(x=>x.path==r.dump.path);if(old){old.st="wait";old.msg=""}else qAdd([r.dump.path]);
- view="convert";vAnim="L";renderCards();refresh();await runQueue(solo)}
+ renderCards();refresh();await runQueue(solo)}
 function libUnqueue(r){const i=r.dump?queue.findIndex(x=>x.path==r.dump.path):-1;if(i<0)return;
  if(running||qBusy)return toast("The queue is running: stop it first to remove games.","warn");
  queue.splice(i,1);qRefresh();toast("Removed from the queue.","ok")}
@@ -1369,8 +1382,14 @@ function libDetails(r){const [m,d]=libModal(r.name),g=el("div","ldet");
  if(r.dump){if(queue.length&&!r.pkg)acts.push(libQBtn(r,"ldq",{pri:1,after:()=>m.done()}));else acts.push(btn(r.pkg?"Convert again":"Convert",()=>{m.done();libConvert(r)},{pri:!r.pkg,k:"ldv",off:r.busy}),libQBtn(r,"ldq"));}
  const dels=[];r.g.dumps.forEach((x,i)=>{const b=btn(r.g.dumps.length>1?"Delete dump "+(i+1)+"…":"Delete PS5 dump…",()=>{m.done();libDelete(r,"dump",x.path)},{k:"ldd"+i,off:r.busy,tip:"Deletes the original PS5 game folder from your disk."});b.classList.add("dang");dels.push(b)});
  r.g.pkgs.forEach((x,i)=>{const b=btn(r.g.pkgs.length>1?"Delete "+cap(x.target)+" package…":"Delete converted game…",()=>{m.done();libDelete(r,"pkg",x.path)},{k:"ldp"+i,off:r.busy,tip:"Deletes the converted PC package (its saves and trophies are inside it)."});b.classList.add("dang");dels.push(b)});
+ const mvs=[];r.g.dumps.forEach((x,i)=>mvs.push(btn(r.g.dumps.length>1?"Move dump "+(i+1)+"…":"Move PS5 dump…",()=>{m.done();libMove(r,"dump",x.path)},{k:"lmd"+i,off:r.busy,tip:"Moves the original PS5 game folder to another folder or drive."})));
+ r.g.pkgs.forEach((x,i)=>mvs.push(btn(r.g.pkgs.length>1?"Move "+cap(x.target)+" package…":"Move converted game…",()=>{m.done();libMove(r,"pkg",x.path)},{k:"lmp"+i,off:r.busy,tip:"Moves the converted PC package (saves and trophies included) to another folder or drive. Settings and shortcut follow it."})));
  const foot=hrow(...dels,el("span","sp"),btn("Close",()=>m.done(),{k:"ldc"}));
- const cm=hrow(libCm(r,"d"));cm.style.margin="0.75em 0 0";const ac=hrow(...acts);ac.style.marginTop="1.15em";d.append(g,cm,ac,foot)}
+ const cm=hrow(libCm(r,"d"));cm.style.margin="0.75em 0 0";const ac=hrow(...acts);ac.style.marginTop="1.15em";const mv=hrow(...mvs);mv.style.marginTop="0.6em";d.append(g,cm,ac,mv,foot)}
+async function libMove(r,kind,path){if(r.busy)return toast("This game is busy: "+r.status.text,"warn");
+ libAct[r.key]="Moving…";libDraw();let x;try{x=await api("library_move",kind,path)}catch(e){delete libAct[r.key];libDraw();toast("Move failed: "+(e&&e.message||e),"err");return}delete libAct[r.key];
+ if(x&&x.ok){toast((x.left?"Moved (some files of the original are still there): ":"Moved to: ")+x.path,x.left?"warn":"ok");libIcons={}}else if(!(x&&x.cancelled))toast((x&&x.error)||"Could not move the folder.","err");
+ if(!poller)await tick();libLoad()}
 async function libDelete(r,kind,path){const dump=kind=="dump";if(r.busy)return toast("This game is busy: "+r.status.text,"warn");
  if(!await ask(dump?"Delete the PS5 dump?":"Delete the converted game?",
   (dump?"This deletes the original PS5 game folder from your disk:\n":"This deletes the converted PC package from your disk, with its saves, trophies and screenshots:\n")+path+"\n\n"+r.name+(r.serial?" ("+r.serial+")":"")+"\n\nIt does not go to the recycle bin and cannot be undone. Are you sure?","Delete","Cancel"))return;
@@ -1476,15 +1495,28 @@ function libraryView(root){const c=el("section","card");
  if(lib.loaded)libDraw();else{box.append(note("Reading the folders…"));libLoad()}
  requestAnimationFrame(()=>libSegThumb(seg))}
 // ---------- log / run ----------
+// Automatic scrolling of the log: it follows the new lines only while the user is at the bottom. Scrolling up
+// stops it; a "↓ N new lines" button then appears and brings the user back to the bottom (and to the automatic follow).
+const logS={stick:true,n:0};
+function logJumpUpd(){const b=$("#logjump");if(!b)return;const on=!logS.stick&&logS.n>0;b.classList.toggle("on",on);b.tabIndex=on?0:-1;
+ const t=(logS.n>99?"99+":logS.n)+(logS.n==1?" new line":" new lines");$("#logjn").textContent=t;b.setAttribute("aria-label","Scroll to the latest log lines ("+t+")")}
+function logToBottom(){const l=$("#log");l.scrollTop=l.scrollHeight}
+(()=>{const l=$("#log"),b=$("#logjump");if(!l||!b)return;
+ l.addEventListener("scroll",()=>{const at=l.scrollHeight-l.scrollTop-l.clientHeight<30;logS.stick=at;if(at)logS.n=0;logJumpUpd()},{passive:true});
+ b.addEventListener("click",()=>{logS.stick=true;logS.n=0;logToBottom();logJumpUpd();l.focus({preventScroll:true})});
+ new MutationObserver(()=>{if(!l.firstChild){logS.stick=true;logS.n=0;logJumpUpd()}}).observe(l,{childList:true})})();
 function addLine([k,t]){const l=$("#log"),I={ok:"✔ ",warn:"⚠ ",err:"✖ ",info:"ℹ ",detail:"    ",step:"▸ ",progress:"… "};
- if(k=="progress"&&l.lastChild&&l.lastChild.dataset.pr)l.lastChild.remove();const d=el("div",k,(I[k]||"")+t);if(k=="progress")d.dataset.pr=1;l.append(d);l.scrollTop=l.scrollHeight}
-function showLog(){const log=$("#log"),bar=$("#logbar");if(!log)return;
+ if(!l.firstChild){logS.stick=true;logS.n=0}
+ const rep=k=="progress"&&l.lastChild&&l.lastChild.dataset.pr;if(rep)l.lastChild.remove();
+ const d=el("div",k,(I[k]||"")+t);if(k=="progress")d.dataset.pr=1;l.append(d);
+ if(logS.stick)l.scrollTop=l.scrollHeight;else if(!rep){logS.n++;logJumpUpd()}}
+function showLog(stay){const log=$("#log"),bar=$("#logbar");if(!log)return;
  clearTimeout(showLog._t);log.classList.remove("log-hi");bar&&bar.classList.remove("log-hi");
  void log.offsetWidth;log.classList.add("log-hi");bar&&bar.classList.add("log-hi");
  const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
- {const pg=$("#page");if(pg)pg.scrollTo({top:pg.scrollHeight,behavior:reduce?"auto":"smooth"});else log.scrollIntoView({behavior:reduce?"auto":"smooth",block:"nearest"})}
+ if(!stay){const pg=$("#page");if(pg)pg.scrollTo({top:pg.scrollHeight,behavior:reduce?"auto":"smooth"});else log.scrollIntoView({behavior:reduce?"auto":"smooth",block:"nearest"})}
  showLog._t=setTimeout(()=>{log.classList.remove("log-hi");bar&&bar.classList.remove("log-hi")},700)}
-function setPct(p){const b=$("#pb");if(b){b.className=running&&(p==null||p=="idle")?"ind":"";if(b.firstChild)b.firstChild.style.width=typeof p=="number"?p+"%":""}
+function setPct(p){const b=$("#pb");if(b){b.className=running&&(p==null||p=="idle")?"ind":"";if(b.firstChild)b.firstChild.style.width=typeof p=="number"?p+"%":"";const t=$("#pbp");if(t)t.textContent=typeof p=="number"?Math.round(p)+"%":""}
  const qb=$("#qpb"),ql=$("#qplab"),busy=(running||qBusy),ind=busy&&(p==null||p=="idle");
  if(qb){qb.className=ind?"qpb ind":"qpb";const fi=qb.firstChild;if(fi){if(typeof p=="number"){fi.style.width=p+"%";fi.style.marginLeft=""}else{fi.style.width="";fi.style.marginLeft=""}}}
  if(ql){if(ql.dataset.hold){if(busy&&qBusy)ql.textContent=qWorkLabel(p)}else{if(busy)ql.textContent=typeof p=="number"?("Progress: "+Math.round(p)+"%"):(ind?"Working…":"");else ql.textContent=""}}}
