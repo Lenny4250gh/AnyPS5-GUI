@@ -37,12 +37,12 @@ from .files import (
 from .disk import build_notification, notify_desktop, space_requirements
 from .release import ensure_release_assets, fetch_release_info
 from .source_build import (
-    ensure_source_relinker, install_build_tools, missing_build_tools, relinker_status, source_preflight,
+    ensure_source_libs, ensure_source_relinker, install_build_tools, missing_build_tools, relinker_status, source_preflight,
     TOOL_NAMES
 )
 from .env_catalog import ENV_CATALOG
 from .runtime import (
-    create_shortcut, discord_substate, download_input_mapper, find_input_mapper, INPUT_MAPPER_PORT,
+    _safe_filename, create_shortcut, discord_substate, download_input_mapper, find_input_mapper, INPUT_MAPPER_PORT,
     INPUT_MAPPER_REL, install_input_mapper_deps, node_status, title_name, validate_runtime_options
 )
 from .launch import launch_game
@@ -62,7 +62,7 @@ from .updater import (
 )
 from .library import (
     build_games, dump_row, find_dumps, find_packages, GAME_RT_KEYS, icon_uri, is_fs_root, library_roots,
-    load_library, merged_runtime, norm, package_exe, package_row, save_library, start_sizes
+    load_library, merged_runtime, move_folder, norm, package_exe, package_row, save_library, start_sizes
 )
 from .discord_rpc import DiscordRPC
 from .schema import SCHEMA
@@ -839,6 +839,28 @@ class Api:
         save_library(data)
     return True
 
+  def _pkg_shortcut_path(self, pkg):
+    """Path of the shortcut made by the program for this package (in the program folder), or None.
+    The file is named after the game title, so it is returned only if it really points to this package
+    (another game with the same title has its own folder and keeps its shortcut)."""
+    try:
+      target, _exe = package_exe(pkg)
+      ext = {"windows": ".lnk", "macos": ".command"}.get(target, ".desktop")
+      title = title_name(pkg) or os.path.basename(pkg)
+      path = os.path.join(SCRIPT_DIR, _safe_filename(title) + ext)
+      if not os.path.isfile(path):
+        return None
+      with open(path, "rb") as f:
+        raw = f.read()
+      ap = os.path.abspath(pkg)
+      for enc in ("utf-16le", "utf-8", "mbcs" if os.name == "nt" else "utf-8"):
+        for cand in (ap, ap.lower()):
+          if cand.encode(enc, "ignore") in raw or cand.encode(enc, "ignore") in raw.lower():
+            return path
+    except Exception as _exc:
+      hidden_error("_pkg_shortcut_path", _exc)
+    return None
+
   def library_delete(self, kind, path):
     """Deletes (for good) a PS5 dump (kind "dump") or a converted package (kind "pkg") that the Library lists.
     Folders added to the Library (and the output folder) themselves are never deleted, and neither is a package
@@ -858,6 +880,7 @@ class Api:
     if kind == "pkg" and self.game_proc is not None and self.game_proc.poll() is None and self.game_pkg \
             and os.path.normcase(norm(self.game_pkg)) == n:
       return {"ok": False, "error": "This game is running: close it first."}
+    shortcut = self._pkg_shortcut_path(target) if kind == "pkg" else None  # read before the files are gone
     try:
       if os.path.islink(target):
         os.unlink(target)  # a link: remove the link only, never what it points to
@@ -866,12 +889,78 @@ class Api:
     except OSError as e:
       return {"ok": False, "error": f"Could not delete the folder: {e}"}
     left = os.path.lexists(target)
+    if shortcut and not left:
+      try:
+        os.remove(shortcut)
+        self.q.put(("ok", "Shortcut deleted: " + shortcut))
+      except OSError as e:
+        self.q.put(("warn", f"The game was deleted but its shortcut could not be removed: {e}"))
     data["sizes"].pop(target, None)
     if kind == "pkg":
       data["game_rt"].pop(target, None)
     save_library(data)
     self.q.put(("warn" if left else "ok", ("Deleted only in part (some files are in use): " if left else "Deleted: ") + target))
     return {"ok": not left, "error": "Some files could not be deleted (in use?). Close the programs using them and try again." if left else ""}
+
+  def library_move(self, kind, path):
+    """Moves a PS5 dump (kind "dump") or a converted package (kind "pkg") of the Library to a folder the
+    user chooses. The destination folder is added to the Library, the per-game settings, the size and the
+    shortcut follow the game."""
+    data = self._lib_data()
+    if kind == "dump":
+      src = self._lib_dump(path)
+    elif kind == "pkg":
+      src = self._lib_pkg(path)
+    else:
+      return {"ok": False, "error": "Unknown item."}
+    if not src:
+      return {"ok": False, "error": "This game is no longer in the Library."}
+    n = os.path.normcase(norm(src))
+    if is_fs_root(src) or n in {os.path.normcase(norm(d)) for d in library_roots(self.cfg, data) + list(data["dump_dirs"])}:
+      return {"ok": False, "error": "This is a Library folder, not a game."}
+    if self.running:
+      return {"ok": False, "error": "An operation is running: wait for it to finish."}
+    if kind == "pkg" and self.game_proc is not None and self.game_proc.poll() is None and self.game_pkg \
+            and os.path.normcase(norm(self.game_pkg)) == n:
+      return {"ok": False, "error": "This game is running: close it first."}
+    dest = self.pick_any_folder()
+    if not dest:
+      return {"ok": False, "cancelled": True}
+    dest = norm(dest)
+    if is_fs_root(dest):
+      return {"ok": False, "error": "Choose a folder, not a whole drive (e.g. D:\\Games, not D:\\)."}
+    shortcut = None
+    if kind == "pkg":  # a shortcut made by the program points at the old path: remember to rebuild it
+      target, exe = package_exe(src)
+      ext = {"windows": ".lnk", "macos": ".command"}.get(target, ".desktop")
+      title = title_name(src) or os.path.basename(src)
+      old_sc = os.path.join(SCRIPT_DIR, _safe_filename(title) + ext)
+      if os.path.isfile(old_sc):
+        shortcut = (target, os.path.basename(exe), title)
+    self.q.put(("step", "Moving " + src))
+    self.q.put(("info", "To: " + dest + " (on another drive this is a copy and can take a few minutes)"))
+    new, err, left = move_folder(src, dest)
+    if err:
+      self.q.put(("err", err))
+      return {"ok": False, "error": err}
+    if True:
+      lst = data["dump_dirs"] if kind == "dump" else data["dirs"]
+      known = {os.path.normcase(norm(d)) for d in (list(data["dump_dirs"]) if kind == "dump" else library_roots(self.cfg, data))}
+      if os.path.normcase(dest) not in known and dest not in lst:
+        lst.append(dest)
+      for k in ("sizes", "game_rt", "comments"):
+        if src in data[k]:
+          data[k][new] = data[k].pop(src)
+      save_library(data)
+    if shortcut:
+      try:
+        cfg = {s: dict(v) for s, v in self.cfg.items()}
+        create_shortcut(new, shortcut[1], shortcut[0], merged_runtime(cfg, data, new), shortcut[2],
+                        lambda k, m: self.q.put((k, m)), SCRIPT_DIR)
+      except (OSError, ValueError, RuntimeError) as e:
+        self.q.put(("warn", "The game was moved but its shortcut could not be updated: %s" % e))
+    self.q.put(("warn" if left else "ok", ("Moved, but some files of the original could not be deleted (in use?): " if left else "Moved to: ") + (src if left else new)))
+    return {"ok": True, "path": new, "left": left}
 
   def library_set_ui(self, values):
     """How the Library looks: table or grid view and the width of each table column (kept in library.json:
@@ -1241,15 +1330,15 @@ class Api:
     if action in ("play", "download"):
       return res
     zipsrc = is_archive_source(self.folder)
-    if action != "build" and not (self.folder and (os.path.isdir(self.folder) or zipsrc)):
+    if action not in ("build", "build_libs") and not (self.folder and (os.path.isdir(self.folder) or zipsrc)):
       res["error"] = "Select the game folder or an archive of the game."
       return res
-    if zipsrc and action != "build":
+    if zipsrc and action not in ("build", "build_libs"):
       z = scan_archive(self.folder)
       if z.get("error"):
         res["error"] = "Cannot read the archive: " + z["error"]
         return res
-    if action not in ("build", "restore"):
+    if action not in ("build", "build_libs", "restore"):
       problems = archive_game_problems(scan_archive(self.folder)) if zipsrc else folder_game_problems(self.folder)
       if problems:
         res["error"] = (("The archive" if zipsrc else "The folder") + " does not look like a PS5 game, missing: "
@@ -1272,7 +1361,7 @@ class Api:
         res["confirms"].append(["Restore backup", "The current files in the game (eboot.bin and modules) will be "
                                 "OVERWRITTEN with the original backups. Proceed?"])
       return res
-    if action == "build":
+    if action in ("build", "build_libs"):
       p = source_preflight(dict(rl))
       if p and not p.startswith(("git", "cmake", "git and")):
         res["error"] = p
@@ -1313,7 +1402,7 @@ class Api:
       if k == "err":
         errs.append(str(m))
       self.q.put((k, m))
-      if k == "step" and not self.cancel_ev.is_set() and action not in ("play", "download", "build", "restore", "dry_run"):
+      if k == "step" and not self.cancel_ev.is_set() and action not in ("play", "download", "build", "build_libs", "restore", "dry_run"):
         sub = discord_substate(str(m))  # Discord: show which phase of the conversion is running
         if sub:
           self._rpc_set("Unwrapping game" if mode == "unwrap" else "Converting game", sub, timer=True)
@@ -1338,6 +1427,12 @@ class Api:
           return False
         return ensure_source_relinker(rl, log, self.cancel_ev, self.holder) is not None
       title = "Building the relinker from source"
+    elif action == "build_libs":
+      def job(log):
+        if tools and not install_build_tools(tools, log, self.cancel_ev, self.holder):
+          return False
+        return ensure_source_libs(rl, log, self.cancel_ev, self.holder, rl["target"]) is not None
+      title = "Building the libs from source"
     elif mode == "unwrap":
       title, job = "Mode: Unwrap only", lambda log: do_unwrap(folder, cfg, log, self.cancel_ev, self.holder)
     else:
@@ -1373,6 +1468,8 @@ class Api:
       self._rpc_set("Downloading tools", "Preparing release", timer=True)
     elif action == "build":
       self._rpc_set("Building converter (relinker)", "Compiling from source", timer=True)
+    elif action == "build_libs":
+      self._rpc_set("Building the libs", "Compiling from source", timer=True)
     elif action == "restore":
       self._rpc_set("Restoring backup", "Restoring")
     elif action == "dry_run":
